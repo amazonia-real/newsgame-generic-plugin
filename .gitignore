@@ -1,0 +1,65 @@
+# Logs e temporários
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+.Python
+venv/
+.venv/
+env/
+.env
+*.env
+pip-log.txt
+
+# Banco de dados vetorial e dados locais
+chroma_db/
+*.db
+*.sqlite
+*.sqlite3
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Sistema operacional
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Arquivos compactados gerados localmente
+*.zip
+*.tar.gz
+*.rar
+
+# Credenciais e segredos
+*.pem
+*.key
+secrets.json
+credentials.json
