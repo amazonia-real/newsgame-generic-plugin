@@ -63,3 +63,17 @@ $RECYCLE.BIN/
 *.key
 secrets.json
 credentials.json
+
+# Segurança Crítica - Blindagem Antigravity
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+.claude/
+node_modules/
+vendor/
+wp-config.php
+# Não subir logs de depuração
+npm-debug.log*
+yarn-error.log*
