@@ -20,11 +20,19 @@ require_once NEWSGAME_DIR . 'includes/class-newsgame-ingestor.php';
 require_once NEWSGAME_DIR . 'includes/class-newsgame-shortcodes.php';
 require_once NEWSGAME_DIR . 'includes/class-newsgame-admin-instances.php';
 require_once NEWSGAME_DIR . 'includes/class-newsgame-generator.php';
+require_once NEWSGAME_DIR . 'includes/class-newsgame-review.php';
 
+// Instalação do zero: cria tabelas no activation hook
 register_activation_hook( __FILE__, array( 'Newsgame_DB', 'create_tables' ) );
+
+// Migração automática: garante colunas novas sem exigir reativação do plugin.
+// Roda apenas na área administrativa e só executa queries SQL se a versão
+// do schema registrada no banco divergir de Newsgame_DB::SCHEMA_VERSION.
+add_action( 'admin_init', array( 'Newsgame_DB', 'maybe_upgrade' ) );
 
 Newsgame_Settings::init();
 Newsgame_Ingestor::init();
 Newsgame_Shortcodes::init();
 Newsgame_Admin_Instances::init();
 Newsgame_Generator::init();
+Newsgame_Review::init();

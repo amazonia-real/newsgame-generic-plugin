@@ -10,6 +10,7 @@ Estratégia de distribuição de lotes:
 from __future__ import annotations
 import json
 import math
+import sys
 import time
 from typing import Generator
 
@@ -18,6 +19,19 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from app.config import get_settings
 from app.models import GenerateRequest, LoteDilemas, DilemaNg
 from app.rag import get_collection, mmr_search
+
+
+# ── Validação de dilema pós-Gemini ───────────────────────
+
+def _is_valid_dilema(d: DilemaNg, num_options: int) -> bool:
+    """Descarta dilemas com campos críticos vazios ou número errado de alternativas."""
+    if not d.titulo.strip() or not d.situacao.strip():
+        return False
+    if len(d.alternativas) != num_options:
+        return False
+    if not all(a.texto.strip() for a in d.alternativas):
+        return False
+    return True
 
 
 # LLM singleton reutilizado entre chamadas da mesma instância do servidor
@@ -44,16 +58,33 @@ def _get_llm() -> ChatGoogleGenerativeAI:
 def _build_batches(req: GenerateRequest) -> list[dict]:
     """
     Distribui req.density entre personagens + lote geral.
-    Retorna lista de lotes, cada um com queries RAG e quantidade.
+
+    Modo Geral (sem personagens): lote único com toda a density, foco em jogador genérico.
+    Modo Personagem: 80% dividido entre personagens (nivel=1) + 20% lote geral.
+      - Se enable_levels=False, o lote geral também recebe nivel=1 (complexidade uniforme).
     """
     n_chars = len(req.characters)
+
+    # ── Modo Geral: sem personagens definidos ──────────────────
+    if n_chars == 0:
+        return [{
+            "nivel":                1,
+            "personagem_tipo":      "geral",
+            "personagem_label":     "Geral",
+            "personagem_descricao": None,
+            "quantidade":           req.density,
+            "queries":              [req.theme_prompt, f"perspectiva ampla sobre {req.theme_prompt}"],
+            "modo_geral":           True,
+        }]
+
+    # ── Modo Personagem ────────────────────────────────────────
     char_density = math.floor(req.density * 0.8)
     per_char     = max(5, math.ceil(char_density / n_chars))
     geral_qty    = req.density - (per_char * n_chars)
+    nivel_geral  = 2 if req.enable_levels else 1
 
     batches = []
     for char in req.characters:
-        # Queries derivadas da descrição do personagem + tema — sem hardcode temático
         queries = [
             f"{char.description} {req.theme_prompt}",
             f"{char.label} {req.theme_prompt}",
@@ -61,22 +92,24 @@ def _build_batches(req: GenerateRequest) -> list[dict]:
             req.theme_prompt,
         ]
         batches.append({
-            "nivel":              1,
-            "personagem_tipo":    char.slug,
-            "personagem_label":   char.label,
+            "nivel":                1,
+            "personagem_tipo":      char.slug,
+            "personagem_label":     char.label,
             "personagem_descricao": char.description,
-            "quantidade":         per_char,
-            "queries":            queries,
+            "quantidade":           per_char,
+            "queries":              queries,
+            "modo_geral":           False,
         })
 
     if geral_qty > 0:
         batches.append({
-            "nivel":              2,
-            "personagem_tipo":    "geral",
-            "personagem_label":   "Geral",
+            "nivel":                nivel_geral,
+            "personagem_tipo":      "geral",
+            "personagem_label":     "Geral",
             "personagem_descricao": None,
-            "quantidade":         geral_qty,
-            "queries":            [req.theme_prompt, f"perspectiva ampla sobre {req.theme_prompt}"],
+            "quantidade":           geral_qty,
+            "queries":              [req.theme_prompt, f"perspectiva ampla sobre {req.theme_prompt}"],
+            "modo_geral":           False,
         })
 
     return batches
@@ -92,10 +125,22 @@ def _build_prompt(
     personagem_label: str,
     personagem_descricao: str | None,
     quantidade: int,
+    num_options: int = 2,
+    enable_levels: bool = True,
+    modo_geral: bool = False,
 ) -> str:
     id_prefixo = f"{nivel}-{personagem_tipo}"
+    opcoes_str = "A e B" if num_options == 2 else "A, B e C"
 
-    if personagem_tipo == "geral":
+    # Foco narrativo: distingue Modo Geral (sem personagens) do lote geral (20% em modo personagem)
+    if modo_geral:
+        foco = (
+            f"Perguntas universais direcionadas ao JOGADOR GENÉRICO sobre o tema '{theme_prompt}'. "
+            "O jogador não tem papel pré-definido — é um cidadão, consumidor, eleitor ou estudante "
+            "que enfrenta decisões relacionadas ao tema. "
+            "Explore ângulos variados: social, econômico, cultural e histórico. Proibido repetir sub-temas."
+        )
+    elif personagem_tipo == "geral":
         foco = (
             f"Dilemas de perspectiva COLETIVA sobre o tema '{theme_prompt}', sem personagem fixo. "
             "O jogador assume o papel de tomador de decisão coletiva ou de membro de comunidade afetada. "
@@ -111,50 +156,106 @@ def _build_prompt(
             f"Nível de complexidade {nivel_label}: ajuste o vocabulário e a profundidade conforme o público."
         )
 
-    nivel_instrucao = (
-        "NÍVEL 1 — BÁSICO: Linguagem clara e acessível. Conecte o cenário ao cotidiano do leitor. "
-        "Explique brevemente conceitos técnicos quando necessários."
-        if nivel == 1 else
-        "NÍVEL 2 — AVANÇADO: Linguagem jornalística precisa. Explore trade-offs sistêmicos. "
-        "Assuma que o jogador conhece o contexto. Referencie atores institucionais quando pertinente."
-    )
+    # Instrução de nível: omite diferenciação quando níveis estão desativados
+    if enable_levels:
+        nivel_instrucao = (
+            "NÍVEL 1 — BÁSICO: Linguagem clara e acessível. Conecte o cenário ao cotidiano do leitor. "
+            "Explique brevemente conceitos técnicos quando necessários."
+            if nivel == 1 else
+            "NÍVEL 2 — AVANÇADO: Linguagem jornalística precisa. Explore trade-offs sistêmicos. "
+            "Assuma que o jogador conhece o contexto. Referencie atores institucionais quando pertinente."
+        )
+    else:
+        nivel_instrucao = (
+            "Linguagem clara e acessível. Conecte o cenário ao cotidiano do leitor. "
+            "Explique brevemente conceitos técnicos quando necessários."
+        )
 
-    return f"""Você é um Designer de Narrativas para um plugin WordPress educativo que transforma reportagens reais em dilemas interativos gamificados.
+    # Schema JSON das alternativas — dinâmico conforme num_options
+    letras = ["A", "B", "C"][:num_options]
+    alts_linhas = []
+    for i, letra in enumerate(letras):
+        virgula = "," if i < num_options - 1 else ""
+        alts_linhas.append(
+            f'        {{\n'
+            f'          "id": "{letra}",\n'
+            f'          "texto": "Verbo presente + ação concreta — alternativa {letra}. Máx. 90 chars.",\n'
+            f'          "consequencia": "Consequência imediata de {letra}. Máx. 90 chars.",\n'
+            f'          "impacto": {{ "popularidade": 0, "recursos": 0 }}\n'
+            f'        }}{virgula}'
+        )
+    alternativas_schema = "\n".join(alts_linhas)
 
-CONTEXTO JORNALÍSTICO (reportagens reais — recuperadas via RAG com diversidade MMR):
+    return f"""
+{'█' * 60}
+DIRETRIZ DE IDENTIDADE — LEIA ANTES DE QUALQUER COISA:
+
+{theme_prompt}
+
+Esta diretriz define TUDO: o vocabulário, o tom, os ganchos, o recorte temático,
+os exemplos e o público de CADA pergunta que você vai gerar.
+Toda decisão de conteúdo deve passar por esta lente antes de qualquer outra regra.
+Ignorar ou diluir esta diretriz é um erro crítico e o resultado será descartado.
+{'█' * 60}
+
+SEU PAPEL:
+Você é um roteirista de jogos interativos que transforma fragmentos jornalísticos reais
+em perguntas de tomada de decisão e trivia — divertidas, diretas e baseadas em fatos.
+Elimine qualquer tom acadêmico, burocrático ou dissertativo.
+Varra o acervo em busca de: pontos de virada, tensões, fatos surpreendentes,
+contradições e curiosidades que prendam a atenção do público definido na diretriz acima.
+
+{'=' * 60}
+ACERVO — MATERIAL BRUTO (fragmentos reais recuperados via RAG):
 {contexto_rag}
 
 {'=' * 60}
-TEMA CENTRAL: {theme_prompt}
-NÍVEL DESTE LOTE: {nivel} | PERSONAGEM: {personagem_tipo}
-
-INSTRUÇÃO DE NÍVEL (obrigatória — define tom e profundidade):
-{nivel_instrucao}
-
-FOCO DAS PERGUNTAS:
+PERSPECTIVA NARRATIVA DESTE LOTE:
 {foco}
 
-SUA MISSÃO: Gere exatamente **{quantidade} dilemas**.
+{'=' * 60}
+CONTROLES TÉCNICOS — OBEDIÊNCIA CEGA, SEM NEGOCIAÇÃO:
 
-REGRAS OBRIGATÓRIAS:
-1. Cada dilema deve ter EXATAMENTE 2 alternativas (A e B).
-2. Não existe resposta binária certa/errada — cada escolha tem custo E benefício reais.
-3. Os cenários devem emergir da SÍNTESE de múltiplos trechos do contexto, nunca de um único fato.
-4. DIVERSIDADE: os {quantidade} dilemas devem cobrir ângulos diferentes. Proibido repetir sub-temas.
-5. Todo o conteúdo em Português do Brasil. Sentence case no corpo (caixa alta permitida no título).
-6. O campo "id_unico" deve seguir o padrão: '{id_prefixo}-01', '{id_prefixo}-02', ..., '{id_prefixo}-{quantidade:02d}'.
-7. O campo "nivel" de TODOS os dilemas deste lote deve ser o inteiro {nivel}.
-8. O campo "personagem_tipo" de TODOS deve ser a string '{personagem_tipo}'.
-
-EXTRAÇÃO DE URL — OBRIGATÓRIO:
-9. Para o campo "link_original" dentro de "info_contextual", use apenas a URL marcada como SOURCE_URL: no contexto acima.
-   Deve iniciar com 'http'. NUNCA invente, suponha ou complete URLs.
-   Se nenhuma URL válida for encontrada para um dilema, descarte-o e gere um substituto
-   baseado em outro documento do contexto que possua SOURCE_URL válida.
-10. A narrativa deve ser íntegra, respeitosa às comunidades envolvidas e educativa.
+• QUANTIDADE   : Gere exatamente {quantidade} perguntas. Nem mais, nem menos.
+• OPÇÕES       : Cada pergunta terá EXATAMENTE {num_options} alternativas ({opcoes_str}).
+• COMPLEXIDADE : {nivel_instrucao}
+• IDs          : Siga o padrão '{id_prefixo}-01', '{id_prefixo}-02' … '{id_prefixo}-{quantidade:02d}'.
+                 Todos os dilemas deste lote: nivel={nivel}, personagem_tipo='{personagem_tipo}'.
+• TAMANHO      : situacao ≤ 130 caracteres. texto e consequencia ≤ 90 caracteres cada.
+                 titulo ≤ 3 palavras, somente minúsculas — é rótulo interno, não aparece na tela.
+                 Limites duros: o excesso é truncado na interface.
+• IMPACTO      : Cada alternativa tem "impacto" com "popularidade" e "recursos" (inteiros de -10 a +10).
+                 Distribua trade-offs reais: se A ganha popularidade, perde recursos (e vice-versa).
+                 As alternativas NÃO podem ter o mesmo impacto — forçar escolha com custos diferentes.
 
 {'=' * 60}
-ESTRUTURA JSON OBRIGATÓRIA — use estes nomes de campo exatamente (não renomeie, não omita):
+REGRAS DE CONTEÚDO:
+
+1. Sem resposta binária certa/errada — cada alternativa tem custo E benefício reais.
+2. Cada pergunta sintetiza MÚLTIPLOS fragmentos do acervo. Nunca um único fato isolado.
+3. DIVERSIDADE: os {quantidade} dilemas devem cobrir ângulos diferentes. Proibido repetir sub-temas.
+4. Português do Brasil. Sentence case em TODOS os campos — nunca all-caps, nem caixa alta decorativa.
+   Apenas a primeira letra de cada campo começa em maiúscula; o restante em minúsculas.
+5. CTA obrigatório: o campo "situacao" DEVE terminar com dois pontos (:).
+   A última frase apresenta o ponto de decisão ao jogador, ex: "Você precisa decidir:"
+   NÃO termine com ponto final, exclamação ou qualquer outra pontuação além de (:).
+6. Verbos no presente: TODAS as alternativas começam com verbo conjugado no PRESENTE DO INDICATIVO.
+   PROIBIDO infinitivo: não use "Destacar", "Focar", "Apoiar", "Reduzir".
+   USE: "Destaca", "Foca", "Apoia", "Reduz", "Pressiona", "Anuncia", "Recusa", "Investe".
+7. ACESSIBILIDADE: público-alvo é jovem leigo, não jornalista. PROIBIDO jargão editorial interno
+   (ex: "pauta", "apuração", "off the record", "release", "briefing", "lead").
+   O foco é trivia criativa de bastidores: elenco, direção, anos de peças, curiosidades de produção.
+   Cada dilema deve ser jogável por quem nunca trabalhou na área.
+8. Tom direto: PROIBIDO começar com "Como [Personagem]", "Enquanto [Personagem]", "Na posição de".
+
+EXTRAÇÃO DE URL — OBRIGATÓRIO:
+9. Campo "link_original": use SOMENTE a URL marcada como SOURCE_URL: no acervo acima.
+   Deve iniciar com 'http'. NUNCA invente, suponha ou complete URLs parciais.
+   Se não houver URL válida para um dilema, descarte-o e gere um substituto com SOURCE_URL válida.
+10. Rotatividade de links: a mesma SOURCE_URL não pode aparecer em mais de 2 dilemas deste lote.
+
+{'=' * 60}
+ESTRUTURA JSON OBRIGATÓRIA — nomes de campo exatos, sem omitir nem renomear:
 
 {{
   "dilemas": [
@@ -162,22 +263,13 @@ ESTRUTURA JSON OBRIGATÓRIA — use estes nomes de campo exatamente (não renome
       "id_unico": "{id_prefixo}-01",
       "nivel": {nivel},
       "personagem_tipo": "{personagem_tipo}",
-      "titulo": "TÍTULO EM ATÉ 8 PALAVRAS",
-      "situacao": "Cenário do dilema em 2-4 frases. Sentence case.",
+      "titulo": "rótulo em 3 palavras",
+      "situacao": "Cenário em 1-2 frases. Máx. 130 chars. Termina obrigatoriamente com dois pontos (:)",
       "alternativas": [
-        {{
-          "id": "A",
-          "texto": "Ação que o jogador pode escolher. Máx. 2 frases.",
-          "consequencia": "Consequência direta e realista desta escolha. Máx. 2 frases."
-        }},
-        {{
-          "id": "B",
-          "texto": "Ação alternativa. Máx. 2 frases.",
-          "consequencia": "Consequência direta e realista. Máx. 2 frases."
-        }}
+{alternativas_schema}
       ],
       "desfecho_real": "O que de fato ocorreu segundo a reportagem. 2-3 frases. Factual.",
-      "licao": "Lição educativa extraída do desfecho. 1-2 frases.",
+      "licao": "Lição extraída do desfecho, na linguagem e tom da diretriz. 1-2 frases.",
       "info_contextual": {{
         "sintese": "Síntese jornalística em 2-3 frases. Dados e atores reais.",
         "link_original": "https://url-extraida-do-SOURCE_URL-do-contexto"
@@ -214,6 +306,7 @@ def generate_stream(req: GenerateRequest) -> Generator[str, None, None]:
         personagem_desc   = batch["personagem_descricao"]
         quantidade        = batch["quantidade"]
         queries           = batch["queries"]
+        modo_geral        = batch.get("modo_geral", False)
 
         contexto_rag = mmr_search(
             db, queries,
@@ -233,6 +326,9 @@ def generate_stream(req: GenerateRequest) -> Generator[str, None, None]:
             personagem_label=personagem_label,
             personagem_descricao=personagem_desc,
             quantidade=quantidade,
+            num_options=req.num_options,
+            enable_levels=req.enable_levels,
+            modo_geral=modo_geral,
         )
 
         dilemas: list[DilemaNg] = []
@@ -244,12 +340,21 @@ def generate_stream(req: GenerateRequest) -> Generator[str, None, None]:
             except Exception as exc:
                 err = str(exc).lower()
                 is_rate = any(k in err for k in ["429", "resource_exhausted", "quota", "rate_limit"])
+                # Loga o erro completo no stderr para diagnóstico no log do servidor
+                print(
+                    f"[generator] tentativa={tentativa} batch={batch_idx} "
+                    f"personagem={personagem_tipo} erro={exc!r}",
+                    file=sys.stderr,
+                )
                 if is_rate and tentativa < cfg.max_retries_batch:
                     yield f"data: {json.dumps({'type': 'rate_limit', 'sleep': cfg.rate_limit_sleep, 'tentativa': tentativa})}\n\n"
                     time.sleep(cfg.rate_limit_sleep)
                 else:
                     yield f"data: {json.dumps({'type': 'error', 'batch': batch_idx, 'personagem': personagem_tipo, 'msg': str(exc)})}\n\n"
                     break
+
+        # Descarta dilemas inválidos: título/situação vazios, número errado de alternativas
+        dilemas = [d for d in dilemas if _is_valid_dilema(d, req.num_options)]
 
         for d in dilemas:
             position  += 1

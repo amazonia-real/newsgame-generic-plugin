@@ -41,12 +41,14 @@ class Newsgame_Admin_Instances {
         global $wpdb;
         $table = $wpdb->prefix . 'newsgame_instances';
 
-        $id           = (int) ( $_POST['instance_id'] ?? 0 );
-        $title        = sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) );
-        $theme_prompt = sanitize_textarea_field( wp_unslash( $_POST['theme_prompt'] ?? '' ) );
-        $density      = min( 120, max( 20, (int) ( $_POST['density'] ?? 20 ) ) );
-        $status       = sanitize_key( $_POST['status'] ?? 'draft' );
-        $characters   = self::sanitize_characters( wp_unslash( $_POST['characters_json'] ?? '[]' ) );
+        $id            = (int) ( $_POST['instance_id'] ?? 0 );
+        $title         = sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) );
+        $theme_prompt  = sanitize_textarea_field( wp_unslash( $_POST['theme_prompt'] ?? '' ) );
+        $density       = min( 120, max( 20, (int) ( $_POST['density'] ?? 20 ) ) );
+        $num_options   = in_array( (int) ( $_POST['num_options'] ?? 2 ), array( 2, 3 ), true ) ? (int) $_POST['num_options'] : 2;
+        $enable_levels = isset( $_POST['enable_levels'] ) ? 1 : 0;
+        $status        = sanitize_key( $_POST['status'] ?? 'draft' );
+        $characters    = self::sanitize_characters( wp_unslash( $_POST['characters_json'] ?? '[]' ) );
 
         if ( ! $title ) {
             wp_safe_redirect( add_query_arg( array(
@@ -60,9 +62,17 @@ class Newsgame_Admin_Instances {
 
         $slug = self::unique_slug( $title, $id );
 
-        $row    = compact( 'title', 'slug', 'theme_prompt', 'density', 'status' );
-        $row['characters'] = wp_json_encode( $characters, JSON_UNESCAPED_UNICODE );
-        $fmt    = array( '%s', '%s', '%s', '%d', '%s', '%s' );
+        $row = array(
+            'title'         => $title,
+            'slug'          => $slug,
+            'theme_prompt'  => $theme_prompt,
+            'density'       => $density,
+            'num_options'   => $num_options,
+            'enable_levels' => $enable_levels,
+            'status'        => $status,
+            'characters'    => wp_json_encode( $characters, JSON_UNESCAPED_UNICODE ),
+        );
+        $fmt = array( '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' );
 
         if ( $id ) {
             $wpdb->update( $table, $row, array( 'id' => $id ), $fmt, array( '%d' ) );

@@ -29,32 +29,42 @@ class Newsgame_Shortcodes {
         global $wpdb;
         $rows = $wpdb->get_results( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}newsgame_dilemas
-              WHERE instance_id = %d
+              WHERE instance_id = %d AND review_status = 'approved'
               ORDER BY position ASC, id ASC",
             $id
         ) );
 
         if ( empty( $rows ) ) {
             return '<p class="newsgame-error" style="padding:1.5rem;font-family:monospace;">'
-                 . 'News-Game: instância <strong>' . esc_html( $instance->title ) . '</strong> ainda não tem dilemas gerados.</p>';
+                 . 'News-Game: instância <strong>' . esc_html( $instance->title ) . '</strong> '
+                 . 'não tem perguntas aprovadas para o jogo. Acesse o painel para revisar e aprovar as perguntas geradas.</p>';
         }
 
         $dilemas = array();
         foreach ( $rows as $d ) {
-            $dilemas[] = array(
+            $item = array(
                 'id'         => (int) $d->id,
                 'title'      => $d->title,
                 'body'       => $d->body,
-                'option_a'   => json_decode( $d->option_a   ?? '{}', true ) ?: array(),
-                'option_b'   => json_decode( $d->option_b   ?? '{}', true ) ?: array(),
-                'veredicto'  => json_decode( $d->veredicto  ?? '{}', true ) ?: array(),
+                'option_a'   => json_decode( $d->option_a  ?? '{}', true ) ?: array(),
+                'option_b'   => json_decode( $d->option_b  ?? '{}', true ) ?: array(),
+                'veredicto'  => json_decode( $d->veredicto ?? '{}', true ) ?: array(),
                 'source_url' => $d->source_url ?? '',
                 'level'      => (int) $d->level,
             );
+            if ( ! empty( $d->option_c ) ) {
+                $item['option_c'] = json_decode( $d->option_c, true ) ?: array();
+            }
+            $dilemas[] = $item;
         }
 
         $json = wp_json_encode(
-            array( 'title' => $instance->title, 'dilemas' => $dilemas ),
+            array(
+                'title'         => $instance->title,
+                'dilemas'       => $dilemas,
+                'num_options'   => (int) ( $instance->num_options   ?? 2 ),
+                'enable_levels' => (bool) ( $instance->enable_levels ?? false ),
+            ),
             JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
         );
 

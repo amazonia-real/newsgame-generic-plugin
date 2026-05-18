@@ -6,11 +6,13 @@ $id      = (int) ( $_GET['id'] ?? 0 );
 $inst    = $id ? Newsgame_Admin_Instances::get( $id ) : null;
 $is_edit = (bool) $inst;
 
-$title   = $is_edit ? $inst->title        : '';
-$theme   = $is_edit ? $inst->theme_prompt : '';
-$density = $is_edit ? (int) $inst->density : 20;
-$status  = $is_edit ? $inst->status       : 'draft';
-$chars   = $is_edit ? (array) json_decode( $inst->characters ?? '[]', true ) : array();
+$title         = $is_edit ? $inst->title        : '';
+$theme         = $is_edit ? $inst->theme_prompt : '';
+$density       = $is_edit ? (int) $inst->density : 10;
+$num_options   = $is_edit ? (int) ( $inst->num_options   ?? 2 ) : 2;
+$enable_levels = $is_edit ? (bool) ( $inst->enable_levels ?? false ) : false;
+$status        = $is_edit ? $inst->status       : 'draft';
+$chars         = $is_edit ? (array) json_decode( $inst->characters ?? '[]', true ) : array();
 
 $form_url = add_query_arg( array( 'action' => 'newsgame_save_instance' ), admin_url( 'admin-post.php' ) );
 $list_url = add_query_arg( array( 'page' => 'newsgame-instances' ), admin_url( 'admin.php' ) );
@@ -45,6 +47,67 @@ $page_title = $is_edit
                              margin-top: 2rem; display: flex; gap: 10px;
                              align-items: center; z-index: 10; }
 #ng-density-display        { font-weight: 600; color: #2d7a2d; }
+
+/* ── Mesa Editorial ─────────────────────────────────────── */
+#ng-review-section         { margin-top: 2.5rem; }
+.ng-review-tabs            { display: flex; gap: 0; border-bottom: 2px solid #2d7a2d;
+                             margin-bottom: 1rem; }
+.ng-tab                    { background: #f6f7f7; border: 1px solid #dcdcde;
+                             border-bottom: none; padding: 8px 18px; cursor: pointer;
+                             font-size: 13px; font-weight: 600; color: #444;
+                             border-radius: 4px 4px 0 0; margin-right: 3px;
+                             transition: background 0.15s; }
+.ng-tab:hover              { background: #e8f5e2; }
+.ng-tab.is-active          { background: #2d7a2d; color: #fff; border-color: #2d7a2d; }
+.ng-tab-badge              { display: inline-block; background: rgba(0,0,0,.15);
+                             border-radius: 10px; padding: 0 7px; font-size: 11px;
+                             margin-left: 6px; min-width: 18px; text-align: center; }
+.ng-tab.is-active .ng-tab-badge { background: rgba(255,255,255,.3); }
+#ng-review-list            { border: 1px solid #dcdcde; border-radius: 4px; overflow: hidden; }
+.ng-qrow                   { border-bottom: 1px solid #e8e8e8; }
+.ng-qrow:last-child        { border-bottom: none; }
+.ng-qrow-head              { display: flex; align-items: center; gap: 10px;
+                             padding: 10px 14px; cursor: pointer; background: #fff;
+                             transition: background 0.12s; user-select: none; }
+.ng-qrow-head:hover        { background: #f0f8eb; }
+.ng-qrow-head.is-open      { background: #e8f5e2; }
+.ng-qrow-num               { flex: 0 0 28px; font-size: 12px; color: #888;
+                             font-weight: 700; text-align: right; }
+.ng-qrow-title             { flex: 1 1 auto; font-size: 13px; font-weight: 600;
+                             color: #1d2327; white-space: nowrap; overflow: hidden;
+                             text-overflow: ellipsis; }
+.ng-qrow-meta              { flex: 0 0 auto; font-size: 11px; color: #888; }
+.ng-qrow-chevron           { flex: 0 0 20px; text-align: center; color: #888;
+                             font-size: 16px; transition: transform 0.2s; }
+.ng-qrow-head.is-open .ng-qrow-chevron { transform: rotate(90deg); }
+.ng-qrow-body              { padding: 0 16px 16px; background: #fafafa;
+                             border-top: 1px solid #e8e8e8; display: none; }
+.ng-edit-table             { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+.ng-edit-table th          { width: 160px; text-align: right; padding: 6px 12px 6px 0;
+                             vertical-align: top; font-size: 12px; color: #555;
+                             font-weight: 600; white-space: nowrap; }
+.ng-edit-table td          { padding: 4px 0; }
+.ng-edit-table textarea,
+.ng-edit-table input[type=text],
+.ng-edit-table input[type=url] { width: 100%; box-sizing: border-box;
+                                 font-size: 13px; padding: 5px 8px; }
+.ng-source-check           { font-size: 12px; color: #2271b1; margin-top: 3px;
+                             display: inline-block; }
+.ng-qrow-actions           { display: flex; gap: 8px; align-items: center;
+                             padding-top: 4px; flex-wrap: wrap; }
+.ng-action-msg             { font-size: 12px; margin-left: 6px; }
+.ng-review-empty           { padding: 1.5rem; color: #888; font-style: italic;
+                             text-align: center; }
+#ng-review-pagination      { padding: 10px 0; display: flex; gap: 4px;
+                             flex-wrap: wrap; }
+.ng-page-btn               { padding: 4px 10px; border: 1px solid #dcdcde;
+                             background: #f6f7f7; border-radius: 3px; cursor: pointer;
+                             font-size: 12px; }
+.ng-page-btn:hover         { background: #e8f5e2; border-color: #2d7a2d; }
+.ng-page-btn.is-current    { background: #2d7a2d; color: #fff; border-color: #2d7a2d; }
+.ng-review-loading         { padding: 1.5rem; color: #888; text-align: center; }
+.ng-char-count             { font-size: 11px; color: #888; margin-top: 2px; display: block; }
+.ng-char-count.is-over     { color: #c00; font-weight: 600; }
 </style>
 
 <div class="wrap">
@@ -110,18 +173,50 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     <table class="form-table" role="presentation">
       <tr>
         <th scope="row">
-          <label for="ng-density">Número de Perguntas</label>
+          <label for="ng-density">Número de Perguntas/Rodadas</label>
         </th>
         <td>
-          <input type="range" id="ng-density" name="density"
+          <input type="number" id="ng-density" name="density"
                  value="<?php echo (int) $density; ?>"
-                 min="20" max="120" step="5"
-                 style="width:220px;vertical-align:middle">
-          &nbsp;<span id="ng-density-display"><?php echo (int) $density; ?></span> dilemas
+                 min="4" max="15" step="1"
+                 style="width:80px;vertical-align:middle">
+          &nbsp;perguntas
           <p class="description">
-            Cada dilema tem 2 alternativas + veredito.
-            Mais dilemas = mais tempo de geração pelo Gemini.
-            Mínimo: 20 &nbsp;|&nbsp; Máximo: 120
+            Número de dilemas gerados por sessão de jogo.
+            Mínimo: 4 &nbsp;|&nbsp; Máximo: 15
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">Opções de Resposta</th>
+        <td>
+          <label style="margin-right:1.5rem">
+            <input type="radio" name="num_options" value="2"
+                   <?php checked( $num_options, 2 ); ?>>
+            2 opções &nbsp;<code>A / B</code>
+          </label>
+          <label>
+            <input type="radio" name="num_options" value="3"
+                   <?php checked( $num_options, 3 ); ?>>
+            3 opções &nbsp;<code>A / B / C</code>
+          </label>
+          <p class="description">
+            Número de alternativas geradas por pergunta. 3 opções aumentam a complexidade narrativa.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">Níveis de Dificuldade</th>
+        <td>
+          <label>
+            <input type="checkbox" id="ng-enable-levels" name="enable_levels" value="1"
+                   <?php checked( $enable_levels ); ?>>
+            Ativar Níveis (Aprendiz / Pro)
+          </label>
+          <p class="description">
+            Se ativo, o Gemini calibra a complexidade em dois níveis: Aprendiz (linguagem acessível)
+            e Pro (jornalístico e sistêmico, com 20% das perguntas no nível avançado).
+            Se inativo, todas as perguntas têm complexidade uniforme.
           </p>
         </td>
       </tr>
@@ -131,8 +226,10 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     <h2 class="ng-section-title">Personagens do Jogo</h2>
     <p class="description" style="margin-bottom:0.75rem">
       Defina quem são as personas desta instância. Cada personagem representa um
-      ponto de vista nos dilemas gerados pelo Gemini.<br>
-      Exemplo: <em>Diretor de Teatro, Ator, Produtor Executivo, Crítico Cultural.</em>
+      ponto de vista nas perguntas geradas pelo Gemini.<br>
+      Exemplo: <em>Diretor de Teatro, Ator, Produtor Executivo, Crítico Cultural.</em><br>
+      <strong>Sem personagens?</strong> O motor entra no <strong>Modo Perguntas Gerais</strong>:
+      o Gemini gerará perguntas para um jogador genérico, sem perspectiva fixa de personagem.
     </p>
 
     <div id="ng-chars-list" role="list" aria-label="Personagens"></div>
@@ -183,33 +280,54 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
   <?php
   $backend_ok = (bool) Newsgame_Settings::backend_url();
   if ( $is_edit && $backend_ok ) :
-    $dilema_count = (int) $GLOBALS['wpdb']->get_var(
-        $GLOBALS['wpdb']->prepare(
-            "SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}newsgame_dilemas WHERE instance_id = %d",
-            $id
-        )
-    );
   ?>
   <!-- ── Seção de Geração ───────────────────────────────── -->
   <hr style="margin:2rem 0 1.5rem">
-  <h2>Geração de Dilemas</h2>
+  <h2>Geração de Perguntas</h2>
 
+  <?php
+  $dilema_count = (int) $GLOBALS['wpdb']->get_var(
+      $GLOBALS['wpdb']->prepare(
+          "SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}newsgame_dilemas WHERE instance_id = %d",
+          $id
+      )
+  );
+  $approved_count = (int) $GLOBALS['wpdb']->get_var(
+      $GLOBALS['wpdb']->prepare(
+          "SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}newsgame_dilemas WHERE instance_id = %d AND review_status = 'approved'",
+          $id
+      )
+  );
+  $deficit = $density - $approved_count;
+  ?>
   <?php if ( $dilema_count > 0 ) : ?>
     <div class="notice notice-info inline" style="margin:0 0 1rem">
-      <p>Esta instância já possui <strong><?php echo esc_html( $dilema_count ); ?> dilemas</strong> gerados. Gerar novamente adicionará ao conjunto existente.</p>
+      <p>Esta instância já possui <strong><?php echo esc_html( $dilema_count ); ?> perguntas</strong> geradas. Gerar novamente adicionará ao conjunto existente.</p>
     </div>
   <?php endif; ?>
 
   <p class="description" style="margin-bottom:1rem">
     O backend buscará no ChromaDB os trechos relevantes para cada personagem,
-    enviará ao Gemini e salvará os dilemas em <code>wp_newsgame_dilemas</code>.
-    Densidade: <strong><?php echo (int) $density; ?> dilemas</strong>.
+    enviará ao Gemini e salvará as perguntas em <code>wp_newsgame_dilemas</code>.
+    Meta: <strong><?php echo (int) $density; ?> perguntas</strong>
+    com <strong><?php echo (int) $num_options; ?> opções de resposta</strong><?php echo $enable_levels ? ', níveis ativados' : ''; ?>.
+    <?php if ( $approved_count > 0 ) : ?>
+      Aprovadas até agora: <strong><?php echo $approved_count; ?></strong>.
+      Serão geradas apenas as <strong><?php echo max( 0, $deficit ); ?></strong> perguntas em déficit.
+    <?php endif; ?>
   </p>
 
   <button type="button" id="ng-generate-btn" class="button button-primary button-large">
-    &#9654; Gerar Dilemas Agora
+    &#9654; Gerar Perguntas Agora
   </button>
   <span id="ng-gen-status" style="margin-left:12px;font-size:13px;font-weight:600"></span>
+
+  <?php if ( $dilema_count > 0 ) : ?>
+  <button type="button" id="ng-reset-btn" class="button"
+          style="margin-left:16px;background:#c00;border-color:#9e0000;color:#fff">
+    🗑️ Limpar e Resetar Todas as Perguntas
+  </button>
+  <?php endif; ?>
 
   <div id="ng-progress-wrap" style="display:none;margin-top:1.5rem;max-width:600px">
     <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px">
@@ -224,15 +342,17 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
 
   <script>
   (function () {
-    var genBtn    = document.getElementById('ng-generate-btn');
-    var genStatus = document.getElementById('ng-gen-status');
-    var wrap      = document.getElementById('ng-progress-wrap');
-    var pLabel    = document.getElementById('ng-progress-label');
-    var pPct      = document.getElementById('ng-progress-pct');
-    var pBar      = document.getElementById('ng-progress-bar');
-    var pLast     = document.getElementById('ng-progress-last');
-    var instId    = <?php echo (int) $id; ?>;
-    var nonce     = '<?php echo esc_js( wp_create_nonce( Newsgame_Generator::NONCE_GENERATE ) ); ?>';
+    var genBtn      = document.getElementById('ng-generate-btn');
+    var genStatus   = document.getElementById('ng-gen-status');
+    var resetBtn    = document.getElementById('ng-reset-btn');
+    var wrap        = document.getElementById('ng-progress-wrap');
+    var pLabel      = document.getElementById('ng-progress-label');
+    var pPct        = document.getElementById('ng-progress-pct');
+    var pBar        = document.getElementById('ng-progress-bar');
+    var pLast       = document.getElementById('ng-progress-last');
+    var instId      = <?php echo (int) $id; ?>;
+    var nonce       = '<?php echo esc_js( wp_create_nonce( Newsgame_Generator::NONCE_GENERATE ) ); ?>';
+    var reviewNonce = '<?php echo esc_js( wp_create_nonce( Newsgame_Review::NONCE ) ); ?>';
 
     function setBar(cur, tot) {
       var pct = tot > 0 ? Math.min(100, Math.round(cur / tot * 100)) : 0;
@@ -380,19 +500,475 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
         .then(function (r) { return r.json(); })
         .then(function (r) {
           if (r.success) {
-            setDone(r.data.saved || dilemas.length);
+            var saved  = r.data && r.data.saved  != null ? r.data.saved  : dilemas.length;
+            var failed = r.data && r.data.failed != null ? r.data.failed : 0;
+            if (failed > 0) {
+              pLast.textContent = '⚠ ' + failed + ' pergunta(s) não salva(s). Verifique o log do servidor (error_log).';
+            }
+            setDone(saved);
           } else {
-            setError('Dilemas gerados mas erro ao salvar: ' + (r.data && r.data.msg ? r.data.msg : 'erro desconhecido'));
+            setError('Erro ao salvar: ' + (r.data && r.data.msg ? r.data.msg : 'verifique o log do servidor.'));
           }
         })
         .catch(function (e) {
-          setError('Dilemas gerados, mas falha de rede ao salvar: ' + e.message);
+          setError('Falha de rede ao salvar: ' + e.message);
         });
+    }
+
+    /* ── Botão de Reset ──────────────────────────────────── */
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function () {
+        if (!confirm('Atenção: Isso apagará permanentemente todas as perguntas (pendentes, aprovadas e descartadas) desta instância. Deseja continuar?')) {
+          return;
+        }
+        resetBtn.disabled = true;
+        resetBtn.textContent = 'Limpando…';
+
+        var fd = new FormData();
+        fd.append('action',      '<?php echo esc_js( Newsgame_Review::AJAX_CLEAR ); ?>');
+        fd.append('nonce',       reviewNonce);
+        fd.append('instance_id', instId);
+
+        fetch(ajaxurl, { method: 'POST', body: fd })
+          .then(function (r) { return r.json(); })
+          .then(function (r) {
+            if (r.success) {
+              resetBtn.textContent = '✓ Removidas. Recarregando…';
+              resetBtn.style.background    = '#2d7a2d';
+              resetBtn.style.borderColor   = '#1a5c1a';
+              setTimeout(function () { window.location.reload(); }, 1500);
+            } else {
+              resetBtn.disabled = false;
+              resetBtn.textContent = '🗑️ Limpar e Resetar Todas as Perguntas';
+              alert('Erro ao limpar: ' + ((r.data && r.data.msg) || 'Erro desconhecido.'));
+            }
+          })
+          .catch(function (e) {
+            resetBtn.disabled = false;
+            resetBtn.textContent = '🗑️ Limpar e Resetar Todas as Perguntas';
+            alert('Falha de rede: ' + e.message);
+          });
+      });
     }
   }());
   </script>
 
   <?php endif; // is_edit && backend_ok ?>
+
+<?php
+// ── Mesa Editorial HIL ────────────────────────────────────
+// Aparece sempre que houver perguntas no banco, independente do status da instância
+$review_total = $id ? (int) $GLOBALS['wpdb']->get_var(
+    $GLOBALS['wpdb']->prepare(
+        "SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}newsgame_dilemas WHERE instance_id = %d",
+        $id
+    )
+) : 0;
+if ( $id && $review_total > 0 ) :
+?>
+<hr style="margin:2.5rem 0 2rem">
+<div id="ng-review-section">
+  <h2>Mesa Editorial
+    <span style="font-size:13px;font-weight:400;color:#666;margin-left:8px">
+      — revise, edite e aprove as perguntas antes de publicar no jogo
+    </span>
+  </h2>
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem">
+    <div class="ng-review-tabs" role="tablist" style="margin-bottom:0">
+      <button class="ng-tab is-active" data-tab="pending" role="tab">
+        Pendentes <span class="ng-tab-badge" id="ng-count-pending">…</span>
+      </button>
+      <button class="ng-tab" data-tab="approved" role="tab">
+        Aprovadas <span class="ng-tab-badge" id="ng-count-approved">…</span>
+      </button>
+      <button class="ng-tab" data-tab="discarded" role="tab">
+        Descartadas <span class="ng-tab-badge" id="ng-count-discarded">…</span>
+      </button>
+    </div>
+    <button type="button" id="ng-btn-approve-all" class="button button-primary"
+            style="margin-bottom:2px;white-space:nowrap">
+      ✓ Aprovar Todas as Pendentes
+    </button>
+  </div>
+
+  <div id="ng-review-list" role="list">
+    <p class="ng-review-loading">Carregando…</p>
+  </div>
+
+  <div id="ng-review-pagination"></div>
+</div><!-- #ng-review-section -->
+
+<script>
+(function () {
+  'use strict';
+
+  var instId       = <?php echo (int) $id; ?>;
+  var numOptions   = <?php echo (int) $num_options; ?>;
+  var enableLevels = <?php echo $enable_levels ? 'true' : 'false'; ?>;
+  var nonce        = '<?php echo esc_js( wp_create_nonce( Newsgame_Review::NONCE ) ); ?>';
+  var curTab     = 'pending';
+  var curPage    = { pending: 1, approved: 1, discarded: 1 };
+  var list       = document.getElementById('ng-review-list');
+  var pgWrap     = document.getElementById('ng-review-pagination');
+
+  /* ── Escape XSS ─────────────────────────────────────────── */
+  function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Tabs ───────────────────────────────────────────────── */
+  document.querySelectorAll('.ng-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.ng-tab').forEach(function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      curTab = btn.dataset.tab;
+      loadTab(curTab, curPage[curTab]);
+    });
+  });
+
+  /* ── Carga inicial ──────────────────────────────────────── */
+  loadTab('pending', 1);
+  refreshCounts();
+
+  /* ── Carrega aba + página ───────────────────────────────── */
+  function loadTab(tab, page) {
+    list.innerHTML = '<p class="ng-review-loading">Carregando…</p>';
+    pgWrap.innerHTML = '';
+
+    ajaxCall({
+      action:      '<?php echo esc_js( Newsgame_Review::AJAX_LOAD ); ?>',
+      nonce:       nonce,
+      instance_id: instId,
+      status:      tab,
+      page:        page,
+    }, function (data) {
+      if (!data.success) {
+        list.innerHTML = '<p class="ng-review-empty">' + esc(data.data && data.data.msg ? data.data.msg : 'Erro.') + '</p>';
+        return;
+      }
+      var r = data.data;
+      document.getElementById('ng-count-' + tab).textContent = r.total;
+      renderRows(r.questions, tab);
+      renderPagination(r.page, r.pages, tab);
+    });
+  }
+
+  /* ── Renderiza lista de perguntas ───────────────────────── */
+  function renderRows(questions, tab) {
+    if (!questions.length) {
+      list.innerHTML = '<p class="ng-review-empty">Nenhuma pergunta nesta categoria.</p>';
+      return;
+    }
+    list.innerHTML = questions.map(function (q, i) {
+      return buildRow(q, i + 1, tab);
+    }).join('');
+    list.querySelectorAll('textarea[data-limit]').forEach(initCharCount);
+  }
+
+  /* ── Contadores de caracteres ───────────────────────────── */
+  function initCharCount(ta) {
+    var span = document.createElement('span');
+    span.className = 'ng-char-count';
+    ta.parentNode.insertBefore(span, ta.nextSibling);
+    updateCharCount(ta, span);
+  }
+
+  function updateCharCount(ta, span) {
+    var limit = parseInt(ta.dataset.limit, 10);
+    var len   = ta.value.length;
+    span.textContent = len + '/' + limit;
+    span.classList.toggle('is-over', len > limit);
+  }
+
+  list.addEventListener('input', function (e) {
+    var ta = e.target;
+    if (ta.tagName !== 'TEXTAREA' || !ta.dataset.limit) return;
+    var span = ta.nextElementSibling;
+    if (span && span.classList.contains('ng-char-count')) {
+      updateCharCount(ta, span);
+    }
+  });
+
+  /* ── Constrói HTML de uma linha accordion ───────────────── */
+  function buildRow(q, num, tab) {
+    var hasC     = q.opt_c_texto !== undefined;
+    var optCRows = hasC ? (
+      '<tr><th>Opção C — Texto</th><td><textarea name="opt_c_texto" rows="2" class="widefat" data-limit="100">' + esc(q.opt_c_texto) + '</textarea></td></tr>' +
+      '<tr><th>Opção C — Consequência</th><td><textarea name="opt_c_cons" rows="2" class="widefat" data-limit="100">' + esc(q.opt_c_cons) + '</textarea></td></tr>'
+    ) : '';
+
+    var actions;
+    if (tab === 'pending') {
+      actions =
+        '<button type="button" class="ng-btn-approve button button-primary">✓ Aprovar</button> ' +
+        '<button type="button" class="ng-btn-discard button">✕ Descartar</button> ' +
+        '<button type="button" class="ng-btn-regen button">🔄 Pedir Substituta</button>';
+    } else {
+      actions = '<button type="button" class="ng-btn-restore button">↩ Devolver para Revisão</button>';
+    }
+
+    var nivel    = q.level || 1;
+    var tipo     = q.character_slug || 'geral';
+    var metaLbl  = enableLevels ? (nivel === 2 ? 'Pro' : 'Aprendiz') : '';
+    var impactoA = JSON.stringify(q.opt_a_impacto || {popularidade: 0, recursos: 0});
+    var impactoB = JSON.stringify(q.opt_b_impacto || {popularidade: 0, recursos: 0});
+    var impactoC = JSON.stringify(q.opt_c_impacto || {popularidade: 0, recursos: 0});
+
+    return [
+      '<div class="ng-qrow" role="listitem" data-id="' + q.id + '" data-nivel="' + nivel + '" data-tipo="' + esc(tipo) + '">',
+        '<div class="ng-qrow-head">',
+          '<span class="ng-qrow-num">' + num + '</span>',
+          '<span class="ng-qrow-title">' + esc(q.title || '(sem título)') + '</span>',
+          (metaLbl ? '<span class="ng-qrow-meta">' + esc(metaLbl) + '</span>' : ''),
+          '<span class="ng-qrow-chevron">›</span>',
+        '</div>',
+        '<div class="ng-qrow-body">',
+          '<table class="ng-edit-table">',
+            '<tr><th>Título</th><td><input type="text" name="q_title" class="widefat" value="' + esc(q.title) + '"></td></tr>',
+            '<tr><th>Enunciado</th><td><textarea name="q_body" rows="3" class="widefat" data-limit="140">' + esc(q.body) + '</textarea></td></tr>',
+            '<tr><th>Opção A — Texto</th><td><textarea name="opt_a_texto" rows="2" class="widefat" data-limit="100">' + esc(q.opt_a_texto) + '</textarea></td></tr>',
+            '<tr><th>Opção A — Consequência</th><td><textarea name="opt_a_cons" rows="2" class="widefat" data-limit="100">' + esc(q.opt_a_cons) + '</textarea></td></tr>',
+            '<tr><th>Opção B — Texto</th><td><textarea name="opt_b_texto" rows="2" class="widefat" data-limit="100">' + esc(q.opt_b_texto) + '</textarea></td></tr>',
+            '<tr><th>Opção B — Consequência</th><td><textarea name="opt_b_cons" rows="2" class="widefat" data-limit="100">' + esc(q.opt_b_cons) + '</textarea></td></tr>',
+            optCRows,
+            '<tr><th>O que ocorreu</th><td><textarea name="verd_desfecho" rows="2" class="widefat">' + esc(q.verd_desfecho) + '</textarea></td></tr>',
+            '<tr><th>Lição</th><td><textarea name="verd_licao" rows="2" class="widefat">' + esc(q.verd_licao) + '</textarea></td></tr>',
+            '<tr><th>Síntese</th><td><textarea name="verd_sintese" rows="2" class="widefat">' + esc(q.verd_sintese) + '</textarea></td></tr>',
+            '<tr><th>URL da Fonte</th><td>',
+              '<input type="url" name="source_url" class="widefat" value="' + esc(q.source_url) + '">',
+              (q.source_url ? '<a href="' + esc(q.source_url) + '" target="_blank" rel="noopener" class="ng-source-check">Verificar fonte ↗</a>' : ''),
+            '</td></tr>',
+          '</table>',
+          '<input type="hidden" name="opt_a_impacto" value="' + esc(impactoA) + '">',
+          '<input type="hidden" name="opt_b_impacto" value="' + esc(impactoB) + '">',
+          (hasC ? '<input type="hidden" name="opt_c_impacto" value="' + esc(impactoC) + '">' : ''),
+          '<div class="ng-qrow-actions">',
+            actions,
+            '<span class="ng-action-msg"></span>',
+          '</div>',
+        '</div>',
+      '</div>',
+    ].join('');
+  }
+
+  /* ── Delegação de eventos no container ─────────────────── */
+  list.addEventListener('click', function (e) {
+    var head   = e.target.closest('.ng-qrow-head');
+    var row    = e.target.closest('.ng-qrow');
+    if (!row) return;
+
+    if (head) { toggleRow(row, head); return; }
+    if (e.target.closest('.ng-btn-approve')) { doApprove(row); return; }
+    if (e.target.closest('.ng-btn-discard')) { doDiscard(row); return; }
+    if (e.target.closest('.ng-btn-restore')) { doRestore(row); return; }
+    if (e.target.closest('.ng-btn-regen'))   { doRegen(row);   return; }
+  });
+
+  /* ── Toggle accordion ───────────────────────────────────── */
+  function toggleRow(row, head) {
+    var body   = row.querySelector('.ng-qrow-body');
+    var isOpen = body.style.display === 'block';
+
+    list.querySelectorAll('.ng-qrow-body').forEach(function (b) { b.style.display = 'none'; });
+    list.querySelectorAll('.ng-qrow-head').forEach(function (h) { h.classList.remove('is-open'); });
+
+    if (!isOpen) {
+      body.style.display = 'block';
+      head.classList.add('is-open');
+    }
+  }
+
+  /* ── Coleta campos editados da linha ────────────────────── */
+  function rowFields(row) {
+    var out = {};
+    row.querySelectorAll('[name]').forEach(function (el) { out[el.name] = el.value; });
+    return out;
+  }
+
+  /* ── Mensagem de status na linha ────────────────────────── */
+  function msg(row, text, isErr) {
+    var s = row.querySelector('.ng-action-msg');
+    if (s) { s.textContent = text; s.style.color = isErr ? '#c00' : '#2d7a2d'; }
+  }
+
+  /* ── Remove linha com fade ──────────────────────────────── */
+  function fadeOut(row) {
+    row.style.transition = 'opacity 0.35s';
+    row.style.opacity = '0';
+    setTimeout(function () { row.remove(); }, 380);
+  }
+
+  /* ── Aprovar ────────────────────────────────────────────── */
+  function doApprove(row) {
+    msg(row, 'Salvando…', false);
+    var data = Object.assign({
+      action:      '<?php echo esc_js( Newsgame_Review::AJAX_APPROVE ); ?>',
+      nonce:       nonce,
+      instance_id: instId,
+      question_id: row.dataset.id,
+    }, rowFields(row));
+
+    ajaxCall(data, function (r) {
+      if (r.success) {
+        msg(row, '✓ Aprovada!', false);
+        setTimeout(function () { fadeOut(row); refreshCounts(); }, 700);
+      } else {
+        msg(row, '✗ ' + ((r.data && r.data.msg) || 'Erro.'), true);
+      }
+    });
+  }
+
+  /* ── Descartar ──────────────────────────────────────────── */
+  function doDiscard(row) {
+    msg(row, 'Descartando…', false);
+    ajaxCall({
+      action:      '<?php echo esc_js( Newsgame_Review::AJAX_DISCARD ); ?>',
+      nonce:       nonce,
+      instance_id: instId,
+      question_id: row.dataset.id,
+    }, function (r) {
+      if (r.success) {
+        msg(row, '✕ Descartada.', false);
+        setTimeout(function () { fadeOut(row); refreshCounts(); }, 700);
+      } else {
+        msg(row, '✗ ' + ((r.data && r.data.msg) || 'Erro.'), true);
+      }
+    });
+  }
+
+  /* ── Restaurar para pendente ────────────────────────────── */
+  function doRestore(row) {
+    msg(row, 'Restaurando…', false);
+    ajaxCall({
+      action:      '<?php echo esc_js( Newsgame_Review::AJAX_RESTORE ); ?>',
+      nonce:       nonce,
+      instance_id: instId,
+      question_id: row.dataset.id,
+    }, function (r) {
+      if (r.success) {
+        msg(row, '↩ Devolvida para revisão.', false);
+        setTimeout(function () { fadeOut(row); refreshCounts(); }, 700);
+      } else {
+        msg(row, '✗ ' + ((r.data && r.data.msg) || 'Erro.'), true);
+      }
+    });
+  }
+
+  /* ── Pedir Substituta ───────────────────────────────────── */
+  function doRegen(row) {
+    var btns = row.querySelectorAll('button');
+    btns.forEach(function (b) { b.disabled = true; });
+    msg(row, '🔄 Gerando substituta… (até 120 s)', false);
+
+    ajaxCall({
+      action:          '<?php echo esc_js( Newsgame_Review::AJAX_REGEN ); ?>',
+      nonce:           nonce,
+      instance_id:     instId,
+      question_id:     row.dataset.id,
+      personagem_tipo: row.dataset.tipo  || 'geral',
+      nivel:           row.dataset.nivel || 1,
+    }, function (r) {
+      btns.forEach(function (b) { b.disabled = false; });
+      if (r.success) {
+        msg(row, '✓ Substituta criada!', false);
+        // Injeta a substituta no topo da lista
+        var newHtml = buildRow(r.data.question, '★', 'pending');
+        var tmp = document.createElement('div');
+        tmp.innerHTML = newHtml;
+        var newRow = tmp.firstElementChild;
+        newRow.style.opacity = '0';
+        list.prepend(newRow);
+        newRow.querySelectorAll('textarea[data-limit]').forEach(initCharCount);
+        setTimeout(function () {
+          newRow.style.transition = 'opacity 0.4s';
+          newRow.style.opacity    = '1';
+        }, 30);
+        setTimeout(function () { fadeOut(row); refreshCounts(); }, 900);
+      } else {
+        msg(row, '✗ ' + ((r.data && r.data.msg) || 'Erro no backend.'), true);
+      }
+    });
+  }
+
+  /* ── Paginação ──────────────────────────────────────────── */
+  function renderPagination(page, pages, tab) {
+    if (pages <= 1) { pgWrap.innerHTML = ''; return; }
+    var html = '';
+    for (var i = 1; i <= pages; i++) {
+      html += '<button class="ng-page-btn' + (i === page ? ' is-current' : '') + '" data-p="' + i + '">' + i + '</button>';
+    }
+    pgWrap.innerHTML = html;
+    pgWrap.querySelectorAll('.ng-page-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        curPage[tab] = parseInt(btn.dataset.p, 10);
+        loadTab(tab, curPage[tab]);
+      });
+    });
+  }
+
+  /* ── Atualiza contagens nas abas ────────────────────────── */
+  function refreshCounts() {
+    ['pending', 'approved', 'discarded'].forEach(function (tab) {
+      ajaxCall({
+        action:      '<?php echo esc_js( Newsgame_Review::AJAX_LOAD ); ?>',
+        nonce:       nonce,
+        instance_id: instId,
+        status:      tab,
+        page:        1,
+      }, function (r) {
+        if (r.success) {
+          var el = document.getElementById('ng-count-' + tab);
+          if (el) el.textContent = r.data.total;
+        }
+      });
+    });
+  }
+
+  /* ── Aprovar Todas as Pendentes ─────────────────────────── */
+  var approveAllBtn = document.getElementById('ng-btn-approve-all');
+  if (approveAllBtn) {
+    approveAllBtn.addEventListener('click', function () {
+      var badge = document.getElementById('ng-count-pending');
+      var count = badge ? parseInt(badge.textContent, 10) : 0;
+      if (!count || isNaN(count)) { alert('Não há perguntas pendentes para aprovar.'); return; }
+      if (!confirm('Aprovar todas as ' + count + ' perguntas pendentes de uma vez?')) return;
+
+      approveAllBtn.disabled = true;
+      approveAllBtn.textContent = 'Aprovando…';
+
+      ajaxCall({
+        action:      '<?php echo esc_js( Newsgame_Review::AJAX_APPROVE_ALL ); ?>',
+        nonce:       nonce,
+        instance_id: instId,
+      }, function (r) {
+        approveAllBtn.disabled = false;
+        approveAllBtn.textContent = '✓ Aprovar Todas as Pendentes';
+        if (r.success) {
+          loadTab(curTab, curPage[curTab]);
+          refreshCounts();
+        } else {
+          alert('Erro: ' + ((r.data && r.data.msg) || 'Tente novamente.'));
+        }
+      });
+    });
+  }
+
+  /* ── Fetch helper ───────────────────────────────────────── */
+  function ajaxCall(data, cb) {
+    var fd = new FormData();
+    Object.keys(data).forEach(function (k) { fd.append(k, data[k]); });
+    fetch(ajaxurl, { method: 'POST', body: fd })
+      .then(function (res) { return res.json(); })
+      .then(cb)
+      .catch(function (e) { console.error('[Mesa Editorial]', e); });
+  }
+
+}());
+</script>
+<?php endif; // is_edit && review_total > 0 ?>
+
 </div>
 
 <script>
@@ -405,16 +981,9 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
   var tpl        = document.getElementById('ng-char-tpl');
   var addBtn     = document.getElementById('ng-add-char');
   var jsonInput  = document.getElementById('ng-chars-json');
-  var densSlider = document.getElementById('ng-density');
-  var densDisplay= document.getElementById('ng-density-display');
   var statusInput= document.getElementById('ng-status-input');
   var btnDraft   = document.getElementById('ng-btn-draft');
   var btnReview  = document.getElementById('ng-btn-review');
-
-  /* ── Slider de densidade ────────────────────────────────── */
-  densSlider.addEventListener('input', function () {
-    densDisplay.textContent = this.value;
-  });
 
   /* ── Builder de personagens ─────────────────────────────── */
   // Hidrata personagens existentes (edição)
@@ -464,6 +1033,29 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
       .replace(/^-+|-+$/g, '')
       .substring(0, 80);
   }
+
+  /* ── Trava de troca de opções com perguntas existentes ──── */
+  <?php if ( $review_total > 0 ) : ?>
+  (function () {
+    var radios         = document.querySelectorAll('[name="num_options"]');
+    var currentOptions = '<?php echo (int) $num_options; ?>';
+    radios.forEach(function (radio) {
+      radio.addEventListener('change', function () {
+        if (radio.value === currentOptions) return;
+        var ok = confirm(
+          'Atenção: você está trocando de ' + currentOptions + ' para ' + radio.value + ' opções de resposta.\n\n' +
+          'Esta instância já possui <?php echo (int) $review_total; ?> pergunta(s) gerada(s) com ' + currentOptions + ' alternativas — elas ficarão incompatíveis com o novo formato.\n\n' +
+          'Recomendamos limpar e regenerar todas as perguntas após salvar. Continuar com a troca?'
+        );
+        if (!ok) {
+          radios.forEach(function (r) { r.checked = r.value === currentOptions; });
+        } else {
+          currentOptions = radio.value;
+        }
+      });
+    });
+  }());
+  <?php endif; ?>
 
   /* ── Botões de ação ─────────────────────────────────────── */
   btnDraft.addEventListener('click', function () {

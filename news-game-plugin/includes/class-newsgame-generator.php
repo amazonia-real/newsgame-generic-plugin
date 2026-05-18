@@ -54,16 +54,36 @@ class Newsgame_Generator {
 
         $characters = json_decode( $instance->characters ?? '[]', true ) ?: array();
 
+        // Cálculo de déficit: só gera o que falta para atingir a density alvo
+        global $wpdb;
+        $approved_count = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}newsgame_dilemas
+             WHERE instance_id = %d AND review_status = 'approved'",
+            $instance_id
+        ) );
+        $density = (int) $instance->density;
+        $deficit = $density - $approved_count;
+
+        if ( $deficit <= 0 ) {
+            wp_send_json_error( array(
+                'msg' => "Meta já atingida: {$approved_count} de {$density} perguntas aprovadas. Aumente a densidade ou descarte algumas para gerar mais.",
+            ) );
+        }
+
         // Devolve a configuração ao browser; o JS abre o stream SSE diretamente
         wp_send_json_success( array(
-            'backend_url' => rtrim( $backend_url, '/' ),
-            'api_key'     => (string) get_option( 'newsgame_backend_api_key', '' ),
-            'payload'     => array(
-                'site_id'      => home_url(),
-                'instance_id'  => $instance_id,
-                'theme_prompt' => $instance->theme_prompt,
-                'density'      => (int) $instance->density,
-                'characters'   => $characters,
+            'backend_url'    => rtrim( $backend_url, '/' ),
+            'api_key'        => (string) get_option( 'newsgame_backend_api_key', '' ),
+            'approved_count' => $approved_count,
+            'deficit'        => $deficit,
+            'payload'        => array(
+                'site_id'       => home_url(),
+                'instance_id'   => $instance_id,
+                'theme_prompt'  => $instance->theme_prompt,
+                'density'       => $deficit,
+                'characters'    => $characters,
+                'num_options'   => (int) ( $instance->num_options   ?? 2 ),
+                'enable_levels' => (bool) ( $instance->enable_levels ?? false ),
             ),
         ) );
     }
@@ -96,11 +116,13 @@ class Newsgame_Generator {
 
         $characters = json_decode( $instance->characters ?? '[]', true ) ?: array();
         $payload    = array(
-            'site_id'      => home_url(),
-            'instance_id'  => $instance_id,
-            'theme_prompt' => $instance->theme_prompt,
-            'density'      => (int) $instance->density,
-            'characters'   => $characters,
+            'site_id'       => home_url(),
+            'instance_id'   => $instance_id,
+            'theme_prompt'  => $instance->theme_prompt,
+            'density'       => (int) $instance->density,
+            'characters'    => $characters,
+            'num_options'   => (int) ( $instance->num_options   ?? 2 ),
+            'enable_levels' => (bool) ( $instance->enable_levels ?? false ),
         );
 
         self::stream_and_save( $instance_id, $backend_url, $api_key, $payload );
@@ -237,11 +259,26 @@ class Newsgame_Generator {
             wp_send_json_error( array( 'msg' => 'Dados inválidos ou lista de dilemas vazia.' ) );
         }
 
-        $saved = 0;
+        $saved  = 0;
+        $failed = 0;
         foreach ( $dilemas as $d ) {
             if ( ! is_array( $d ) ) continue;
-            self::save_dilema( $d, $instance_id );
-            $saved++;
+            if ( false !== self::save_dilema( $d, $instance_id ) ) {
+                $saved++;
+            } else {
+                $failed++;
+            }
+        }
+
+        if ( $failed > 0 ) {
+            error_log( "[Newsgame] ajax_save_matrix: $failed inserts falharam de " . count( $dilemas ) . ' recebidos. Verifique error_log acima.' );
+        }
+
+        if ( $saved === 0 && $failed > 0 ) {
+            wp_send_json_error( array(
+                'msg'    => "Nenhuma pergunta foi salva ($failed erros de INSERT). Verifique o log do servidor.",
+                'failed' => $failed,
+            ) );
         }
 
         global $wpdb;
@@ -253,7 +290,7 @@ class Newsgame_Generator {
             array( '%d' )
         );
 
-        wp_send_json_success( array( 'saved' => $saved ) );
+        wp_send_json_success( array( 'saved' => $saved, 'failed' => $failed ) );
     }
 
     /* ── 5. Push vault → /ingest ─────────────────────────────── */
@@ -337,6 +374,13 @@ class Newsgame_Generator {
 
     /* ── Persistência de dilema no DB ────────────────────────── */
 
+    /**
+     * Persiste um dilema no banco. Retorna o número de linhas inseridas (1) ou false em falha.
+     *
+     * @param array $d           Dilema deserializado do payload Python.
+     * @param int   $instance_id ID da instância.
+     * @return int|false
+     */
     public static function save_dilema( array $d, int $instance_id ) {
         global $wpdb;
 
@@ -344,12 +388,21 @@ class Newsgame_Generator {
         $option_a = wp_json_encode( array(
             'texto'        => $alts[0]['texto']        ?? '',
             'consequencia' => $alts[0]['consequencia'] ?? '',
+            'impacto'      => $alts[0]['impacto']      ?: array( 'popularidade' => 0, 'recursos' => 0 ),
         ), JSON_UNESCAPED_UNICODE );
 
         $option_b = wp_json_encode( array(
             'texto'        => $alts[1]['texto']        ?? '',
             'consequencia' => $alts[1]['consequencia'] ?? '',
+            'impacto'      => $alts[1]['impacto']      ?: array( 'popularidade' => 0, 'recursos' => 0 ),
         ), JSON_UNESCAPED_UNICODE );
+
+        // option_c: presente apenas quando num_options=3
+        $option_c = isset( $alts[2] ) ? wp_json_encode( array(
+            'texto'        => $alts[2]['texto']        ?? '',
+            'consequencia' => $alts[2]['consequencia'] ?? '',
+            'impacto'      => $alts[2]['impacto']      ?: array( 'popularidade' => 0, 'recursos' => 0 ),
+        ), JSON_UNESCAPED_UNICODE ) : null;
 
         $veredicto = wp_json_encode( array(
             'sintese'  => $d['info_contextual']['sintese'] ?? '',
@@ -357,21 +410,30 @@ class Newsgame_Generator {
             'licao'    => $d['licao']                      ?? '',
         ), JSON_UNESCAPED_UNICODE );
 
-        $wpdb->insert(
+        $result = $wpdb->insert(
             $wpdb->prefix . 'newsgame_dilemas',
             array(
-                'instance_id'   => $instance_id,
-                'level'         => (int) ( $d['nivel']    ?? 1 ),
-                'position'      => (int) ( $d['position'] ?? 0 ),
-                'title'         => sanitize_text_field( $d['titulo']   ?? '' ),
-                'body'          => sanitize_textarea_field( $d['situacao'] ?? '' ),
-                'option_a'      => $option_a,
-                'option_b'      => $option_b,
-                'veredicto'     => $veredicto,
-                'source_url'    => esc_url_raw( $d['info_contextual']['link_original'] ?? '' ),
-                'review_status' => 'pending',
+                'instance_id'    => $instance_id,
+                'level'          => (int) ( $d['nivel']           ?? 1 ),
+                'character_slug' => sanitize_key( $d['personagem_tipo'] ?? 'geral' ),
+                'position'       => (int) ( $d['position']        ?? 0 ),
+                'title'          => sanitize_text_field( $d['titulo']   ?? '' ),
+                'body'           => sanitize_textarea_field( $d['situacao'] ?? '' ),
+                'option_a'       => $option_a,
+                'option_b'       => $option_b,
+                'option_c'       => $option_c,
+                'veredicto'      => $veredicto,
+                'source_url'     => esc_url_raw( $d['info_contextual']['link_original'] ?? '' ),
+                'review_status'  => 'pending',
             ),
-            array( '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+            array( '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
         );
+
+        if ( false === $result ) {
+            error_log( '[Newsgame] save_dilema FALHOU — MySQL: ' . $wpdb->last_error );
+            error_log( '[Newsgame] save_dilema titulo="' . ( $d['titulo'] ?? '' ) . '" instance=' . $instance_id );
+        }
+
+        return $result;
     }
 }

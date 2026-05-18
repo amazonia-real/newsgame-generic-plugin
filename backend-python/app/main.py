@@ -4,8 +4,8 @@ from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from app.config import get_settings
-from app.models import IngestRequest, GenerateRequest
-from app import ingestor, generator
+from app.models import IngestRequest, GenerateRequest, RegenerateRequest
+from app import ingestor, generator, regenerator
 
 
 app = FastAPI(title="News-Game Backend", version="1.0.0")
@@ -34,6 +34,18 @@ def health() -> dict:
 def ingest(req: IngestRequest) -> dict:
     """Indexa artigos do vault WordPress no ChromaDB."""
     return ingestor.index_articles(req)
+
+
+@app.post("/regenerate", dependencies=[Depends(_verify_token)])
+def regenerate_one(req: RegenerateRequest) -> dict:
+    """
+    Gera 1 pergunta substituta de forma síncrona.
+    Retorna o dilema serializado ou 422 se não conseguir gerar.
+    """
+    dilema = regenerator.generate_one(req)
+    if dilema is None:
+        raise HTTPException(status_code=422, detail="Não foi possível gerar uma pergunta substituta válida.")
+    return dilema.model_dump()
 
 
 @app.post("/generate", dependencies=[Depends(_verify_token)])
