@@ -11,6 +11,7 @@ $theme         = $is_edit ? $inst->theme_prompt : '';
 $density       = $is_edit ? (int) $inst->density : 10;
 $num_options   = $is_edit ? (int) ( $inst->num_options   ?? 2 ) : 2;
 $enable_levels = $is_edit ? (bool) ( $inst->enable_levels ?? false ) : false;
+$nivel_padrao  = $is_edit ? ( $inst->nivel_padrao ?? 'pedagogico' ) : 'pedagogico';
 $status        = $is_edit ? $inst->status       : 'draft';
 $chars         = $is_edit ? (array) json_decode( $inst->characters ?? '[]', true ) : array();
 
@@ -220,6 +221,24 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           </p>
         </td>
       </tr>
+      <tr>
+        <th scope="row">
+          <label for="ng-nivel-padrao">Perfil do Jogo</label>
+        </th>
+        <td>
+          <select id="ng-nivel-padrao" name="nivel_padrao" style="min-width:200px">
+            <option value="ludico"     <?php selected( $nivel_padrao, 'ludico' ); ?>>Lúdico</option>
+            <option value="pedagogico" <?php selected( $nivel_padrao, 'pedagogico' ); ?>>Pedagógico</option>
+            <option value="complexo"   <?php selected( $nivel_padrao, 'complexo' ); ?>>Complexo</option>
+          </select>
+          <p class="description">
+            Define o tom narrativo das perguntas geradas pelo Gemini.<br>
+            <strong>Lúdico:</strong> linguagem leve, dilemas de fácil identificação.<br>
+            <strong>Pedagógico:</strong> equilíbrio entre acessibilidade e profundidade (padrão).<br>
+            <strong>Complexo:</strong> dilemas sistêmicos, linguagem jornalística densa.
+          </p>
+        </td>
+      </tr>
     </table>
 
     <!-- ── Personagens ───────────────────────────────────── -->
@@ -377,7 +396,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
       setTimeout(function () { window.location.reload(); }, 2500);
     }
 
-    /* ── Clique no botão: pede config ao WP e abre stream ── */
+    /* ── Clique no botão: obtém config do WP e inicia loop ── */
     genBtn.addEventListener('click', function () {
       genBtn.disabled = true;
       genStatus.style.color = '#666';
@@ -396,92 +415,91 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
             setError(r.data && r.data.msg ? r.data.msg : JSON.stringify(r));
             return;
           }
+          var total = r.data.payload.density || 1;
+          wrap.style.display = 'block';
+          setBar(0, total);
+          pLabel.textContent = 'Iniciando geração…';
           genStatus.textContent = 'Conectando ao backend…';
-          startStream(r.data.backend_url, r.data.api_key, r.data.payload);
+          startBatchLoop(r.data.backend_url, r.data.api_key, r.data.payload, total);
         })
         .catch(function (e) { setError(e.message); });
     });
 
-    /* ── Stream SSE direto do backend Python ─────────────── */
-    function startStream(backendUrl, apiKey, payload) {
-      var dilemas  = [];
-      var total    = payload.density || 20;
-      var saved    = false;
+    /* ── Loop assíncrono: 1 chamada por dilema ───────────── */
+    function startBatchLoop(backendUrl, apiKey, basePayload, total) {
+      var dilemas = [];
+      var slot    = 0;
+      var historico_fontes = [];
 
-      wrap.style.display = 'block';
-      pLabel.textContent = 'Aguardando backend…';
-      setBar(0, total);
-
-      fetch(backendUrl.replace(/\/$/, '') + '/generate', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
-        body:    JSON.stringify(payload),
-      })
-      .then(function (response) {
-        if (!response.ok) {
-          return response.text().then(function (t) {
-            throw new Error('HTTP ' + response.status + ': ' + t.substring(0, 200));
-          });
+      function generateNext() {
+        if (slot >= total) {
+          pLabel.textContent = 'Salvando no banco de dados…';
+          saveMatrix(dilemas);
+          return;
         }
 
-        var reader  = response.body.getReader();
-        var decoder = new TextDecoder('utf-8');
-        var buf     = '';
+        pLabel.textContent = 'Gerando dilema ' + (slot + 1) + ' de ' + total + '…';
+        setBar(slot, total);
 
-        function pump() {
-          return reader.read().then(function (chunk) {
-            if (chunk.done) {
-              // Stream encerrado antes do evento "done" (conexão caiu)
-              if (!saved && dilemas.length > 0) saveMatrix(dilemas);
-              return;
-            }
+        // nivel_padrao vem fixo em basePayload; slot_index só rotaciona personagens no RAG
+        var payload = Object.assign({}, basePayload, { 
+            slot_index: slot,
+            fontes_usadas: historico_fontes 
+        });
 
-            buf += decoder.decode(chunk.value, { stream: true });
-
-            // SSE separa eventos com \n\n
-            var parts = buf.split('\n\n');
-            buf = parts.pop(); // fragmento incompleto fica no buffer
-
-            parts.forEach(function (raw) {
-              if (raw.indexOf('data: ') !== 0) return;
-              var ev;
-              try { ev = JSON.parse(raw.slice(6)); } catch (e) { return; }
-
-              if (ev.type === 'start') {
-                total = ev.total;
-                pLabel.textContent = 'Gerando dilemas…';
-                setBar(0, total);
-
-              } else if (ev.type === 'dilema') {
-                dilemas.push(ev.dilema);
-                setBar(ev.current, ev.total);
-                pLabel.textContent = 'Gerando dilemas…';
-                if (ev.dilema && ev.dilema.titulo) {
-                  pLast.textContent = 'Último: "' + ev.dilema.titulo + '"';
-                }
-
-              } else if (ev.type === 'rate_limit') {
-                pLabel.textContent = 'Aguardando rate limit (' + (ev.sleep || 60) + 's)…';
-
-              } else if (ev.type === 'error') {
-                setError(ev.msg || 'Erro desconhecido no backend.');
-
-              } else if (ev.type === 'done') {
-                saved = true;
-                pLabel.textContent = 'Salvando no banco de dados…';
-                saveMatrix(dilemas);
-              }
+        fetch(backendUrl.replace(/\/$/, '') + '/generate-one', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+          body:    JSON.stringify(payload),
+        })
+        .then(function (response) {
+          // 429 — Rate limit: aguarda 60 s e retenta o mesmo slot sem avançar
+          if (response.status === 429) {
+            pLabel.textContent = 'Rate limit — aguardando 60 s…';
+            setTimeout(generateNext, 60000);
+            return null;
+          }
+          // 422 — Gemini não gerou dilema válido: pula slot, continua o lote
+          if (response.status === 422) {
+            pLast.textContent = 'Dilema ' + (slot + 1) + ' inválido — pulando.';
+            slot++;
+            setBar(slot, total);
+            setTimeout(generateNext, 600);
+            return null;
+          }
+          if (!response.ok) {
+            return response.text().then(function (t) {
+              throw new Error('HTTP ' + response.status + ': ' + t.substring(0, 200));
             });
+          }
+          return response.json();
+        })
+        .then(function (dilema) {
+          if (dilema === null) return; // 429 ou 422 já tratados acima
+          dilemas.push(dilema);
+          if (dilema.titulo) {
+            pLast.textContent = 'Último: "' + dilema.titulo + '"';
+          }
+          if (dilema.info_contextual && dilema.info_contextual.link_original) {
+            historico_fontes.push(dilema.info_contextual.link_original);
+          } else if (dilema.source_url) {
+            historico_fontes.push(dilema.source_url);
+          }
+          slot++;
+          setBar(slot, total);
+          // Pausa mínima entre chamadas para não saturar a API Gemini
+          setTimeout(generateNext, 600);
+        })
+        .catch(function (e) {
+          // Erro de rede ou HTTP inesperado: loga, pula slot e continua
+          console.warn('[generator] slot=' + slot + ' falhou:', e.message);
+          slot++;
+          setBar(slot, total);
+          setTimeout(generateNext, 600);
+        });
+      }
 
-            return pump();
-          });
-        }
-
-        return pump();
-      })
-      .catch(function (e) {
-        setError('Conexão com o backend falhou: ' + e.message);
-      });
+      generateNext();
     }
 
     /* ── Salva matriz completa no WordPress via AJAX ──────── */
@@ -693,7 +711,7 @@ if ( $id && $review_total > 0 ) :
 
   /* ── Constrói HTML de uma linha accordion ───────────────── */
   function buildRow(q, num, tab) {
-    var hasC     = q.opt_c_texto !== undefined;
+    var hasC     = q.opt_c_texto != null; /* null e undefined → false; string vazia → true (mantém texto já salvo) */
     var optCRows = hasC ? (
       '<tr><th>Opção C — Texto</th><td><textarea name="opt_c_texto" rows="2" class="widefat" data-limit="100">' + esc(q.opt_c_texto) + '</textarea></td></tr>' +
       '<tr><th>Opção C — Consequência</th><td><textarea name="opt_c_cons" rows="2" class="widefat" data-limit="100">' + esc(q.opt_c_cons) + '</textarea></td></tr>'

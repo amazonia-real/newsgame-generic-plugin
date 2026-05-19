@@ -42,32 +42,57 @@ def get_collection(site_id: str):
         collection_name=collection_name
     )
 
-def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 20, k: int = 5) -> str:
+import random
+
+def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5, fontes_usadas: list[str] | None = None) -> str:
     """
     MMR search em múltiplas queries — garante diversidade temática.
+    Exclui via filtro $nin no banco de dados vetorial as matérias já pregressas (histórico do frontend).
     Retorna string de contexto formatada para injeção no prompt do Gemini.
-    Filtra docs sem source_url válida (rigor jornalístico).
     """
     cfg = get_settings()
     seen: set[str] = set()
-    trechos: list[str] = []
+    fontes = fontes_usadas or []
+    filter_dict = {"source_url": {"$nin": fontes}} if fontes else None
+
+    # Acumulador temporário de blocos recuperados para posterior amostragem
+    all_chunks = []
 
     for query in queries:
-        results = db.max_marginal_relevance_search(query, k=k, fetch_k=fetch_k)
-        for doc in results:
-            key = doc.page_content[:100]
-            if key in seen:
-                continue
-            seen.add(key)
-
-            url = doc.metadata.get("source_url", "")
-            if not url.startswith("http"):
-                continue  # descarta chunks sem URL rastreável
-
-            titulo = doc.metadata.get("titulo", "Sem título")
-            trechos.append(
-                f"TÍTULO: {titulo}\nSOURCE_URL: {url}\nTEXTO:\n{doc.page_content}"
+        try:
+            # Buscando o dobro (k*2 e fetch_k adaptado) para aumentar o alcance
+            results = db.max_marginal_relevance_search(
+                query, 
+                k=k * 2, 
+                fetch_k=fetch_k, 
+                filter=filter_dict
             )
+            all_chunks.extend(results)
+        except Exception:
+            pass  # Ignorar erros pontuais de busca
+            
+    # Amostragem estocástica (Random Sampling)
+    # Garante orgânica na recuperação reduzida
+    if len(all_chunks) > k:
+        all_chunks = random.sample(all_chunks, k=min(len(all_chunks), k * 2))
+
+    trechos: list[str] = []
+    
+    for doc in all_chunks:
+        # Prevenção de repeteco entre chunks internos próximos
+        key = doc.page_content[:100]
+        if key in seen:
+            continue
+        seen.add(key)
+
+        url = doc.metadata.get("source_url", "")
+        if not url.startswith("http"):
+            continue  # descarta chunks sem URL rastreável
+
+        titulo = doc.metadata.get("titulo", "Sem título")
+        trechos.append(
+            f"TÍTULO: {titulo}\nSOURCE_URL: {url}\nTEXTO:\n{doc.page_content}"
+        )
 
     separator = "\n\n" + ("=" * 60) + "\n\n"
     full_context = separator.join(trechos)

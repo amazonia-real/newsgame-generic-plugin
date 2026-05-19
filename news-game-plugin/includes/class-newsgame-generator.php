@@ -84,6 +84,7 @@ class Newsgame_Generator {
                 'characters'    => $characters,
                 'num_options'   => (int) ( $instance->num_options   ?? 2 ),
                 'enable_levels' => (bool) ( $instance->enable_levels ?? false ),
+                'nivel_padrao'  => $instance->nivel_padrao ?? 'pedagogico',
             ),
         ) );
     }
@@ -405,9 +406,10 @@ class Newsgame_Generator {
         ), JSON_UNESCAPED_UNICODE ) : null;
 
         $veredicto = wp_json_encode( array(
-            'sintese'  => $d['info_contextual']['sintese'] ?? '',
-            'desfecho' => $d['desfecho_real']              ?? '',
-            'licao'    => $d['licao']                      ?? '',
+            'sintese'             => $d['info_contextual']['sintese'] ?? '',
+            'desfecho'            => $d['desfecho_real']              ?? '',
+            'licao'               => $d['licao']                      ?? '',
+            'alternativa_correta' => $d['alternativa_correta']        ?? '',
         ), JSON_UNESCAPED_UNICODE );
 
         $result = $wpdb->insert(

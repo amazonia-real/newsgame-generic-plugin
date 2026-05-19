@@ -2,14 +2,17 @@
 Lógica do endpoint /regenerate.
 
 Gera exatamente 1 pergunta substituta de forma síncrona (sem SSE).
-Reutiliza _build_prompt() e mmr_search() do generator.py.
+Reutiliza _build_prompt(), _nivel_nome() e mmr_search() do generator.py.
 """
 from __future__ import annotations
+import re
 import sys
 
+from langchain_core.messages import SystemMessage, HumanMessage
+
 from app.config import get_settings
-from app.generator import _get_llm, _build_prompt, _is_valid_dilema
-from app.models import RegenerateRequest, LoteDilemas, DilemaNg
+from app.generator import _get_llm, _build_prompt, _is_valid_dilema, _nivel_nome, _extract_json_dilema
+from app.models import RegenerateRequest, DilemaNg
 from app.rag import get_collection, mmr_search
 
 
@@ -20,51 +23,66 @@ def generate_one(req: RegenerateRequest) -> DilemaNg | None:
     """
     cfg            = get_settings()
     db             = get_collection(req.site_id)
-    structured_llm = _get_llm().with_structured_output(LoteDilemas)
+    llm            = _get_llm()
 
-    # Localiza o personagem nas definições da instância (pode não existir se for "geral")
+    modo_geral = not bool(req.characters)
+    n_nome     = _nivel_nome(req.nivel, modo_geral, req.personagem_tipo)
+
     char = next((c for c in req.characters if c.slug == req.personagem_tipo), None)
 
     if char:
-        queries          = [
+        queries    = [
             f"{char.description} {req.theme_prompt}",
             f"{char.label} {req.theme_prompt}",
             char.description,
             req.theme_prompt,
         ]
-        personagem_label = char.label
-        personagem_desc  = char.description
-        modo_geral       = False
+        char_label = char.label
+        char_desc  = char.description
     else:
-        queries          = [req.theme_prompt, f"perspectiva ampla sobre {req.theme_prompt}"]
-        personagem_label = "Geral"
-        personagem_desc  = None
-        # Modo Geral verdadeiro apenas quando não há personagens cadastrados na instância
-        modo_geral       = not bool(req.characters)
+        queries    = [req.theme_prompt, f"perspectiva ampla sobre {req.theme_prompt}"]
+        char_label = None
+        char_desc  = None
 
-    contexto_rag = mmr_search(db, queries, fetch_k=cfg.rag_fetch_k, k=cfg.rag_k)
+    contexto_rag = mmr_search(
+        db, queries, 
+        fetch_k=cfg.rag_fetch_k, 
+        k=cfg.rag_k,
+        fontes_usadas=req.fontes_usadas
+    )
     if not contexto_rag.strip():
         return None
 
-    prompt = _build_prompt(
+    urls_disponiveis = list(dict.fromkeys(
+        re.findall(r'SOURCE_URL:\s*(https?://\S+)', contexto_rag)
+    ))
+    url_fonte = urls_disponiveis[0] if urls_disponiveis else ""
+
+    system, user = _build_prompt(
         theme_prompt=req.theme_prompt,
         contexto_rag=contexto_rag,
-        nivel=req.nivel,
-        personagem_tipo=req.personagem_tipo,
-        personagem_label=personagem_label,
-        personagem_descricao=personagem_desc,
-        quantidade=1,
+        nivel_nome=n_nome,
+        url_fonte=url_fonte,
         num_options=req.num_options,
-        enable_levels=req.enable_levels,
-        modo_geral=modo_geral,
+        personagem_label=char_label,
+        personagem_descricao=char_desc,
     )
 
     for tentativa in range(1, cfg.max_retries_batch + 1):
         try:
-            resultado: LoteDilemas = structured_llm.invoke(prompt)
-            validos = [d for d in resultado.dilemas if _is_valid_dilema(d, req.num_options)]
-            if validos:
-                return validos[0]
+            res = llm.invoke(
+                [SystemMessage(system), HumanMessage(user)]
+            )
+            data_dict = _extract_json_dilema(res.content)
+            dilema: DilemaNg = DilemaNg(**data_dict)
+            
+            if req.num_options == 2 and len(dilema.alternativas) > 2:
+                dilema.alternativas = dilema.alternativas[:2]
+            if _is_valid_dilema(dilema, req.num_options):
+                dilema.nivel          = req.nivel
+                dilema.nivel_nome     = n_nome
+                dilema.personagem_tipo = req.personagem_tipo
+                return dilema
         except Exception as exc:
             print(
                 f"[regenerator] tentativa={tentativa} personagem={req.personagem_tipo} erro={exc!r}",

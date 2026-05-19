@@ -35,6 +35,10 @@ class GenerateRequest(BaseModel):
     characters: List[CharacterDef] = Field(default_factory=list)
     num_options: Literal[2, 3] = 2
     enable_levels: bool = False
+    slot_index: int = Field(ge=0, default=0)    # posição no lote (0-based); rotação de personagens
+    nivel_padrao: str = Field(default='pedagogico')  # 'ludico' | 'pedagogico' | 'complexo'
+    fontes_usadas: List[str] = Field(default_factory=list)
+
 
 
 # ── Modelos Pydantic para structured output do Gemini ─────
@@ -60,9 +64,9 @@ class Impacto(BaseModel):
 class Alternativa(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    id: str = Field(
+    letra: str = Field(
         default="A",
-        description="Identificador fixo: 'A', 'B' ou 'C'.",
+        description="Identificador da alternativa: 'A', 'B' ou 'C'.",
     )
     texto: str = Field(
         default="",
@@ -139,6 +143,14 @@ class DilemaNg(BaseModel):
     info_contextual: InfoContextual = Field(
         default_factory=InfoContextual,
     )
+    alternativa_correta: str = Field(
+        default="",
+        description="Letra da alternativa que corresponde ao fato real (nível LÚDICO): 'A', 'B' ou 'C'.",
+    )
+    nivel_nome: str = Field(
+        default="LÚDICO",
+        description="Nome do nível: 'LÚDICO', 'PEDAGÓGICO' ou 'COMPLEXO'.",
+    )
 
 
 class LoteDilemas(BaseModel):
@@ -159,3 +171,4 @@ class RegenerateRequest(BaseModel):
     characters: List[CharacterDef] = Field(default_factory=list)
     num_options: Literal[2, 3] = 2
     enable_levels: bool = False
+    fontes_usadas: List[str] = Field(default_factory=list)

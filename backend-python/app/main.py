@@ -48,6 +48,22 @@ def regenerate_one(req: RegenerateRequest) -> dict:
     return dilema.model_dump()
 
 
+@app.post("/generate-one", dependencies=[Depends(_verify_token)])
+def generate_one(req: GenerateRequest) -> dict:
+    """
+    Gera 1 dilema de forma síncrona. O JS do painel chama este endpoint
+    em loop (uma vez por dilema) para evitar timeout de conexão.
+    req.slot_index (0-based) controla distribuição personagem/nível.
+    """
+    dilema = generator.generate_one_dilema(req)
+    if dilema is None:
+        raise HTTPException(status_code=422, detail="Não foi possível gerar um dilema válido para este slot.")
+    result = dilema.model_dump()
+    result["instance_id"] = req.instance_id
+    result["position"]    = req.slot_index + 1
+    return result
+
+
 @app.post("/generate", dependencies=[Depends(_verify_token)])
 def generate(req: GenerateRequest) -> StreamingResponse:
     """
