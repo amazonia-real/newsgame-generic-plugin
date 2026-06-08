@@ -1,60 +1,158 @@
-# Jogo da Amazônia
+# News Game Plugin
 
-> **REPOSITÓRIO PRIVADO DE DESENVOLVIMENTO — MVP Jogo da Amazônia**
-> Organização: [Amazônia Real](https://github.com/amazonia-real)
+Plugin WordPress open source para criar jogos de dilemas interativos
+a partir do acervo editorial de qualquer veículo jornalístico.
+
+Desenvolvido pela equipe da [Amazônia Real](https://amazoniareal.com.br),
+generalizado como ferramenta reutilizável para qualquer domínio editorial.
 
 ---
 
-## Sobre o Projeto
+## Como funciona
 
-O **Jogo da Amazônia** é um quiz interativo baseado em conteúdo jornalístico produzido pela Amazônia Real. O projeto utiliza inteligência artificial para gerar perguntas a partir do acervo de reportagens, com foco em educação ambiental, direitos indígenas e crise climática na Amazônia.
+O editor sobe um corpus de textos. A IA infere os eixos de tensão de valor
+daquele domínio específico. O sistema gera dilemas calibrados por esses eixos.
+O jogador escolhe — e ao final recebe um perfil narrativo baseado no vetor
+acumulado das suas decisões.
 
-## Status
+Nenhum eixo, peso ou perfil é hardcoded: tudo emerge do corpus fornecido.
 
-- **Fase atual:** MVP em desenvolvimento
-- **Acesso:** Privado — equipe interna da Amazônia Real
+---
 
-## Estrutura
+## Arquitetura
 
 ```
-jogo-da-amazonia/
-├── acervo_amazonia.txt          # Acervo textual base
-├── acervo_amazonia_v2.json      # Acervo estruturado em JSON
-├── matriz_crise_climatica.json  # Matriz temática de perguntas
-├── quiz_generator.py            # Gerador de quiz com IA
-├── build_db.py                  # Construção do banco vetorial
-├── pipeline_noite.py            # Pipeline de atualização noturna
-├── config.py                    # Configurações do projeto
-├── jogo-da-amazonia-plugin/     # Plugin WordPress do quiz
-├── AGENTS.md                    # Instruções para agentes IA
-└── ROADMAP_OPEN_SOURCE.md       # Plano de abertura futura
+WordPress (plugin PHP)
+    ↕ HTTP (JSON)
+FastAPI (Python)
+    ↕ embeddings + MMR search
+ChromaDB (banco vetorial local)
+    ↑ indexação
+Corpus de textos do editor
 ```
 
-## Tecnologias
+### Rotas do backend
 
-- Python 3.x
-- ChromaDB (banco vetorial)
-- LLMs via API (geração de perguntas)
-- Plugin WordPress (frontend do quiz)
+| Rota | Método | Função |
+|------|--------|--------|
+| `/health` | GET | Healthcheck |
+| `/ingest` | POST | Indexa artigos no ChromaDB |
+| `/analyze-domain` | POST | Infere 3 eixos de tensão do corpus + perfis de jogador |
+| `/assign-weights` | POST | Atribui pesos (-20 a +20) por eixo a cada alternativa |
+| `/generate-verdict` | POST | Seleciona perfil mais próximo e gera texto narrativo |
+| `/generate-one` | POST | Gera 1 dilema de forma síncrona (chamada por slot) |
+| `/generate` | POST | Gera dilemas via SSE stream |
+| `/regenerate` | POST | Substitui 1 dilema inválido |
 
-## Configuração do Plugin (wp-config.php)
+Resolução da chave Gemini em todas as rotas:
+`X-Gemini-Api-Key` (header) → `gemini_api_key` (body) → `GEMINI_API_KEY` (env)
 
-As constantes abaixo devem ser definidas no `wp-config.php` do WordPress, **antes** da linha `require_once ABSPATH . 'wp-settings.php'`. Não defina valores sensíveis diretamente no código do plugin.
+---
 
-```php
-// Senha do portão de acesso (opcional — portão desativado no lançamento público)
-define( 'JDA_ACCESS_PASSWORD', 'sua-senha-aqui' );
+## Requisitos
 
-// ID do Google Analytics 4 (opcional — deixe em branco para desativar)
-define( 'JDA_GA4_ID', 'G-XXXXXXXXXX' );
+- PHP 8.1+ / WordPress 6.x
+- Python 3.11+
+- [ChromaDB](https://www.trychroma.com/) (local ou containerizado)
+- Chave de API [Google Gemini](https://aistudio.google.com/)
+
+---
+
+## Instalação
+
+### Backend
+
+```bash
+cd backend-python
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+pip install -r requirements.txt
+cp .env.example .env          # editar GEMINI_API_KEY, CHROMA_DB_DIR e demais vars
+uvicorn app.main:app --reload --port 8000
 ```
 
-Se as constantes não forem definidas no `wp-config.php`, o plugin usa valores padrão seguros (strings vazias), desativando as funcionalidades correspondentes.
+### Plugin WordPress
+
+Copie (ou crie link simbólico de) `news-game-plugin/` para
+`wp-content/plugins/news-game-plugin/` e ative pelo painel do WordPress.
+
+Configure a URL do backend em **News Game → Configurações**.
+
+---
+
+## Fluxo do editor
+
+1. Cria uma instância em **News Game → Instâncias**
+2. Cola o corpus de textos (reportagens, artigos) na aba de ingestão
+3. Clica em **Analisar domínio** — a IA propõe 3 eixos de tensão e 4–6 perfis de jogador
+4. Edita/aprova os eixos e perfis no textarea
+5. Clica em **Gerar dilemas** — o backend produz dilemas calibrados pelo corpus
+6. Revisa dilema a dilema; substitui os insatisfatórios com **Regenerar**
+7. Publica — o shortcode `[news-game id="1"]` renderiza o jogo em qualquer página (ID numérico da instância)
+
+## Fluxo do jogador
+
+1. Responde dilemas apresentados sequencialmente
+2. Cada escolha acumula pesos nos 3 eixos da instância
+3. Ao final, `/generate-verdict` calcula o vetor do jogador e seleciona o perfil
+   mais próximo por distância euclidiana
+4. Exibe: nome do perfil + força dominante + ponto cego + chamada de compartilhamento
+
+---
+
+## Estrutura do repositório
+
+```
+news-game/
+├── backend-python/
+│   └── app/
+│       ├── main.py        ← rotas FastAPI
+│       ├── models.py      ← schemas Pydantic
+│       ├── generator.py   ← geração de dilemas via Gemini + RAG
+│       ├── rag.py         ← motor RAG / ChromaDB (MMR search)
+│       ├── ingestor.py    ← ingestão e indexação do corpus
+│       ├── regenerator.py ← auto-reparo de dilemas inválidos
+│       └── config.py      ← configurações centralizadas
+├── news-game-plugin/
+│   ├── news-game.php
+│   ├── admin/views/       ← telas do painel WP
+│   ├── includes/          ← classes PHP (db, generator, ingestor, etc.)
+│   └── public/            ← CSS + JS do jogo
+├── FEW_SHOT_EXAMPLES.md   ← exemplos canônicos de dilemas — não editar
+├── AGENTS.md              ← diretrizes de geração de conteúdo
+├── CLAUDE.md              ← instruções operacionais para Claude Code
+├── ROADMAP_OPEN_SOURCE.md ← roadmap de universalização
+└── TECH_FLAGS.md          ← decisões de arquitetura e dívida técnica
+```
+
+---
+
+## Variáveis de ambiente (backend)
+
+| Variável | Obrigatória | Padrão | Descrição |
+|----------|-------------|--------|-----------|
+| `GEMINI_API_KEY` | Sim* | — | Chave da API Google Gemini |
+| `CHROMA_DB_DIR` | Sim | `/data/chroma_db` | Caminho do banco vetorial (ajustar no Windows) |
+| `API_SECRET_TOKEN` | Não | `REDIGIDO` | Token para autenticar chamadas do plugin WP |
+| `LLM_MODEL` | Não | `gemini-2.5-flash` | Modelo Gemini usado na geração |
+| `LLM_TEMPERATURE` | Não | `0.3` | Temperatura do modelo |
+| `EMBED_MODEL` | Não | `paraphrase-multilingual-MiniLM-L12-v2` | Modelo de embeddings |
+| `RAG_FETCH_K` | Não | `20` | Documentos buscados antes do MMR |
+| `RAG_K` | Não | `5` | Documentos retornados após MMR |
+| `RAG_CONTEXT_WINDOW` | Não | `40000` | Tamanho máximo do contexto RAG em chars |
+| `MAX_RETRIES_BATCH` | Não | `5` | Tentativas por dilema antes de desistir |
+| `RATE_LIMIT_SLEEP` | Não | `60` | Segundos de espera ao atingir rate limit |
+
+*Pode ser fornecida por header ou body em vez de variável de ambiente.
+
+---
 
 ## Contribuição
 
-Este repositório é de uso interno. Para contribuir, entre em contato com a equipe de desenvolvimento da Amazônia Real.
+Veja `ROADMAP_OPEN_SOURCE.md` para o estado atual e próximos passos.
+Dívida técnica documentada em `TECH_FLAGS.md`.
+Decisões de arquitetura e regras de desenvolvimento em `CLAUDE.md`.
 
 ---
 
-*Amazônia Real — Jornalismo independente sobre a maior floresta tropical do mundo.*
+*Originado no [Jogo da Amazônia](https://github.com/amazonia-real) — jornalismo interativo da maior floresta tropical do mundo.*
