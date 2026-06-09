@@ -172,3 +172,75 @@ class RegenerateRequest(BaseModel):
     num_options: Literal[2, 3] = 2
     enable_levels: bool = False
     fontes_usadas: List[str] = Field(default_factory=list)
+
+
+# ── Modelos para /analyze-domain ──────────────────────────────────────────
+
+class AxisOption(BaseModel):
+    """Tensão de valor com nome curto, descrição neutra e seus dois polos."""
+    nome: str
+    descricao: str
+    polo_positivo: str
+    polo_negativo: str
+
+
+class AxisSet(BaseModel):
+    """Conjunto dos três eixos de tensão principais do domínio."""
+    eixo1: AxisOption
+    eixo2: AxisOption
+    eixo3: AxisOption
+
+
+class ProfileSuggestion(BaseModel):
+    """Perfil de jogador derivado dos eixos de tensão do domínio."""
+    nome: str
+    descricao: str
+    forca_dominante: str
+    ponto_cego: str
+    vetor_aproximado: dict[str, float]
+
+
+class DomainAnalysisRequest(BaseModel):
+    context_text: str
+    perfis_disponiveis: List[str] = Field(default_factory=list)
+    gemini_api_key: str = Field(default="")
+
+
+class DomainAnalysisResponse(BaseModel):
+    eixos_principais: AxisSet
+    eixos_reserva: dict[str, List[AxisOption]]
+    perfis_sugeridos: List[ProfileSuggestion]
+
+
+# ── Modelos para /assign-weights ──────────────────────────────────────────
+
+class AssignWeightsRequest(BaseModel):
+    dilemmas: List[dict]
+    eixos: AxisSet
+    gemini_api_key: str = Field(default="")
+
+
+class AssignWeightsResponse(BaseModel):
+    dilemmas_weighted: List[dict]
+
+
+# ── Modelos para /generate-verdict ────────────────────────────────────────
+
+class VerdictNarrative(BaseModel):
+    nome_perfil: str
+    texto_forca: str
+    texto_ponto_cego: str
+    chamada_compartilhamento: str
+
+
+class GenerateVerdictRequest(BaseModel):
+    vetor_jogador: dict[str, float]
+    perfis_disponiveis: List[ProfileSuggestion]
+    eixos: AxisSet
+    gemini_api_key: str = Field(default="")
+
+
+class GenerateVerdictResponse(BaseModel):
+    perfil_selecionado: ProfileSuggestion
+    narrativa: VerdictNarrative
+    vetor_jogador: dict[str, float]

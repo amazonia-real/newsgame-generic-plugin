@@ -14,6 +14,7 @@ $enable_levels = $is_edit ? (bool) ( $inst->enable_levels ?? false ) : false;
 $nivel_padrao  = $is_edit ? ( $inst->nivel_padrao ?? 'pedagogico' ) : 'pedagogico';
 $status        = $is_edit ? $inst->status       : 'draft';
 $chars         = $is_edit ? (array) json_decode( $inst->characters ?? '[]', true ) : array();
+$axis_matrix   = $is_edit ? ( $inst->axis_matrix ?? '' ) : '';
 
 $form_url = add_query_arg( array( 'action' => 'newsgame_save_instance' ), admin_url( 'admin-post.php' ) );
 $list_url = add_query_arg( array( 'page' => 'newsgame-instances' ), admin_url( 'admin.php' ) );
@@ -165,6 +166,30 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
             Este texto é enviado ao Gemini como contexto da geração. Seja específico:
             descreva o tema, o tipo de acervo e quem é o público-alvo.
           </p>
+
+          <button
+            type="button"
+            id="btn-analisar-eixos"
+            class="button button-secondary"
+            style="margin-top: 8px;"
+          >
+            🔍 Analisar Acervo e Propor Eixos
+          </button>
+
+          <div id="container-eixos-dinamicos" style="margin-top: 16px;"><?php if ( $axis_matrix ) : ?>
+            <div style="background:#f0f7f0; border:1px solid #00a32a; padding:16px; border-radius:4px;">
+              <strong style="color:#00a32a; font-size:13px;">✅ Matriz de eixos salva — edite e confirme se necessário</strong>
+              <p style="font-size:12px; color:#555; margin:8px 0;">Edite o JSON abaixo se necessário antes de salvar.</p>
+              <textarea id="json-eixos-editavel" rows="15" style="width:100%; font-family:monospace; font-size:12px; background:#222; color:#fff; padding:10px; border-radius:4px; border:1px solid #555; box-sizing:border-box;"><?php
+                $axis_decoded = json_decode( $axis_matrix, true );
+                echo esc_textarea( $axis_decoded
+                    ? wp_json_encode( $axis_decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE )
+                    : $axis_matrix
+                );
+              ?></textarea>
+              <button type="button" id="btn-salvar-matriz" class="button button-primary" style="margin-top:10px;">✓ Confirmar e Salvar Matriz de Eixos</button>
+            </div>
+          <?php endif; ?></div>
         </td>
       </tr>
     </table>
@@ -569,6 +594,164 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
       });
     }
   }());
+  </script>
+
+  <script>
+  var ngAxisNonce  = '<?php echo wp_create_nonce( Newsgame_Admin_Instances::NONCE_AXIS ); ?>';
+  var ngInstanceId = <?php echo (int) $id; ?>;
+
+  // Anexa o handler de save ao #btn-salvar-matriz.
+  // Chamada tanto no DOMContentLoaded (botão pré-renderizado pelo PHP)
+  // quanto após o fetch de /analyze-domain criar o botão dinamicamente.
+  function ngBindSalvarBtn() {
+    var btnSalvar = document.getElementById('btn-salvar-matriz');
+    if (!btnSalvar || btnSalvar._ngBound) return;
+    btnSalvar._ngBound = true;
+
+    btnSalvar.addEventListener('click', async function () {
+      var textarea  = document.getElementById('json-eixos-editavel');
+
+      var feedbackEl = document.getElementById('ng-axis-feedback');
+      if (!feedbackEl) {
+        feedbackEl = document.createElement('p');
+        feedbackEl.id = 'ng-axis-feedback';
+        feedbackEl.style.cssText = 'margin:8px 0 0; font-size:13px;';
+        btnSalvar.parentNode.insertBefore(feedbackEl, btnSalvar.nextSibling);
+      }
+
+      try {
+        JSON.parse(textarea.value);
+      } catch (parseErr) {
+        feedbackEl.innerHTML =
+          '<span style="color:#dc3232;">❌ JSON inválido — corrija antes de salvar: ' +
+          parseErr.message + '</span>';
+        return;
+      }
+
+      btnSalvar.disabled    = true;
+      btnSalvar.textContent = '⏳ Salvando...';
+      feedbackEl.innerHTML  = '';
+
+      var body = new FormData();
+      body.append('action',           'newsgame_save_axis_matrix');
+      body.append('nonce',            ngAxisNonce);
+      body.append('instance_id',      ngInstanceId);
+      body.append('axis_matrix_json', textarea.value);
+
+      try {
+        var res  = await fetch(ajaxurl, { method: 'POST', body: body });
+        var json = await res.json();
+        if (json.success) {
+          feedbackEl.innerHTML =
+            '<span style="color:#00a32a;">✅ Matriz de eixos salva com sucesso.</span>';
+        } else {
+          feedbackEl.innerHTML =
+            '<span style="color:#dc3232;">❌ Erro ao salvar: ' +
+            ((json.data && json.data.msg) || 'Erro desconhecido') + '</span>';
+        }
+      } catch (e) {
+        feedbackEl.innerHTML =
+          '<span style="color:#dc3232;">❌ Falha de rede: ' + e.message + '</span>';
+      } finally {
+        btnSalvar.disabled    = false;
+        btnSalvar.textContent = '✓ Confirmar e Salvar Matriz de Eixos';
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+
+    // Botão pré-renderizado pelo PHP (instância com matriz já salva)
+    ngBindSalvarBtn();
+
+    var btn = document.getElementById('btn-analisar-eixos');
+    if (!btn) return;
+
+    btn.addEventListener('click', async function () {
+
+      var campoAcervo =
+        document.querySelector('#theme_prompt') ||
+        document.querySelector('[name="theme_prompt"]') ||
+        document.querySelector('#context_text') ||
+        document.querySelector('[name="context_text"]') ||
+        document.querySelector('#acervo') ||
+        document.querySelector('[name="acervo"]');
+
+      var container = document.getElementById('container-eixos-dinamicos');
+
+      if (!campoAcervo || !campoAcervo.value.trim()) {
+        container.innerHTML =
+          '<div style="' +
+            'background:#fff3cd; border:1px solid #ffc107;' +
+            'padding:12px; border-radius:4px; margin-top:8px;' +
+            'font-family:monospace; font-size:13px;' +
+          '">' +
+            '⚠️ Preencha o campo Descrição do Acervo antes de analisar.' +
+          '</div>';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Analisando...';
+      container.innerHTML = '';
+
+      try {
+        var backendBase = '<?php echo esc_js( rtrim( Newsgame_Settings::backend_url(), '/' ) ); ?>';
+        var response = await fetch(backendBase + '/analyze-domain', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Gemini-Api-Key': '<?php echo esc_js( Newsgame_Settings::gemini_key() ); ?>'
+          },
+          body: JSON.stringify({ context_text: campoAcervo.value.trim() })
+        });
+
+        if (!response.ok) {
+          var erro = await response.text();
+          throw new Error('HTTP ' + response.status + ': ' + erro);
+        }
+
+        var data = await response.json();
+
+        container.innerHTML =
+          '<div style="' +
+            'background:#f0f7f0; border:1px solid #00a32a;' +
+            'padding:16px; border-radius:4px; margin-top:8px;' +
+          '">' +
+            '<strong style="color:#00a32a; font-size:13px;">✅ Eixos propostos pela IA — revise e confirme</strong>' +
+            '<p style="font-size:12px; color:#555; margin:8px 0;">Edite o JSON abaixo se necessário antes de salvar.</p>' +
+            '<textarea id="json-eixos-editavel" rows="15" style="' +
+              'width:100%; font-family:monospace; font-size:12px;' +
+              'background:#222; color:#fff; padding:10px;' +
+              'border-radius:4px; border:1px solid #555; box-sizing:border-box;' +
+            '">' + JSON.stringify(data, null, 2) + '</textarea>' +
+            '<button type="button" id="btn-salvar-matriz" class="button button-primary" style="margin-top:10px;">' +
+              '✓ Confirmar e Salvar Matriz de Eixos' +
+            '</button>' +
+          '</div>';
+
+        // Botão criado dinamicamente após o fetch
+        ngBindSalvarBtn();
+
+      } catch (err) {
+        container.innerHTML =
+          '<div style="' +
+            'background:#fdf0f0; border:1px solid #dc3232;' +
+            'padding:12px; border-radius:4px; margin-top:8px;' +
+            'font-family:monospace; font-size:12px;' +
+          '">' +
+            '❌ Erro ao conectar com o servidor Python:<br><br>' +
+            '<strong>' + err.message + '</strong><br><br>' +
+            'Verifique se o servidor está rodando em ' +
+            'http://127.0.0.1:8000 e se o CORS está habilitado.' +
+          '</div>';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Analisar Acervo e Propor Eixos';
+      }
+
+    });
+  });
   </script>
 
   <?php endif; // is_edit && backend_ok ?>

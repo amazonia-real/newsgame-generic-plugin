@@ -3,10 +3,13 @@ defined( 'ABSPATH' ) || exit;
 
 class Newsgame_Admin_Instances {
 
+    const NONCE_AXIS = 'newsgame_save_axis';
+
     public static function init() {
-        add_action( 'admin_menu',                                     array( __CLASS__, 'register_submenu' ) );
-        add_action( 'admin_post_newsgame_save_instance',              array( __CLASS__, 'handle_save' ) );
-        add_action( 'admin_post_newsgame_delete_instance',            array( __CLASS__, 'handle_delete' ) );
+        add_action( 'admin_menu',                                      array( __CLASS__, 'register_submenu' ) );
+        add_action( 'admin_post_newsgame_save_instance',               array( __CLASS__, 'handle_save' ) );
+        add_action( 'admin_post_newsgame_delete_instance',             array( __CLASS__, 'handle_delete' ) );
+        add_action( 'wp_ajax_newsgame_save_axis_matrix',               array( __CLASS__, 'handle_save_axis_matrix' ) );
     }
 
     public static function register_submenu() {
@@ -151,6 +154,42 @@ class Newsgame_Admin_Instances {
             );
         }
         return $clean;
+    }
+
+    /* ── AJAX: salva matriz de eixos ───────────────────────────── */
+
+    public static function handle_save_axis_matrix() {
+        check_ajax_referer( self::NONCE_AXIS, 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'msg' => 'Permissão insuficiente.' ) );
+        }
+
+        $instance_id = (int) ( $_POST['instance_id'] ?? 0 );
+        $json_raw    = wp_unslash( $_POST['axis_matrix_json'] ?? '' );
+
+        if ( ! $instance_id ) {
+            wp_send_json_error( array( 'msg' => 'ID de instância inválido.' ) );
+        }
+
+        $decoded = json_decode( $json_raw, true );
+        if ( json_last_error() !== JSON_ERROR_NONE ) {
+            wp_send_json_error( array( 'msg' => 'JSON inválido: ' . json_last_error_msg() ) );
+        }
+
+        global $wpdb;
+        $result = $wpdb->update(
+            $wpdb->prefix . 'newsgame_instances',
+            array( 'axis_matrix' => wp_json_encode( $decoded, JSON_UNESCAPED_UNICODE ) ),
+            array( 'id' => $instance_id ),
+            array( '%s' ),
+            array( '%d' )
+        );
+
+        if ( false === $result ) {
+            wp_send_json_error( array( 'msg' => 'Falha ao salvar no banco: ' . $wpdb->last_error ) );
+        }
+
+        wp_send_json_success( array( 'msg' => 'Matriz de eixos salva.' ) );
     }
 
     /** Gera um slug único para a instância, evitando colisão no DB. */

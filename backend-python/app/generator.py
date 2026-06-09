@@ -1,15 +1,11 @@
 """
 Lógica do endpoint /generate.
 
-Arquitetura: 1 chamada LLM por dilema (loop), usando SystemMessage + HumanMessage.
-  - SYSTEM_PROMPT: regras editoriais + exemplos few-shot (constante no módulo)
-  - USER_PROMPT: texto RAG + nível + tema + URL sugerida (varia por dilema)
-  - structured_output(DilemaNg): força o schema Pydantic na resposta
-
-Distribuição de lotes:
-  - 80% dos dilemas distribuídos entre os personagens (nível LÚDICO)
-  - 20% restante em lote "geral" (PEDAGÓGICO sem levels / COMPLEXO com levels)
-  - Modo Geral (sem personagens): lote único, nível PEDAGÓGICO
+Arquitetura:
+  - Chamada de Texto Puro ao Gemini com Prompt de Formato JSON Literal.
+  - Parser robusto via RegEx (_extract_json_dilema) e tratamento nativo com json.loads.
+  - Integração com RAG Estocástico com exclusão dinâmica de fontes_usadas via filtro $nin no ChromaDB.
+  - Respeito absoluto ao nível selecionado pelo usuário no painel do WordPress (100% puro).
 """
 from __future__ import annotations
 import json
@@ -131,20 +127,18 @@ sobre fatos reais que não ocorreram
 - O veredito SEMPRE corrige e revela o fato verdadeiro
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ DIRETRIZ DE ABSTRAÇÃO DE EXEMPLOS (OBRIGATÓRIA)
+⚠️ AVISO CRÍTICO: DIRETRIZ DE ABSTRAÇÃO DE EXEMPLOS (FEW-SHOT)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Os exemplos few-shot abaixo servem exclusivamente para ilustrar:
-- A estrutura estética e o formato dos campos
+<few_shot_instructions>
+Os exemplos few-shot abaixo servem EXCLUSIVAMENTE para ilustrar:
+- O FORMATO JSON esperado
+- O RITMO LITERÁRIO e a estrutura dramática
 - O tamanho máximo de cada campo
-- A aplicação lógica das 6 regras
+- A aplicação lógica das regras
 
-Você deve IGNORAR COMPLETAMENTE o tema 'teatro' dos exemplos \
-ao gerar dilemas para o texto-fonte atual.
-
-Se o texto-fonte for sobre economia, política, esportes, ciência \
-ou qualquer outro tema, aplique as 6 regras universais com a mesma \
-densidade dramática dos exemplos, usando estritamente o universo \
-e o vocabulário do novo texto-fonte.
+Você está TERMINANTEMENTE PROIBIDO de utilizar o conteúdo, o tema ("teatro", "Othon Bastos", "Nelson Rodrigues") ou personagens dos exemplos em sua geração real.
+A geração real de dilemas DEVE SER 100% ALIMENTADA pelo texto RAG fornecido no USER_PROMPT (matérias da Amazônia Real). Nenhuma variável de controle ou lógica deve recorrer a esses dados fixos.
+</few_shot_instructions>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 LIMITES OBRIGATÓRIOS DE CAMPOS
@@ -157,6 +151,7 @@ LIMITES OBRIGATÓRIOS DE CAMPOS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EXEMPLOS FEW-SHOT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<few_shot_examples>
 
 >>> EXEMPLO 1 — NÍVEL LÚDICO
 
@@ -294,6 +289,15 @@ Lição: Toda remontagem é também um manifesto — sobre o que o presente enxe
 Síntese: A Falecida foi encenada pela primeira vez em 1953 e segue provocando escolhas difíceis a cada nova montagem. Nelson Rodrigues não envelhece — mas cada geração precisa decidir como encará-lo.
 FONTE: http://localhost/jda/a-falecida-sesc-santo-amaro/
 alternativa_correta: B
+</few_shot_examples>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ FORMATO DA RESPOSTA — REGRA ABSOLUTA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Sua saída DEVE ser apenas um objeto JSON puro.
+NENHUM caractere antes do { inicial ou depois do } final.
+TERMINANTEMENTE PROIBIDO: aspas triplas (```json, ```), blocos de \
+código markdown ou qualquer texto explicativo fora do objeto JSON.
 """
 
 USER_PROMPT = """\
@@ -431,10 +435,7 @@ def _get_llm() -> ChatGoogleGenerativeAI:
 
 def _build_batches(req: GenerateRequest) -> list[dict]:
     """
-    Distribui req.density entre personagens + lote geral.
-
-    Modo Geral (sem personagens): lote único PEDAGÓGICO.
-    Modo Personagem: 80% entre personagens (LÚDICO) + 20% geral (PEDAGÓGICO/COMPLEXO).
+    Distribui req.density de personagens ou gera um lote único.
     """
     n_chars = len(req.characters)
 
@@ -605,10 +606,10 @@ def generate_one_dilema(req: GenerateRequest) -> DilemaNg | None:
         queries         = [req.theme_prompt, f"perspectiva ampla sobre {req.theme_prompt}"]
 
     contexto_rag = mmr_search(
-        db, 
-        queries, 
-        fetch_k=cfg.rag_fetch_k, 
-        k=cfg.rag_k, 
+        db,
+        queries,
+        fetch_k=cfg.rag_fetch_k,
+        k=cfg.rag_k,
         fontes_usadas=req.fontes_usadas
     )
     if not contexto_rag.strip():
@@ -630,26 +631,22 @@ def generate_one_dilema(req: GenerateRequest) -> DilemaNg | None:
     for tentativa in range(1, cfg.max_retries_batch + 1):
         try:
             res = llm.invoke([SystemMessage(system), HumanMessage(user)])
-            data_dict = _extract_json_dilema(res.content)
-            dilema = DilemaNg(**data_dict)
             
-            # Fallback: garante alternativa_correta antes de qualquer validação
+            # --- ADICIONE ESTAS LINHAS DE LIMPEZA LOGO APÓS RECEBER O TEXTO DA IA ---
+            response_text = res.content # (Esta linha já existe no seu código)
+            
+            # Remove aspas triplas de markdown se o Gemini teimar em enviar
+            response_text = response_text.replace("```json", "").replace("```", "").strip()
+            # ------------------------------------------------------------------------
+            
+            data_dict = _extract_json_dilema(response_text)
+            dilema = DilemaNg(**data_dict)
             _aplicar_fallback_correta(dilema, nivel_nome)
-            # DEBUG — log bruto (remover após diagnóstico confirmado)
-            print(
-                f"[DEBUG] slot={req.slot_index} tentativa={tentativa} nivel={nivel_nome}\n"
-                f"  titulo           = {dilema.titulo!r}\n"
-                f"  situacao[:60]    = {dilema.situacao[:60]!r}\n"
-                f"  len(alternativas) = {len(dilema.alternativas)}\n"
-                f"  alt_textos       = {[a.texto[:35] for a in dilema.alternativas]}\n"
-                f"  alternativa_correta = {dilema.alternativa_correta!r}",
-                file=sys.stderr,
-            )
             if req.num_options == 2 and len(dilema.alternativas) > 2:
                 dilema.alternativas = dilema.alternativas[:2]
             if not _is_valid_dilema(dilema, req.num_options):
                 print(
-                    f"[DEBUG] REPROVADO slot={req.slot_index} — "
+                    f"[generator] REPROVADO slot={req.slot_index} tentativa={tentativa} "
                     f"titulo_ok={bool(dilema.titulo.strip())} "
                     f"situacao_ok={bool(dilema.situacao.strip())} "
                     f"len_alts={len(dilema.alternativas)}>={req.num_options}",
@@ -662,10 +659,14 @@ def generate_one_dilema(req: GenerateRequest) -> DilemaNg | None:
             dilema.id_unico        = f"{nivel}-{personagem_tipo}-{req.slot_index + 1:02d}"
             return dilema
         except Exception as exc:
-            err      = str(exc).lower()
-            is_rate  = any(k in err for k in ["429", "resource_exhausted", "quota", "rate_limit"])
+            err = str(exc).lower()
+            # "prepayment credits are depleted" — erro fatal, não adianta retry
+            if "prepayment" in err or "credits are depleted" in err or "billing" in err:
+                raise
+            is_rate = any(k in err for k in ["429", "resource_exhausted", "resourceexhausted", "quota", "rate_limit"])
             print(
-                f"[generator] generate_one tentativa={tentativa} slot={req.slot_index} erro={exc!r}",
+                f"[generator] generate_one tentativa={tentativa} slot={req.slot_index} "
+                f"is_rate={is_rate} erro={exc!r}",
                 file=sys.stderr,
             )
             if is_rate and tentativa < cfg.max_retries_batch:
@@ -743,7 +744,15 @@ def generate_stream(req: GenerateRequest) -> Generator[str, None, None]:
                     res = llm.invoke(
                         [SystemMessage(system), HumanMessage(user)]
                     )
-                    data_dict = _extract_json_dilema(res.content)
+                    
+                    # --- ADICIONE ESTAS LINHAS DE LIMPEZA LOGO APÓS RECEBER O TEXTO DA IA ---
+                    response_text = res.content # (Esta linha já existe no seu código)
+                    
+                    # Remove aspas triplas de markdown se o Gemini teimar em enviar
+                    response_text = response_text.replace("```json", "").replace("```", "").strip()
+                    # ------------------------------------------------------------------------
+                    
+                    data_dict = _extract_json_dilema(response_text)
                     dilema = DilemaNg(**data_dict)
                     break
                 except Exception as exc:
