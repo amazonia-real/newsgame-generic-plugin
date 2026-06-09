@@ -57,6 +57,31 @@ editor na interface WordPress.
 
 ---
 
+## FLAG 002 — Complexidade Ciclomática do JavaScript (Pendente)
+
+**Status:** ⏳ Pendente — a ser executado antes da fase de UX
+
+**Contexto:**
+O JavaScript do plugin (`public/js/newsgame-game.js` e o inline 
+de `page-instance-form.php`) ainda não tem controle de complexidade 
+ciclomática. Durante a fase de UX, o JS vai crescer significativamente.
+
+**Ação planejada:**
+Configurar a regra `complexity` no ESLint com limite máximo de 10:
+- Adicionar apenas a regra `complexity` na config ESLint existente
+- Não instalar dependências adicionais
+- Não alterar código de negócio
+- Auditar funções que já ultrapassam o limite e refatorar antes 
+  de adicionar nova lógica de UX
+
+**Quando executar:**
+Após o commit do `/assign-weights` e antes de iniciar a fase de UX.
+
+**Onde monitorar:**
+- `news-game-plugin/public/js/newsgame-game.js`
+- `news-game-plugin/admin/views/page-instance-form.php` 
+  (bloco `<script>` inline)
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.
