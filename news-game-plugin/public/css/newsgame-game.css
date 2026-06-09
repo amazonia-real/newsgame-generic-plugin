@@ -240,3 +240,71 @@
   color:           #0D2010;
   transform:       translateY(-2px);
 }
+
+/* ── Spinner de cálculo do perfil ────────────────────── */
+.ng-spinner {
+  width:           36px;
+  height:          36px;
+  border:          3px solid rgba(126, 200, 80, 0.2);
+  border-top-color:var(--ng-accent);
+  border-radius:   50%;
+  margin:          1.5rem auto 0;
+  animation:       ng-spin 0.8s linear infinite;
+}
+
+@keyframes ng-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Tela de veredito narrativo ──────────────────────── */
+.ng-verdict-result {
+  padding:         2.5rem 1.5rem;
+}
+
+.ng-verdict-result h2 {
+  font-size:       1.75rem;
+  color:           var(--ng-accent);
+  margin:          0 0 1.5rem;
+  text-align:      center;
+  line-height:     1.3;
+}
+
+.ng-verdict-block {
+  background:      rgba(0, 0, 0, 0.28);
+  border-left:     4px solid var(--ng-accent);
+  border-radius:   0 var(--ng-radius) var(--ng-radius) 0;
+  padding:         1rem 1.25rem;
+  margin-bottom:   1rem;
+}
+
+.ng-verdict-block-label {
+  display:         block;
+  font-size:       0.68rem;
+  font-weight:     700;
+  color:           var(--ng-accent);
+  letter-spacing:  0.12em;
+  text-transform:  uppercase;
+  margin-bottom:   0.4rem;
+}
+
+.ng-verdict-block p {
+  color:           var(--ng-text);
+  font-size:       0.95rem;
+  line-height:     1.65;
+  margin:          0;
+}
+
+.ng-verdict-share-text {
+  font-size:       0.9rem;
+  color:           var(--ng-muted);
+  font-style:      italic;
+  text-align:      center;
+  margin:          1rem 0 1.75rem;
+  line-height:     1.55;
+}
+
+/* ── Gráfico triangular de perfil ────────────────────── */
+.ng-radar-wrap {
+  margin-bottom:   2rem;
+  padding:         0.5rem 0;
+}
