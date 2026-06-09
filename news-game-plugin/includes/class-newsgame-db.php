@@ -7,7 +7,7 @@ class Newsgame_DB {
      * Versão interna do schema — incrementar aqui ao adicionar colunas.
      * Independente da versão do plugin: só muda quando o banco muda.
      */
-    const SCHEMA_VERSION = '1.3';
+    const SCHEMA_VERSION = '1.4';
 
     /* ── Ponto de entrada público ──────────────────────────── */
 
@@ -81,6 +81,11 @@ class Newsgame_DB {
             'option_c',
             "LONGTEXT NULL COMMENT 'JSON: {texto, consequencia} - presente se num_options=3' AFTER `option_b`"
         );
+        self::add_column_if_missing(
+            $dilemas,
+            'axis_weights',
+            "LONGTEXT NULL COMMENT 'JSON: {A:{eixo1,eixo2,eixo3}, B:{...}} — pesos por alternativa via /assign-weights' AFTER `source_url`"
+        );
     }
 
     /* ── dbDelta: cria as tabelas do zero ──────────────────── */
@@ -121,6 +126,7 @@ class Newsgame_DB {
             option_c       LONGTEXT        NULL COMMENT 'JSON: {texto, consequencia} - presente se num_options=3',
             veredicto      LONGTEXT        COMMENT 'JSON: {sintese, desfecho, licao}',
             source_url     VARCHAR(2048)   DEFAULT NULL,
+            axis_weights   LONGTEXT        NULL COMMENT 'JSON: {A:{eixo1,eixo2,eixo3}, B:{...}} — pesos por alternativa via /assign-weights',
             review_status  VARCHAR(20)     NOT NULL DEFAULT 'pending' COMMENT 'pending | approved | discarded',
             created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),

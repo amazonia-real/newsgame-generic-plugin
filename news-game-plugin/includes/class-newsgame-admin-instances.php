@@ -3,13 +3,15 @@ defined( 'ABSPATH' ) || exit;
 
 class Newsgame_Admin_Instances {
 
-    const NONCE_AXIS = 'newsgame_save_axis';
+    const NONCE_AXIS   = 'newsgame_save_axis';
+    const NONCE_ASSIGN = 'newsgame_assign_weights';
 
     public static function init() {
         add_action( 'admin_menu',                                      array( __CLASS__, 'register_submenu' ) );
         add_action( 'admin_post_newsgame_save_instance',               array( __CLASS__, 'handle_save' ) );
         add_action( 'admin_post_newsgame_delete_instance',             array( __CLASS__, 'handle_delete' ) );
         add_action( 'wp_ajax_newsgame_save_axis_matrix',               array( __CLASS__, 'handle_save_axis_matrix' ) );
+        add_action( 'wp_ajax_newsgame_assign_weights',                 array( __CLASS__, 'handle_assign_weights' ) );
     }
 
     public static function register_submenu() {
@@ -190,6 +192,139 @@ class Newsgame_Admin_Instances {
         }
 
         wp_send_json_success( array( 'msg' => 'Matriz de eixos salva.' ) );
+    }
+
+    /* ── AJAX: atribui pesos de eixo via /assign-weights ──────── */
+
+    public static function handle_assign_weights() {
+        check_ajax_referer( self::NONCE_ASSIGN, 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'msg' => 'Permissão insuficiente.' ) );
+        }
+
+        $instance_id = (int) ( $_POST['instance_id'] ?? 0 );
+        if ( ! $instance_id ) {
+            wp_send_json_error( array( 'msg' => 'ID de instância inválido.' ) );
+        }
+
+        // Carrega instância e valida presença de axis_matrix
+        $instance = self::get( $instance_id );
+        if ( ! $instance || ! $instance->axis_matrix ) {
+            wp_send_json_error( array( 'msg' => 'Instância sem matriz de eixos. Execute /analyze-domain primeiro.' ) );
+        }
+
+        $axis_data = json_decode( $instance->axis_matrix, true );
+        if ( ! isset( $axis_data['eixos_principais'] ) ) {
+            wp_send_json_error( array( 'msg' => 'Matriz de eixos inválida ou sem eixos_principais.' ) );
+        }
+
+        // Busca todos os dilemas da instância, independente de review_status
+        global $wpdb;
+        $table_dilemas = $wpdb->prefix . 'newsgame_dilemas';
+
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, body, option_a, option_b, option_c FROM {$table_dilemas} WHERE instance_id = %d ORDER BY id ASC",
+            $instance_id
+        ), ARRAY_A );
+
+        if ( empty( $rows ) ) {
+            wp_send_json_error( array( 'msg' => 'Nenhum dilema encontrado para esta instância.' ) );
+        }
+
+        // Monta payload: inclui dilema_id como campo extra para rastrear o UPDATE de retorno.
+        // O backend Python ignora campos desconhecidos no dict — dilema_id volta na resposta intacto.
+        $dilemmas = array();
+        foreach ( $rows as $row ) {
+            $opt_a = json_decode( $row['option_a'] ?? '{}', true ) ?: array();
+            $opt_b = json_decode( $row['option_b'] ?? '{}', true ) ?: array();
+            $opt_c = ! empty( $row['option_c'] ) ? json_decode( $row['option_c'], true ) : null;
+
+            $alternativas = array(
+                array( 'letra' => 'A', 'texto' => $opt_a['texto'] ?? '' ),
+                array( 'letra' => 'B', 'texto' => $opt_b['texto'] ?? '' ),
+            );
+            if ( $opt_c ) {
+                $alternativas[] = array( 'letra' => 'C', 'texto' => $opt_c['texto'] ?? '' );
+            }
+
+            $dilemmas[] = array(
+                'dilema_id'    => (int) $row['id'],
+                'situacao'     => $row['body'] ?? '',
+                'alternativas' => $alternativas,
+            );
+        }
+
+        // Chama /assign-weights no backend Python
+        $backend_url = rtrim( Newsgame_Settings::backend_url(), '/' );
+        $gemini_key  = Newsgame_Settings::gemini_key();
+
+        $response = wp_remote_post(
+            $backend_url . '/assign-weights',
+            array(
+                'timeout' => 120,
+                'headers' => array(
+                    'Content-Type'     => 'application/json',
+                    'X-Gemini-Api-Key' => $gemini_key,
+                ),
+                'body' => wp_json_encode( array(
+                    'dilemmas'       => $dilemmas,
+                    'eixos'          => $axis_data['eixos_principais'],
+                    'gemini_api_key' => $gemini_key,
+                ), JSON_UNESCAPED_UNICODE ),
+            )
+        );
+
+        if ( is_wp_error( $response ) ) {
+            wp_send_json_error( array( 'msg' => 'Falha de conexão com o backend: ' . $response->get_error_message() ) );
+        }
+
+        $status_code = (int) wp_remote_retrieve_response_code( $response );
+        if ( $status_code !== 200 ) {
+            $body = wp_remote_retrieve_body( $response );
+            wp_send_json_error( array( 'msg' => "Backend retornou HTTP {$status_code}: " . substr( $body, 0, 300 ) ) );
+        }
+
+        $result = json_decode( wp_remote_retrieve_body( $response ), true );
+        if ( ! is_array( $result ) || ! isset( $result['dilemmas_weighted'] ) ) {
+            wp_send_json_error( array( 'msg' => 'Resposta inesperada do backend.' ) );
+        }
+
+        // Salva os pesos de volta — um UPDATE por dilema.
+        //
+        // Nota intencional: todos os dilemas são reprocessados no "Reatribuir", incluindo
+        // os que não mudaram. Comportamento deliberado por simplicidade — garante consistência
+        // sem controle de estado entre chamadas. Otimização futura: enviar apenas dilemas com
+        // axis_weights IS NULL ou com updated_at posterior ao último assign, reduzindo chamadas
+        // ao Gemini em lotes grandes.
+        $updated = 0;
+        foreach ( $result['dilemmas_weighted'] as $item ) {
+            $dilema_id = (int) ( $item['dilema_id'] ?? 0 );
+            if ( ! $dilema_id ) continue;
+
+            $pesos = array();
+            foreach ( $item['alternativas'] ?? array() as $alt ) {
+                $letra = $alt['letra'] ?? '';
+                if ( $letra && isset( $alt['pesos'] ) ) {
+                    $pesos[ $letra ] = $alt['pesos'];
+                }
+            }
+
+            if ( $pesos ) {
+                $wpdb->update(
+                    $table_dilemas,
+                    array( 'axis_weights' => wp_json_encode( $pesos, JSON_UNESCAPED_UNICODE ) ),
+                    array( 'id' => $dilema_id, 'instance_id' => $instance_id ),
+                    array( '%s' ),
+                    array( '%d', '%d' )
+                );
+                $updated++;
+            }
+        }
+
+        wp_send_json_success( array(
+            'msg'     => "Pesos atribuídos para {$updated} dilema(s).",
+            'updated' => $updated,
+        ) );
     }
 
     /** Gera um slug único para a instância, evitando colisão no DB. */

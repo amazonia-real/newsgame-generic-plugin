@@ -765,6 +765,12 @@ $review_total = $id ? (int) $GLOBALS['wpdb']->get_var(
         $id
     )
 ) : 0;
+$weighted_count = (int) $GLOBALS['wpdb']->get_var(
+    $GLOBALS['wpdb']->prepare(
+        "SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}newsgame_dilemas WHERE instance_id = %d AND axis_weights IS NOT NULL",
+        $id
+    )
+);
 if ( $id && $review_total > 0 ) :
 ?>
 <hr style="margin:2.5rem 0 2rem">
@@ -787,10 +793,20 @@ if ( $id && $review_total > 0 ) :
         Descartadas <span class="ng-tab-badge" id="ng-count-discarded">…</span>
       </button>
     </div>
-    <button type="button" id="ng-btn-approve-all" class="button button-primary"
-            style="margin-bottom:2px;white-space:nowrap">
-      ✓ Aprovar Todas as Pendentes
-    </button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <?php if ( $axis_matrix ) : ?>
+      <button type="button" id="ng-btn-assign-weights" class="button"
+              style="white-space:nowrap"
+              title="Chama o Gemini para atribuir pesos de eixo a todos os dilemas">
+        ⚖ Atribuir Pesos<?php if ( $weighted_count > 0 ) : ?> <span style="font-size:11px;color:#555;">(<?php echo $weighted_count; ?>/<?php echo $review_total; ?>)</span><?php endif; ?>
+      </button>
+      <span id="ng-assign-msg" style="font-size:12px;"></span>
+      <?php endif; ?>
+      <button type="button" id="ng-btn-approve-all" class="button button-primary"
+              style="margin-bottom:2px;white-space:nowrap">
+        ✓ Aprovar Todas as Pendentes
+      </button>
+    </div>
   </div>
 
   <div id="ng-review-list" role="list">
@@ -804,10 +820,12 @@ if ( $id && $review_total > 0 ) :
 (function () {
   'use strict';
 
-  var instId       = <?php echo (int) $id; ?>;
-  var numOptions   = <?php echo (int) $num_options; ?>;
-  var enableLevels = <?php echo $enable_levels ? 'true' : 'false'; ?>;
-  var nonce        = '<?php echo esc_js( wp_create_nonce( Newsgame_Review::NONCE ) ); ?>';
+  var instId        = <?php echo (int) $id; ?>;
+  var numOptions    = <?php echo (int) $num_options; ?>;
+  var enableLevels  = <?php echo $enable_levels ? 'true' : 'false'; ?>;
+  var nonce         = '<?php echo esc_js( wp_create_nonce( Newsgame_Review::NONCE ) ); ?>';
+  var assignNonce   = '<?php echo esc_js( wp_create_nonce( Newsgame_Admin_Instances::NONCE_ASSIGN ) ); ?>';
+  var totalDilemas  = <?php echo (int) $review_total; ?>;
   var curTab     = 'pending';
   var curPage    = { pending: 1, approved: 1, discarded: 1 };
   var list       = document.getElementById('ng-review-list');
@@ -923,6 +941,7 @@ if ( $id && $review_total > 0 ) :
           '<span class="ng-qrow-num">' + num + '</span>',
           '<span class="ng-qrow-title">' + esc(q.title || '(sem título)') + '</span>',
           (metaLbl ? '<span class="ng-qrow-meta">' + esc(metaLbl) + '</span>' : ''),
+          (q.axis_weights ? '<span class="ng-qrow-meta" title="Pesos de eixo atribuídos" style="color:#2d7a2d;">⚖</span>' : ''),
           '<span class="ng-qrow-chevron">›</span>',
         '</div>',
         '<div class="ng-qrow-body">',
@@ -1151,6 +1170,35 @@ if ( $id && $review_total > 0 ) :
           refreshCounts();
         } else {
           alert('Erro: ' + ((r.data && r.data.msg) || 'Tente novamente.'));
+        }
+      });
+    });
+  }
+
+  /* ── Atribuir Pesos via IA ──────────────────────────────── */
+  var assignBtn = document.getElementById('ng-btn-assign-weights');
+  var assignMsg = document.getElementById('ng-assign-msg');
+  if (assignBtn) {
+    assignBtn.addEventListener('click', function () {
+      if (!confirm('Isso chamará o Gemini para atribuir pesos de eixo a todos os ' + totalDilemas + ' dilemas desta instância. Pode levar até 60 segundos. Continuar?')) return;
+
+      assignBtn.disabled    = true;
+      assignBtn.textContent = '⏳ Atribuindo pesos…';
+      if (assignMsg) assignMsg.innerHTML = '';
+
+      ajaxCall({
+        action:      'newsgame_assign_weights',
+        nonce:       assignNonce,
+        instance_id: instId,
+      }, function (r) {
+        assignBtn.disabled    = false;
+        assignBtn.textContent = '⚖ Atribuir Pesos';
+        if (assignMsg) {
+          if (r.success) {
+            assignMsg.innerHTML = '<span style="color:#2d7a2d;">✅ ' + esc(r.data.msg) + '</span>';
+          } else {
+            assignMsg.innerHTML = '<span style="color:#c00;">❌ ' + esc((r.data && r.data.msg) || 'Erro desconhecido.') + '</span>';
+          }
         }
       });
     });

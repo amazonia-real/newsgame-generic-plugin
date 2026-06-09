@@ -363,6 +363,7 @@ class Newsgame_Review {
             'verd_sintese'         => $verd['sintese']             ?? '',
             'alternativa_correta'  => $verd['alternativa_correta'] ?? '',
             'source_url'    => $row->source_url    ?? '',
+            'axis_weights'  => $row->axis_weights ? json_decode( $row->axis_weights, true ) : null,
             'level'         => (int) $row->level,
             'character_slug'=> $row->character_slug ?? 'geral',
             'review_status' => $row->review_status ?? 'pending',
