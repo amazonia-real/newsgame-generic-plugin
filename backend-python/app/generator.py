@@ -536,6 +536,7 @@ def _build_prompt(
     num_options: int = 3,
     personagem_label: str | None = None,
     personagem_descricao: str | None = None,
+    axis_matrix: dict | None = None,
 ) -> tuple[str, str]:
     """Retorna (system_msg, user_msg) prontos para [SystemMessage, HumanMessage]."""
     system = _resolve_prompt(SYSTEM_PROMPT, theme_prompt=theme_prompt, nivel=nivel_nome)
@@ -557,6 +558,28 @@ def _build_prompt(
     # Reforço explícito do eixo temático do nível selecionado no painel WP
     instrucao_nivel = _NIVEL_INSTRUCAO.get(nivel_nome, _NIVEL_INSTRUCAO["PEDAGÓGICO"])
     user += f"\n\n{instrucao_nivel}"
+
+    # Eixos de tensão da instância (quando disponíveis via /analyze-domain)
+    if axis_matrix:
+        eixos = axis_matrix.get("eixos_principais", {})
+        linhas = []
+        for k in ("eixo1", "eixo2", "eixo3"):
+            e = eixos.get(k)
+            if e:
+                linhas.append(
+                    f"- {e['nome']}: {e['descricao']} "
+                    f"(polo positivo: {e['polo_positivo']} | "
+                    f"polo negativo: {e['polo_negativo']})"
+                )
+        if linhas:
+            user += (
+                "\n\nEIXOS DE TENSÃO DESTA INSTÂNCIA:\n"
+                + "\n".join(linhas)
+                + "\n\nUse esses eixos para calibrar as alternativas — "
+                "cada escolha deve posicionar implicitamente o jogador "
+                "em direção a um dos polos. NÃO mencione os nomes dos "
+                "eixos no texto da situacao nem das alternativas."
+            )
 
     if num_options == 2:
         user += "\n\nATENÇÃO: Gere apenas 2 alternativas (A e B). Omita a alternativa C."
@@ -626,12 +649,13 @@ def generate_one_dilema(req: GenerateRequest) -> DilemaNg | None:
         num_options=req.num_options,
         personagem_label=char_label,
         personagem_descricao=char_desc,
+        axis_matrix=req.axis_matrix,
     )
 
     for tentativa in range(1, cfg.max_retries_batch + 1):
         try:
             res = llm.invoke([SystemMessage(system), HumanMessage(user)])
-            
+
             # --- ADICIONE ESTAS LINHAS DE LIMPEZA LOGO APÓS RECEBER O TEXTO DA IA ---
             response_text = res.content # (Esta linha já existe no seu código)
             
@@ -736,6 +760,7 @@ def generate_stream(req: GenerateRequest) -> Generator[str, None, None]:
                 num_options=req.num_options,
                 personagem_label=char_label,
                 personagem_descricao=char_desc,
+                axis_matrix=req.axis_matrix,
             )
 
             dilema: DilemaNg | None = None

@@ -37,8 +37,8 @@ class GenerateRequest(BaseModel):
     enable_levels: bool = False
     slot_index: int = Field(ge=0, default=0)    # posição no lote (0-based); rotação de personagens
     nivel_padrao: str = Field(default='pedagogico')  # 'ludico' | 'pedagogico' | 'complexo'
-    fontes_usadas: List[str] = Field(default_factory=list)
-
+    fontes_usadas: List[str]   = Field(default_factory=list)
+    axis_matrix:   dict | None = Field(default=None)
 
 
 # ── Modelos Pydantic para structured output do Gemini ─────
