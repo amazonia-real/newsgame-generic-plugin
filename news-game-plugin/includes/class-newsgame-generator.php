@@ -150,7 +150,7 @@ class Newsgame_Generator {
             ),
             CURLOPT_TIMEOUT        => 600,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYPEER => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
             CURLOPT_WRITEFUNCTION  => function( $ch, $data ) use ( $instance_id, &$buffer ) {
                 $buffer .= $data;
                 self::flush_sse_buffer( $instance_id, $buffer );
@@ -358,7 +358,7 @@ class Newsgame_Generator {
             rtrim( $backend_url, '/' ) . '/ingest',
             array(
                 'timeout'   => 60,
-                'sslverify' => false,
+                'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
                 'headers'   => array(
                     'Content-Type' => 'application/json',
                     'X-Api-Key'    => $api_key,

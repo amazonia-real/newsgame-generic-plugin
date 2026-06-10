@@ -356,7 +356,7 @@ class Newsgame_Admin_Instances {
             $backend_url . '/analyze-domain',
             array(
                 'timeout'   => 120,
-                'sslverify' => false,
+                'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
                 'headers'   => array(
                     'Content-Type'     => 'application/json',
                     'X-Gemini-Api-Key' => $gemini_key,

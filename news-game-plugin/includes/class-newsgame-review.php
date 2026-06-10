@@ -186,7 +186,7 @@ class Newsgame_Review {
             rtrim( $backend_url, '/' ) . '/regenerate',
             array(
                 'timeout'   => 120,
-                'sslverify' => false,
+                'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
                 'headers'   => array(
                     'Content-Type' => 'application/json',
                     'X-Api-Key'    => $api_key,

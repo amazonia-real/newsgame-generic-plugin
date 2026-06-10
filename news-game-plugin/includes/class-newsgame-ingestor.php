@@ -45,7 +45,7 @@ class Newsgame_Ingestor {
 
             do {
                 $url      = add_query_arg( array( 'per_page' => $per_page, 'page' => $page ), $endpoint );
-                $response = wp_remote_get( $url, array( 'timeout' => 30, 'sslverify' => false ) );
+                $response = wp_remote_get( $url, array( 'timeout' => 30, 'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $url, 'localhost' ) ) ) );
 
                 if ( is_wp_error( $response ) ) {
                     $errors[] = "[{$type} p{$page}] " . $response->get_error_message();
