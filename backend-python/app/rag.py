@@ -23,8 +23,12 @@ def make_splitter() -> RecursiveCharacterTextSplitter:
 
 def get_collection(site_id: str):
     import os
-    # Lê a pasta direto do ambiente ou usa um padrão seguro para o Windows caso esteja vazia
-    chroma_dir = os.getenv("CHROMA_DB_DIR", "E:/news-game/backend-python/data/chroma_db")
+    chroma_dir = get_settings().chroma_db_dir
+    if not os.path.exists(chroma_dir):
+        raise RuntimeError(
+            f"CHROMA_DB_DIR '{chroma_dir}' não existe. "
+            "Verifique o .env antes de iniciar o servidor."
+        )
 
     # Remove http://, https://, barras, pontos e dois pontos para limpar o nome
     clean_name = site_id.replace("https://", "").replace("http://", "")
