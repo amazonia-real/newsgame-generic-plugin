@@ -1,5 +1,6 @@
 """FastAPI — entry point do backend News-Game."""
 from __future__ import annotations
+import logging
 import json
 import math
 import os
@@ -87,23 +88,11 @@ def generate_one(req: GenerateRequest) -> dict:
         return result
     except HTTPException:
         raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        from fastapi.responses import JSONResponse
+    except Exception:
+        logging.exception("[generate-one] Erro inesperado no slot %s", req.slot_index)
         return JSONResponse(
-            status_code=200,  # Enganamos o Chrome para ele ler o JSON sem travar no CORS
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-                "Access-Control-Allow-Headers": "*"
-            },
-            content={
-                "detail": "Internal Server Error in /generate-one",
-                "error": str(e),
-                "trace": traceback.format_exc(),
-                "dilema_invalido": True # Evita o colapso do JS do WordPress
-            }
+            status_code=500,
+            content={"detail": "Erro interno", "dilema_invalido": True},
         )
 
 
