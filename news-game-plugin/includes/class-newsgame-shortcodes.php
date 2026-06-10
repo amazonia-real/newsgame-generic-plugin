@@ -113,6 +113,14 @@ class Newsgame_Shortcodes {
     public static function ajax_generate_verdict() {
         check_ajax_referer( self::NONCE_VERDICT, 'nonce' );
 
+        // Throttle: máximo 5 requisições por minuto por IP
+        $ip_key = 'ng_verdict_' . md5( $_SERVER['REMOTE_ADDR'] ?? '' );
+        $count  = (int) get_transient( $ip_key );
+        if ( $count >= 5 ) {
+            wp_send_json_error( array( 'msg' => 'Muitas requisições. Tente novamente em instantes.' ), 429 );
+        }
+        set_transient( $ip_key, $count + 1, MINUTE_IN_SECONDS );
+
         $instance_id = (int) ( $_POST['instance_id'] ?? 0 );
         $vetor       = json_decode( wp_unslash( $_POST['vetor_jogador'] ?? '{}' ), true );
 
@@ -137,6 +145,14 @@ class Newsgame_Shortcodes {
 
         if ( ! $backend_url ) {
             wp_send_json_error( array( 'msg' => 'URL do backend não configurada.' ) );
+        }
+
+        // Cache: vetores similares (±0.05) retornam o mesmo veredito sem chamar o backend
+        $vetor_arredondado = array_map( fn( $v ) => round( (float) $v, 1 ), $vetor );
+        $cache_key         = 'ng_vc_' . md5( $instance_id . serialize( $vetor_arredondado ) );
+        $cached            = get_transient( $cache_key );
+        if ( false !== $cached ) {
+            wp_send_json_success( $cached );
         }
 
         $payload = array(
@@ -172,6 +188,7 @@ class Newsgame_Shortcodes {
             wp_send_json_error( array( 'msg' => 'Resposta inválida do backend.' ) );
         }
 
+        set_transient( $cache_key, $body, DAY_IN_SECONDS );
         wp_send_json_success( $body );
     }
 
