@@ -3,8 +3,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Newsgame_Admin_Instances {
 
-    const NONCE_AXIS   = 'newsgame_save_axis';
-    const NONCE_ASSIGN = 'newsgame_assign_weights';
+    const NONCE_AXIS    = 'newsgame_save_axis';
+    const NONCE_ASSIGN  = 'newsgame_assign_weights';
+    const NONCE_ANALYZE = 'newsgame_analyze_domain';
 
     public static function init() {
         add_action( 'admin_menu',                                      array( __CLASS__, 'register_submenu' ) );
@@ -12,6 +13,7 @@ class Newsgame_Admin_Instances {
         add_action( 'admin_post_newsgame_delete_instance',             array( __CLASS__, 'handle_delete' ) );
         add_action( 'wp_ajax_newsgame_save_axis_matrix',               array( __CLASS__, 'handle_save_axis_matrix' ) );
         add_action( 'wp_ajax_newsgame_assign_weights',                 array( __CLASS__, 'handle_assign_weights' ) );
+        add_action( 'wp_ajax_newsgame_analyze_domain',                 array( __CLASS__, 'handle_analyze_domain' ) );
     }
 
     public static function register_submenu() {
@@ -265,6 +267,7 @@ class Newsgame_Admin_Instances {
                 'headers' => array(
                     'Content-Type'     => 'application/json',
                     'X-Gemini-Api-Key' => $gemini_key,
+                    'X-Api-Key'        => (string) get_option( 'newsgame_backend_api_key', '' ),
                 ),
                 'body' => wp_json_encode( array(
                     'dilemmas'       => $dilemmas,
@@ -325,6 +328,63 @@ class Newsgame_Admin_Instances {
             'msg'     => "Pesos atribuídos para {$updated} dilema(s).",
             'updated' => $updated,
         ) );
+    }
+
+    /* ── AJAX: proxy para /analyze-domain ─────────────────────── */
+
+    public static function handle_analyze_domain() {
+        check_ajax_referer( self::NONCE_ANALYZE, 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'msg' => 'Permissão insuficiente.' ) );
+        }
+
+        $instance_id  = (int) ( $_POST['instance_id'] ?? 0 );
+        $context_text = sanitize_textarea_field( wp_unslash( $_POST['context_text'] ?? '' ) );
+
+        if ( ! $instance_id ) {
+            wp_send_json_error( array( 'msg' => 'ID de instância inválido.' ) );
+        }
+        if ( ! $context_text ) {
+            wp_send_json_error( array( 'msg' => 'context_text não pode estar vazio.' ) );
+        }
+
+        $backend_url = rtrim( Newsgame_Settings::backend_url(), '/' );
+        $gemini_key  = Newsgame_Settings::gemini_key();
+        $api_key     = (string) get_option( 'newsgame_backend_api_key', '' );
+
+        $response = wp_remote_post(
+            $backend_url . '/analyze-domain',
+            array(
+                'timeout'   => 120,
+                'sslverify' => false,
+                'headers'   => array(
+                    'Content-Type'     => 'application/json',
+                    'X-Gemini-Api-Key' => $gemini_key,
+                    'X-Api-Key'        => $api_key,
+                ),
+                'body' => wp_json_encode( array(
+                    'context_text'   => $context_text,
+                    'gemini_api_key' => $gemini_key,
+                ), JSON_UNESCAPED_UNICODE ),
+            )
+        );
+
+        if ( is_wp_error( $response ) ) {
+            wp_send_json_error( array( 'msg' => 'Falha de conexão com o backend: ' . $response->get_error_message() ) );
+        }
+
+        $status_code = (int) wp_remote_retrieve_response_code( $response );
+        if ( $status_code !== 200 ) {
+            $body = wp_remote_retrieve_body( $response );
+            wp_send_json_error( array( 'msg' => "Backend retornou HTTP {$status_code}: " . substr( $body, 0, 300 ) ) );
+        }
+
+        $result = json_decode( wp_remote_retrieve_body( $response ), true );
+        if ( ! is_array( $result ) ) {
+            wp_send_json_error( array( 'msg' => 'Resposta inesperada do backend.' ) );
+        }
+
+        wp_send_json_success( $result );
     }
 
     /** Gera um slug único para a instância, evitando colisão no DB. */

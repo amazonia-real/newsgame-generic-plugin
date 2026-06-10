@@ -597,8 +597,9 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
   </script>
 
   <script>
-  var ngAxisNonce  = '<?php echo wp_create_nonce( Newsgame_Admin_Instances::NONCE_AXIS ); ?>';
-  var ngInstanceId = <?php echo (int) $id; ?>;
+  var ngAxisNonce    = '<?php echo wp_create_nonce( Newsgame_Admin_Instances::NONCE_AXIS ); ?>';
+  var ngAnalyzeNonce = '<?php echo wp_create_nonce( Newsgame_Admin_Instances::NONCE_ANALYZE ); ?>';
+  var ngInstanceId   = <?php echo (int) $id; ?>;
 
   // Anexa o handler de save ao #btn-salvar-matriz.
   // Chamada tanto no DOMContentLoaded (botão pré-renderizado pelo PHP)
@@ -696,22 +697,19 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
       container.innerHTML = '';
 
       try {
-        var backendBase = '<?php echo esc_js( rtrim( Newsgame_Settings::backend_url(), '/' ) ); ?>';
-        var response = await fetch(backendBase + '/analyze-domain', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Gemini-Api-Key': '<?php echo esc_js( Newsgame_Settings::gemini_key() ); ?>'
-          },
-          body: JSON.stringify({ context_text: campoAcervo.value.trim() })
-        });
+        var formData = new FormData();
+        formData.append('action',       'newsgame_analyze_domain');
+        formData.append('nonce',        ngAnalyzeNonce);
+        formData.append('instance_id',  ngInstanceId);
+        formData.append('context_text', campoAcervo.value.trim());
 
-        if (!response.ok) {
-          var erro = await response.text();
-          throw new Error('HTTP ' + response.status + ': ' + erro);
+        var res  = await fetch(ajaxurl, { method: 'POST', body: formData });
+        var json = await res.json();
+        if (!json.success) {
+          throw new Error((json.data && json.data.msg) || 'Erro desconhecido no servidor.');
         }
 
-        var data = await response.json();
+        var data = json.data;
 
         container.innerHTML =
           '<div style="' +

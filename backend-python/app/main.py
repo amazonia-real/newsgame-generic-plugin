@@ -246,7 +246,7 @@ def _extract_json(text: str) -> dict:
 
 # ── Rota /analyze-domain ──────────────────────────────────────────────────
 
-@app.post("/analyze-domain")
+@app.post("/analyze-domain", dependencies=[Depends(_verify_token)])
 def analyze_domain(
     req: DomainAnalysisRequest,
     x_gemini_api_key: str = Header(default=""),
@@ -331,7 +331,7 @@ REGRAS:
 """
 
 
-@app.post("/assign-weights")
+@app.post("/assign-weights", dependencies=[Depends(_verify_token)])
 def assign_weights(
     req: AssignWeightsRequest,
     x_gemini_api_key: str = Header(default=""),
@@ -457,7 +457,7 @@ def _distancia_euclidiana(v1: dict[str, float], v2: dict[str, float]) -> float:
     return math.sqrt(sum((v1.get(k, 0.0) - v2.get(k, 0.0)) ** 2 for k in v1))
 
 
-@app.post("/generate-verdict")
+@app.post("/generate-verdict", dependencies=[Depends(_verify_token)])
 def generate_verdict(
     req: GenerateVerdictRequest,
     x_gemini_api_key: str = Header(default=""),
