@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
     batch_size_index: int = 200
     # Segurança
-    api_secret_token: str = "REDIGIDO"
+    api_secret_token: str
 
     model_config = {"env_file": ".env"}
 

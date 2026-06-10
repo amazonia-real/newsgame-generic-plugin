@@ -2,6 +2,7 @@
 from __future__ import annotations
 import logging
 import json
+import secrets
 import math
 import os
 import re
@@ -32,6 +33,7 @@ from app import ingestor, generator, regenerator
 
 
 app = FastAPI(title="News-Game Backend", version="1.0.0")
+get_settings()  # falha aqui se API_SECRET_TOKEN não estiver definido
 
 # Permite chamadas diretas do browser (WordPress admin → backend Python)
 app.add_middleware(
@@ -44,8 +46,10 @@ app.add_middleware(
 
 def _verify_token(x_api_key: str = Header(default="")) -> None:
     cfg = get_settings()
-    if cfg.api_secret_token and x_api_key != cfg.api_secret_token:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    if not cfg.api_secret_token:
+        raise HTTPException(503, "API_SECRET_TOKEN não configurado.")
+    if not secrets.compare_digest(x_api_key, cfg.api_secret_token):
+        raise HTTPException(401, "Invalid API key")
 
 
 @app.get("/health")
