@@ -6,6 +6,13 @@ import secrets
 import math
 import os
 import re
+from dotenv import load_dotenv
+
+# Exporta o .env para os.environ antes dos imports da app — pydantic-settings
+# lê o .env só para os campos de Settings; variáveis consumidas por terceiros
+# direto do ambiente (ex.: ANONYMIZED_TELEMETRY do ChromaDB) precisam disto.
+load_dotenv()
+
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
