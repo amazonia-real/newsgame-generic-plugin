@@ -9,14 +9,18 @@ from app.config import get_settings
 def index_articles(req: IngestRequest) -> dict:
     """
     Indexa artigos do vault WP no ChromaDB.
-    Operação idempotente: re-indexar o mesmo artigo só duplica chunks,
-    mas o MMR de diversidade mitiga o impacto na qualidade do RAG.
+    Operação idempotente: cada chunk recebe ID determinístico
+    ("{wp_id}-{i}") e a inserção é um upsert — re-indexar o mesmo
+    artigo substitui os chunks em vez de duplicá-los. Chunks antigos
+    excedentes (artigo encurtou) são removidos antes, via delete
+    por metadado wp_id.
     """
     cfg      = get_settings()
     db       = get_collection(req.site_id)
     splitter = make_splitter()
 
-    batch: list[Document] = []
+    batch:     list[Document] = []
+    batch_ids: list[str]      = []
     indexed   = 0
     skipped   = 0
     total_chunks = 0
@@ -38,16 +42,22 @@ def index_articles(req: IngestRequest) -> dict:
             },
         )
         chunks = splitter.split_documents([doc])
+
+        # Remove chunks pré-existentes deste artigo: se o texto encurtou,
+        # o upsert sozinho deixaria órfãos os chunks de índice mais alto.
+        db.delete(where={"wp_id": str(article.id)})
+
         batch.extend(chunks)
+        batch_ids.extend(f"{article.id}-{i}" for i in range(len(chunks)))
         total_chunks += len(chunks)
         indexed += 1
 
         if len(batch) >= cfg.batch_size_index:
-            db.add_documents(batch)
-            batch = []
+            db.add_documents(batch, ids=batch_ids)
+            batch, batch_ids = [], []
 
     if batch:
-        db.add_documents(batch)
+        db.add_documents(batch, ids=batch_ids)
 
     return {
         "indexed":      indexed,
