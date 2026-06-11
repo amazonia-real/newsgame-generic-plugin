@@ -445,13 +445,13 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           setBar(0, total);
           pLabel.textContent = 'Iniciando geração…';
           genStatus.textContent = 'Conectando ao backend…';
-          startBatchLoop(r.data.backend_url, r.data.api_key, r.data.payload, total);
+          startBatchLoop(r.data.payload, total);
         })
         .catch(function (e) { setError(e.message); });
     });
 
-    /* ── Loop assíncrono: 1 chamada por dilema ───────────── */
-    function startBatchLoop(backendUrl, apiKey, basePayload, total) {
+    /* ── Loop assíncrono: 1 chamada por dilema, via proxy PHP ── */
+    function startBatchLoop(basePayload, total) {
       var dilemas = [];
       var slot    = 0;
       var historico_fontes = [];
@@ -472,9 +472,11 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
             fontes_usadas: historico_fontes 
         });
 
-        fetch(backendUrl.replace(/\/$/, '') + '/generate-one', {
+        // Proxy PHP (admin-ajax) → backend Python. action/nonce na query
+        // string porque o body carrega o payload JSON cru.
+        fetch(ajaxurl + '?action=<?php echo esc_js( Newsgame_Generator::AJAX_GENERATE_ONE ); ?>&nonce=' + encodeURIComponent(nonce), {
           method:  'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+          headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify(payload),
         })
         .then(function (response) {

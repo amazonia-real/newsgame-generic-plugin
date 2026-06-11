@@ -3,31 +3,34 @@
  * Newsgame_Generator
  *
  * Ponte WordPress → Backend Python.
- * Fluxo de geração (browser-direct SSE):
- *   1. ajax_start()        — valida instância e retorna config ao browser (sem loopback)
- *   2. ajax_save_matrix()  — recebe dilemas do browser após o stream e salva no DB
- *   3. ajax_push_ingest()  — empurra vault local para o endpoint /ingest do backend
+ * Fluxo de geração (proxy server-to-server):
+ *   1. ajax_start()         — valida instância e retorna o payload ao browser
+ *   2. ajax_generate_one()  — proxy: repassa cada chamada ao /generate-one do backend
+ *   3. ajax_save_matrix()   — recebe dilemas do browser após o loop e salva no DB
+ *   4. ajax_push_ingest()   — empurra vault local para o endpoint /ingest do backend
  *
- * O JS do painel abre um fetch() SSE direto contra o backend Python,
- * lê os chunks em tempo real e, ao receber "done", chama ajax_save_matrix().
+ * O JS do painel chama ajax_generate_one() em loop (uma chamada por dilema).
+ * A URL do backend e a X-Api-Key ficam só no servidor — nunca chegam ao browser.
  */
 defined( 'ABSPATH' ) || exit;
 
 class Newsgame_Generator {
 
-    const AJAX_START      = 'newsgame_start_generation';
-    const AJAX_SAVE       = 'newsgame_save_matrix';
-    const AJAX_PUSH       = 'newsgame_push_ingest';
-    const NONCE_GENERATE  = 'newsgame_generate';
-    const NONCE_PUSH      = 'newsgame_push_ingest';
+    const AJAX_START        = 'newsgame_start_generation';
+    const AJAX_GENERATE_ONE = 'newsgame_generate_one';
+    const AJAX_SAVE         = 'newsgame_save_matrix';
+    const AJAX_PUSH         = 'newsgame_push_ingest';
+    const NONCE_GENERATE    = 'newsgame_generate';
+    const NONCE_PUSH        = 'newsgame_push_ingest';
 
     public static function init() {
-        add_action( 'wp_ajax_' . self::AJAX_START, array( __CLASS__, 'ajax_start' ) );
-        add_action( 'wp_ajax_' . self::AJAX_SAVE,  array( __CLASS__, 'ajax_save_matrix' ) );
-        add_action( 'wp_ajax_' . self::AJAX_PUSH,  array( __CLASS__, 'ajax_push_ingest' ) );
+        add_action( 'wp_ajax_' . self::AJAX_START,        array( __CLASS__, 'ajax_start' ) );
+        add_action( 'wp_ajax_' . self::AJAX_GENERATE_ONE, array( __CLASS__, 'ajax_generate_one' ) );
+        add_action( 'wp_ajax_' . self::AJAX_SAVE,         array( __CLASS__, 'ajax_save_matrix' ) );
+        add_action( 'wp_ajax_' . self::AJAX_PUSH,         array( __CLASS__, 'ajax_push_ingest' ) );
     }
 
-    /* ── 1. Inicia a geração — retorna config ao browser para SSE direto ── */
+    /* ── 1. Inicia a geração — valida instância e retorna o payload ── */
 
     public static function ajax_start() {
         check_ajax_referer( self::NONCE_GENERATE, 'nonce' );
@@ -65,10 +68,9 @@ class Newsgame_Generator {
             ) );
         }
 
-        // Devolve a configuração ao browser; o JS abre o stream SSE diretamente
+        // Devolve o payload ao browser; o JS chama ajax_generate_one() em loop.
+        // backend_url e api_key NÃO saem do servidor — o proxy resolve ambos.
         wp_send_json_success( array(
-            'backend_url'    => rtrim( $backend_url, '/' ),
-            'api_key'        => (string) get_option( 'newsgame_backend_api_key', '' ),
             'approved_count' => $approved_count,
             'deficit'        => $deficit,
             'payload'        => array(
@@ -87,7 +89,56 @@ class Newsgame_Generator {
         ) );
     }
 
-    /* ── 2. Recebe dilemas do browser e persiste no DB ──────── */
+    /* ── 2. Proxy server-to-server para /generate-one ────────── */
+
+    /**
+     * Repassa uma chamada de geração ao backend Python, preservando o
+     * status HTTP original (o JS depende de 429 para retry e 422 para skip).
+     * O payload JSON viaja cru no body; action e nonce vão na query string.
+     */
+    public static function ajax_generate_one() {
+        check_ajax_referer( self::NONCE_GENERATE, 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json( array( 'detail' => 'Permissão insuficiente.' ), 403 );
+        }
+
+        $backend_url = Newsgame_Settings::backend_url();
+        if ( ! $backend_url ) {
+            wp_send_json( array( 'detail' => 'URL do backend não configurada em News-Game › Configurações.' ), 500 );
+        }
+
+        $payload = json_decode( file_get_contents( 'php://input' ), true );
+        if ( ! is_array( $payload ) ) {
+            wp_send_json( array( 'detail' => 'Payload JSON inválido.' ), 400 );
+        }
+
+        $response = wp_remote_post(
+            rtrim( $backend_url, '/' ) . '/generate-one',
+            array(
+                'timeout'   => 120,
+                'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
+                'headers'   => array(
+                    'Content-Type' => 'application/json',
+                    'X-Api-Key'    => (string) get_option( 'newsgame_backend_api_key', '' ),
+                ),
+                'body' => wp_json_encode( $payload, JSON_UNESCAPED_UNICODE ),
+            )
+        );
+
+        if ( is_wp_error( $response ) ) {
+            wp_send_json( array( 'detail' => 'Falha de conexão com o backend: ' . $response->get_error_message() ), 502 );
+        }
+
+        // Body e status do Python repassados sem alteração ao browser.
+        $status = (int) wp_remote_retrieve_response_code( $response );
+        $body   = json_decode( wp_remote_retrieve_body( $response ), true );
+        if ( null === $body ) {
+            $body = array( 'detail' => substr( wp_remote_retrieve_body( $response ), 0, 300 ) );
+        }
+        wp_send_json( $body, $status ?: 502 );
+    }
+
+    /* ── 3. Recebe dilemas do browser e persiste no DB ──────── */
 
     public static function ajax_save_matrix() {
         check_ajax_referer( self::NONCE_GENERATE, 'nonce' );
@@ -136,7 +187,7 @@ class Newsgame_Generator {
         wp_send_json_success( array( 'saved' => $saved, 'failed' => $failed ) );
     }
 
-    /* ── 3. Push vault → /ingest ─────────────────────────────── */
+    /* ── 4. Push vault → /ingest ─────────────────────────────── */
 
     public static function ajax_push_ingest() {
         check_ajax_referer( self::NONCE_PUSH, 'nonce' );
