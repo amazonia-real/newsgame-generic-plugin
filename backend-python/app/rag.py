@@ -1,10 +1,13 @@
 """Utilitários compartilhados de ChromaDB e embeddings."""
 from __future__ import annotations
+import logging
 from functools import lru_cache
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -72,8 +75,9 @@ def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5, fo
                 filter=filter_dict
             )
             all_chunks.extend(results)
-        except Exception:
-            pass  # Ignorar erros pontuais de busca
+        except Exception as exc:
+            # Erro pontual de busca não interrompe as demais queries (M4)
+            logger.warning("[rag] mmr_search falhou para query %r: %r", query, exc)
             
     # Amostragem estocástica (Random Sampling)
     # Garante orgânica na recuperação reduzida

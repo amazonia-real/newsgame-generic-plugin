@@ -5,8 +5,8 @@ Gera exatamente 1 pergunta substituta de forma síncrona (sem SSE).
 Reutiliza _build_prompt(), _nivel_nome() e mmr_search() do generator.py.
 """
 from __future__ import annotations
+import logging
 import re
-import sys
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -14,6 +14,8 @@ from app.config import get_settings
 from app.generator import _get_llm, _build_prompt, _is_valid_dilema, _nivel_nome, _extract_json_dilema
 from app.models import RegenerateRequest, DilemaNg
 from app.rag import get_collection, mmr_search
+
+logger = logging.getLogger(__name__)
 
 
 def generate_one(req: RegenerateRequest) -> DilemaNg | None:
@@ -84,9 +86,9 @@ def generate_one(req: RegenerateRequest) -> DilemaNg | None:
                 dilema.personagem_tipo = req.personagem_tipo
                 return dilema
         except Exception as exc:
-            print(
-                f"[regenerator] tentativa={tentativa} personagem={req.personagem_tipo} erro={exc!r}",
-                file=sys.stderr,
+            logger.warning(
+                "[regenerator] tentativa=%s personagem=%s erro=%r",
+                tentativa, req.personagem_tipo, exc,
             )
             if tentativa >= cfg.max_retries_batch:
                 break

@@ -9,9 +9,9 @@ Arquitetura:
 """
 from __future__ import annotations
 import json
+import logging
 import math
 import re
-import sys
 import time
 from typing import Generator
 
@@ -21,6 +21,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from app.config import get_settings
 from app.models import GenerateRequest, DilemaNg
 from app.rag import get_collection, mmr_search
+
+logger = logging.getLogger(__name__)
 
 
 # ── Prompts do sistema (constantes) ──────────────────────
@@ -406,10 +408,9 @@ def _aplicar_fallback_correta(dilema: DilemaNg, nivel_nome: str) -> None:
     """Garante que alternativa_correta seja sempre A, B ou C.
     Fallback 'B' porque a Regra 3 define B como a escolha real/sofisticada."""
     if dilema.alternativa_correta.strip().upper() not in _LETRAS_VALIDAS:
-        print(
-            f"[FALLBACK] alternativa_correta={dilema.alternativa_correta!r} inválida "
-            f"(nivel={nivel_nome}) → aplicando 'B'",
-            file=sys.stderr,
+        logger.warning(
+            "[FALLBACK] alternativa_correta=%r inválida (nivel=%s) → aplicando 'B'",
+            dilema.alternativa_correta, nivel_nome,
         )
         dilema.alternativa_correta = "B"
 
@@ -669,12 +670,11 @@ def generate_one_dilema(req: GenerateRequest) -> DilemaNg | None:
             if req.num_options == 2 and len(dilema.alternativas) > 2:
                 dilema.alternativas = dilema.alternativas[:2]
             if not _is_valid_dilema(dilema, req.num_options):
-                print(
-                    f"[generator] REPROVADO slot={req.slot_index} tentativa={tentativa} "
-                    f"titulo_ok={bool(dilema.titulo.strip())} "
-                    f"situacao_ok={bool(dilema.situacao.strip())} "
-                    f"len_alts={len(dilema.alternativas)}>={req.num_options}",
-                    file=sys.stderr,
+                logger.warning(
+                    "[generator] REPROVADO slot=%s tentativa=%s titulo_ok=%s situacao_ok=%s len_alts=%s>=%s",
+                    req.slot_index, tentativa,
+                    bool(dilema.titulo.strip()), bool(dilema.situacao.strip()),
+                    len(dilema.alternativas), req.num_options,
                 )
                 continue
             dilema.nivel           = nivel
@@ -688,10 +688,9 @@ def generate_one_dilema(req: GenerateRequest) -> DilemaNg | None:
             if "prepayment" in err or "credits are depleted" in err or "billing" in err:
                 raise
             is_rate = any(k in err for k in ["429", "resource_exhausted", "resourceexhausted", "quota", "rate_limit"])
-            print(
-                f"[generator] generate_one tentativa={tentativa} slot={req.slot_index} "
-                f"is_rate={is_rate} erro={exc!r}",
-                file=sys.stderr,
+            logger.warning(
+                "[generator] generate_one tentativa=%s slot=%s is_rate=%s erro=%r",
+                tentativa, req.slot_index, is_rate, exc,
             )
             if is_rate and tentativa < cfg.max_retries_batch:
                 time.sleep(cfg.rate_limit_sleep)
@@ -783,10 +782,9 @@ def generate_stream(req: GenerateRequest) -> Generator[str, None, None]:
                 except Exception as exc:
                     err    = str(exc).lower()
                     is_rate = any(k in err for k in ["429", "resource_exhausted", "quota", "rate_limit"])
-                    print(
-                        f"[generator] tentativa={tentativa} batch={batch_idx} i={i} "
-                        f"personagem={personagem_tipo} erro={exc!r}",
-                        file=sys.stderr,
+                    logger.warning(
+                        "[generator] tentativa=%s batch=%s i=%s personagem=%s erro=%r",
+                        tentativa, batch_idx, i, personagem_tipo, exc,
                     )
                     if is_rate and tentativa < cfg.max_retries_batch:
                         yield f"data: {json.dumps({'type': 'rate_limit', 'sleep': cfg.rate_limit_sleep, 'tentativa': tentativa})}\n\n"

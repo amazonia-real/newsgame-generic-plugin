@@ -6,8 +6,6 @@ import secrets
 import math
 import os
 import re
-import sys
-import traceback
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,7 +28,10 @@ from app.models import (
     VerdictNarrative,
 )
 from app import ingestor, generator, regenerator
+from app.logging_config import setup_logging
 
+setup_logging()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="News-Game Backend", version="1.0.0")
 get_settings()  # falha aqui se API_SECRET_TOKEN não estiver definido
@@ -93,7 +94,7 @@ def generate_one(req: GenerateRequest) -> dict:
     except HTTPException:
         raise
     except Exception:
-        logging.exception("[generate-one] Erro inesperado no slot %s", req.slot_index)
+        logger.exception("[generate-one] Erro inesperado no slot %s", req.slot_index)
         return JSONResponse(
             status_code=500,
             content={"detail": "Erro interno", "dilema_invalido": True},
@@ -248,7 +249,7 @@ def analyze_domain(
 
     # PASSO 1 — Resolver chave de API
     api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
-    print(f"[analyze-domain] Iniciando análise de domínio. Tamanho do contexto: {len(req.context_text)} chars.")
+    logger.info("[analyze-domain] Iniciando análise de domínio. Tamanho do contexto: %d chars.", len(req.context_text))
 
     # PASSO 2 — Construir prompt de usuário
     perfis_hint = ""
@@ -273,16 +274,16 @@ def analyze_domain(
 
     # PASSO 3 — Chamar Gemini
     llm = _make_llm(api_key)
-    print("[analyze-domain] Chamando Gemini (tentativa 1)...")
+    logger.debug("[analyze-domain] Chamando Gemini (tentativa 1)...")
     raw_text = llm.invoke(messages).content
 
     # PASSO 4 — Validar resposta
     try:
         data = _extract_json(raw_text)
         result = DomainAnalysisResponse(**data)
-        print("[analyze-domain] Validação OK na primeira tentativa.")
+        logger.info("[analyze-domain] Validação OK na primeira tentativa.")
     except Exception as erro:
-        print(f"[analyze-domain] Tentativa 1 falhou: {erro}. Reenviando com correção...")
+        logger.warning("[analyze-domain] Tentativa 1 falhou: %s. Reenviando com correção...", erro)
         retry_messages = messages + [
             AIMessage(content=raw_text),
             HumanMessage(
@@ -296,9 +297,9 @@ def analyze_domain(
         try:
             data = _extract_json(raw_text2)
             result = DomainAnalysisResponse(**data)
-            print("[analyze-domain] Validação OK na segunda tentativa.")
+            logger.info("[analyze-domain] Validação OK na segunda tentativa.")
         except Exception as erro2:
-            print(f"[analyze-domain] Tentativa 2 falhou: {erro2}.")
+            logger.error("[analyze-domain] Tentativa 2 falhou: %s.", erro2)
             raise HTTPException(
                 status_code=422,
                 detail=f"Falha na validação da resposta do Gemini após 2 tentativas: {erro2}",
@@ -333,7 +334,7 @@ def assign_weights(
 
     # PASSO 1 — Resolver chave de API
     api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
-    print(f"[assign-weights] Atribuindo pesos para {len(req.dilemmas)} dilema(s).")
+    logger.info("[assign-weights] Atribuindo pesos para %d dilema(s).", len(req.dilemmas))
 
     # PASSO 2 — Montar representação simplificada dos dilemas para o prompt
     dilemas_simplificados = []
@@ -382,7 +383,7 @@ def assign_weights(
 
     # PASSO 3 — Chamar Gemini
     llm = _make_llm(api_key)
-    print("[assign-weights] Chamando Gemini (tentativa 1)...")
+    logger.debug("[assign-weights] Chamando Gemini (tentativa 1)...")
     raw_text = llm.invoke(messages).content
 
     # PASSO 4 — Validar e fundir os pesos
@@ -404,9 +405,9 @@ def assign_weights(
 
     try:
         weighted = _parse_and_merge(raw_text)
-        print("[assign-weights] Pesos atribuídos com sucesso na tentativa 1.")
+        logger.info("[assign-weights] Pesos atribuídos com sucesso na tentativa 1.")
     except Exception as erro:
-        print(f"[assign-weights] Tentativa 1 falhou: {erro}. Reenviando...")
+        logger.warning("[assign-weights] Tentativa 1 falhou: %s. Reenviando...", erro)
         retry_messages = messages + [
             AIMessage(content=raw_text),
             HumanMessage(
@@ -419,9 +420,9 @@ def assign_weights(
         raw_text2 = llm.invoke(retry_messages).content
         try:
             weighted = _parse_and_merge(raw_text2)
-            print("[assign-weights] Pesos atribuídos com sucesso na tentativa 2.")
+            logger.info("[assign-weights] Pesos atribuídos com sucesso na tentativa 2.")
         except Exception as erro2:
-            print(f"[assign-weights] Tentativa 2 falhou: {erro2}.")
+            logger.error("[assign-weights] Tentativa 2 falhou: %s.", erro2)
             raise HTTPException(
                 status_code=422,
                 detail=f"Falha ao atribuir pesos após 2 tentativas: {erro2}",
@@ -459,7 +460,7 @@ def generate_verdict(
 
     # PASSO 1 — Resolver chave de API
     api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
-    print(f"[generate-verdict] Vetor do jogador: {req.vetor_jogador}. Perfis disponíveis: {len(req.perfis_disponiveis)}.")
+    logger.info("[generate-verdict] Vetor do jogador: %s. Perfis disponíveis: %d.", req.vetor_jogador, len(req.perfis_disponiveis))
 
     if not req.perfis_disponiveis:
         raise HTTPException(status_code=422, detail="A lista perfis_disponiveis não pode estar vazia.")
@@ -469,7 +470,7 @@ def generate_verdict(
         req.perfis_disponiveis,
         key=lambda p: _distancia_euclidiana(req.vetor_jogador, p.vetor_aproximado),
     )
-    print(f"[generate-verdict] Perfil selecionado: {perfil_selecionado.nome}.")
+    logger.info("[generate-verdict] Perfil selecionado: %s.", perfil_selecionado.nome)
 
     # PASSO 3 — Construir prompt para texto narrativo
     eixos = req.eixos
@@ -503,7 +504,7 @@ def generate_verdict(
 
     # PASSO 4 — Chamar Gemini
     llm = _make_llm(api_key)
-    print("[generate-verdict] Chamando Gemini (tentativa 1)...")
+    logger.debug("[generate-verdict] Chamando Gemini (tentativa 1)...")
     raw_text = llm.invoke(messages).content
 
     # PASSO 5 — Validar narrativa
@@ -513,9 +514,9 @@ def generate_verdict(
 
     try:
         narrativa = _parse_narrativa(raw_text)
-        print("[generate-verdict] Narrativa gerada com sucesso na tentativa 1.")
+        logger.info("[generate-verdict] Narrativa gerada com sucesso na tentativa 1.")
     except Exception as erro:
-        print(f"[generate-verdict] Tentativa 1 falhou: {erro}. Reenviando...")
+        logger.warning("[generate-verdict] Tentativa 1 falhou: %s. Reenviando...", erro)
         retry_messages = messages + [
             AIMessage(content=raw_text),
             HumanMessage(
@@ -528,9 +529,9 @@ def generate_verdict(
         raw_text2 = llm.invoke(retry_messages).content
         try:
             narrativa = _parse_narrativa(raw_text2)
-            print("[generate-verdict] Narrativa gerada com sucesso na tentativa 2.")
+            logger.info("[generate-verdict] Narrativa gerada com sucesso na tentativa 2.")
         except Exception as erro2:
-            print(f"[generate-verdict] Tentativa 2 falhou: {erro2}.")
+            logger.error("[generate-verdict] Tentativa 2 falhou: %s.", erro2)
             raise HTTPException(
                 status_code=422,
                 detail=f"Falha ao gerar narrativa após 2 tentativas: {erro2}",
