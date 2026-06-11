@@ -15,7 +15,6 @@ load_dotenv()
 
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -43,13 +42,8 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="News-Game Backend", version="1.0.0")
 get_settings()  # falha aqui se API_SECRET_TOKEN não estiver definido
 
-# Permite chamadas diretas do browser (WordPress admin → backend Python)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Sem CORSMiddleware: todas as chamadas chegam server-to-server via proxy
+# PHP (wp_remote_post) — nenhum browser acessa o backend diretamente.
 
 
 def _verify_token(x_api_key: str = Header(default="")) -> None:
