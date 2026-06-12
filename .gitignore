@@ -32,6 +32,23 @@ chroma_db/
 *.sqlite
 *.sqlite3
 
+# Arquivos de dados e relatórios na raiz
+/acervo_amazonia.txt
+/acervo_amazonia_v2.json
+/dilemas_para_revisao.txt
+/analise_eixos_relatorio.txt
+/*.py
+/*.txt
+/*.json
+
+# Pastas de backup, logs e arquivos pesados de sistema
+_backup_jogo-amazonia_antigo/
+_backup_jogo_amazonia_antigo/
+_archive/
+dados/
+documents/
+logs/
+
 # Arquivos de IDE
 .vscode/
 .idea/
@@ -63,19 +80,15 @@ $RECYCLE.BIN/
 *.key
 secrets.json
 credentials.json
-
-# Segurança Crítica - Blindagem Antigravity
 .env
 .env.*
 !.env.example
 !**/.env.example
-*.key
-*.pem
-credentials.json
+
+# Outros
 .claude/
 node_modules/
 vendor/
 wp-config.php
-# Não subir logs de depuração
 npm-debug.log*
 yarn-error.log*
