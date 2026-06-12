@@ -3,16 +3,11 @@ defined( 'ABSPATH' ) || exit;
 
 class Newsgame_Shortcodes {
 
-    const NONCE_VERDICT = 'newsgame_verdict';
-    const AJAX_VERDICT  = 'newsgame_generate_verdict';
-
     public static function init() {
         add_shortcode( 'news-game',    array( __CLASS__, 'render' ) );
         add_shortcode( 'jogo_amazonia', array( __CLASS__, 'render_legacy' ) ); // retrocompatibilidade
         add_filter( 'body_class',      array( __CLASS__, 'body_class' ) );
         add_action( 'wp_head',         array( __CLASS__, 'force_viewport' ), 0 );
-        add_action( 'wp_ajax_'        . self::AJAX_VERDICT, array( __CLASS__, 'ajax_generate_verdict' ) );
-        add_action( 'wp_ajax_nopriv_' . self::AJAX_VERDICT, array( __CLASS__, 'ajax_generate_verdict' ) );
     }
 
     /**
@@ -74,9 +69,6 @@ class Newsgame_Shortcodes {
                 'enable_levels'       => (bool) ( $instance->enable_levels ?? false ),
                 'perfis'              => $axis_matrix['perfis_sugeridos'] ?? null,
                 'eixos'               => $axis_matrix['eixos_principais']  ?? null,
-                'verdict_url'         => admin_url( 'admin-ajax.php' ),
-                'verdict_nonce'       => wp_create_nonce( self::NONCE_VERDICT ),
-                'verdict_instance_id' => $id,
             ),
             JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
         );
@@ -104,92 +96,6 @@ class Newsgame_Shortcodes {
         return '<div id="ng-game-' . $id . '" class="ng-game-wrap">'
              . '<div class="ng-game-inner"></div>'
              . '</div>';
-    }
-
-    /**
-     * AJAX — chama /generate-verdict no backend Python e retorna perfil narrativo.
-     * Funciona para visitantes logados e anônimos (wp_ajax_nopriv_).
-     */
-    public static function ajax_generate_verdict() {
-        check_ajax_referer( self::NONCE_VERDICT, 'nonce' );
-
-        // Throttle: máximo 5 requisições por minuto por IP
-        $ip_key = 'ng_verdict_' . md5( $_SERVER['REMOTE_ADDR'] ?? '' );
-        $count  = (int) get_transient( $ip_key );
-        if ( $count >= 5 ) {
-            wp_send_json_error( array( 'msg' => 'Muitas requisições. Tente novamente em instantes.' ), 429 );
-        }
-        set_transient( $ip_key, $count + 1, MINUTE_IN_SECONDS );
-
-        $instance_id = (int) ( $_POST['instance_id'] ?? 0 );
-        $vetor       = json_decode( wp_unslash( $_POST['vetor_jogador'] ?? '{}' ), true );
-
-        if ( ! $instance_id || ! is_array( $vetor ) ) {
-            wp_send_json_error( array( 'msg' => 'Dados inválidos.' ) );
-        }
-
-        $instance    = Newsgame_Admin_Instances::get( $instance_id );
-        $axis_matrix = ( $instance && $instance->axis_matrix )
-            ? json_decode( $instance->axis_matrix, true )
-            : null;
-
-        if ( ! $axis_matrix
-            || empty( $axis_matrix['perfis_sugeridos'] )
-            || empty( $axis_matrix['eixos_principais'] )
-        ) {
-            wp_send_json_error( array( 'msg' => 'Instância sem perfis ou eixos configurados.' ) );
-        }
-
-        $backend_url = Newsgame_Settings::backend_url();
-        $gemini_key  = (string) Newsgame_Settings::gemini_key();
-
-        if ( ! $backend_url ) {
-            wp_send_json_error( array( 'msg' => 'URL do backend não configurada.' ) );
-        }
-
-        // Cache: vetores similares (±0.05) retornam o mesmo veredito sem chamar o backend
-        $vetor_arredondado = array_map( fn( $v ) => round( (float) $v, 1 ), $vetor );
-        $cache_key         = 'ng_vc_' . md5( $instance_id . serialize( $vetor_arredondado ) );
-        $cached            = get_transient( $cache_key );
-        if ( false !== $cached ) {
-            wp_send_json_success( $cached );
-        }
-
-        $payload = array(
-            'vetor_jogador'      => $vetor,
-            'perfis_disponiveis' => array_values( $axis_matrix['perfis_sugeridos'] ),
-            'eixos'              => $axis_matrix['eixos_principais'],
-            'gemini_api_key'     => $gemini_key,
-        );
-
-        $response = wp_remote_post(
-            rtrim( $backend_url, '/' ) . '/generate-verdict',
-            array(
-                'timeout' => 35,
-                'headers' => array(
-                    'Content-Type'     => 'application/json',
-                    'X-Gemini-Api-Key' => $gemini_key,
-                ),
-                'body' => wp_json_encode( $payload, JSON_UNESCAPED_UNICODE ),
-            )
-        );
-
-        if ( is_wp_error( $response ) ) {
-            wp_send_json_error( array( 'msg' => 'Falha de conexão com o backend.' ) );
-        }
-
-        $status = (int) wp_remote_retrieve_response_code( $response );
-        if ( $status !== 200 ) {
-            wp_send_json_error( array( 'msg' => "Backend retornou HTTP {$status}." ) );
-        }
-
-        $body = json_decode( wp_remote_retrieve_body( $response ), true );
-        if ( ! $body || ! isset( $body['narrativa'] ) ) {
-            wp_send_json_error( array( 'msg' => 'Resposta inválida do backend.' ) );
-        }
-
-        set_transient( $cache_key, $body, DAY_IN_SECONDS );
-        wp_send_json_success( $body );
     }
 
     /**

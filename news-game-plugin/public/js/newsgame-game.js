@@ -100,6 +100,80 @@
     '</svg>';
   }
 
+  /* ── Narrativa local do veredito final (adaptado do JDA) ──
+     Monta os blocos de texto a partir do vetor normalizado, dos
+     polos dos eixos e do perfil vencedor — tudo local, sem IA.
+     Retorna lista de blocos { label, html } (html já escapado). */
+  function buildNarrativa(perfil, vetorNorm, eixos) {
+    var keys = ['eixo1', 'eixo2', 'eixo3'];
+    var ordenados = keys.slice().sort(function (a, b) {
+      return (vetorNorm[b] || 0) - (vetorNorm[a] || 0);
+    });
+    var eixoAlto  = ordenados[0];
+    var eixoBaixo = ordenados[2];
+    var spread    = (vetorNorm[eixoAlto] || 0) - (vetorNorm[eixoBaixo] || 0);
+    var media     = keys.reduce(function (s, k) { return s + (vetorNorm[k] || 0); }, 0) / 3;
+
+    function pct(eixo) {
+      var v = Math.round((vetorNorm[eixo] || 0) * 100);
+      return (v > 0 ? '+' : '') + v + '%';
+    }
+    /* Garante pontuação final ao costurar frases de fontes distintas */
+    function frase(s) {
+      s = String(s || '').trim();
+      if (s && !/[.!?…]$/.test(s)) s += '.';
+      return s;
+    }
+    function nomeEixo(key) {
+      return (eixos[key] && eixos[key].nome) || key;
+    }
+
+    var nomesEixos = keys.map(nomeEixo).join(', ');
+
+    /* Saldo negativo sobrepõe equilíbrio — mesma precedência do JDA */
+    if (media < -0.30) {
+      return [{
+        label: 'Impacto crítico',
+        html: esc(
+          'Suas escolhas geraram um impacto crítico e recessivo em quase todas as ' +
+          'frentes do domínio. Nenhum dos eixos — ' + nomesEixos + ' — saiu ' +
+          'preservado das suas decisões. Vale refletir sobre o custo acumulado desse caminho.'
+        )
+      }];
+    }
+
+    if (spread < 0.15) {
+      return [{
+        label: 'Equilíbrio raro',
+        html: esc(
+          'Suas decisões mostraram um equilíbrio raro entre as forças do domínio: ' +
+          'nenhum dos eixos — ' + nomesEixos + ' — se destacou às custas dos demais. ' +
+          'Sustentar essa balança é difícil, e foi exatamente o que você fez.'
+        )
+      }];
+    }
+
+    var alto  = eixos[eixoAlto]  || {};
+    var baixo = eixos[eixoBaixo] || {};
+
+    return [
+      {
+        label: 'Sua força',
+        html: 'Com base nas suas escolhas, seu eixo mais destacado foi <strong>' +
+          esc(nomeEixo(eixoAlto)) + '</strong> (' + pct(eixoAlto) + '): <em>' +
+          esc(frase(alto.polo_positivo)) + '</em> ' +
+          esc(frase(perfil.forca_dominante))
+      },
+      {
+        label: 'Ponto cego',
+        html: 'Por outro lado, o seu maior ponto cego ou área de sacrifício apareceu em <strong>' +
+          esc(nomeEixo(eixoBaixo)) + '</strong> (' + pct(eixoBaixo) + '): <em>' +
+          esc(frase(baixo.polo_negativo)) + '</em> ' +
+          esc(frase(perfil.ponto_cego))
+      }
+    ];
+  }
+
   /* ── Monta uma seção do veredito ─────────────────────── */
   function vSection(label, text) {
     if (!text) return '';
@@ -280,22 +354,23 @@
       renderVerdictNarrativa(melhor, vetorNorm);
     }
 
-    /* ── Veredito narrativo — perfil calculado localmente ── */
+    /* ── Veredito narrativo — perfil e narrativa calculados localmente ── */
     function renderVerdictNarrativa(perfil, vetorNorm) {
-      var radar = (vetorNorm && data.eixos) ? buildRadarSVG(vetorNorm, data.eixos) : '';
+      var radar  = (vetorNorm && data.eixos) ? buildRadarSVG(vetorNorm, data.eixos) : '';
+      var blocos = buildNarrativa(perfil, vetorNorm || {}, data.eixos || {});
+
+      var blocosHtml = blocos.map(function (b) {
+        return '<div class="ng-verdict-block">' +
+          '<span class="ng-verdict-block-label">' + esc(b.label) + '</span>' +
+          '<p>' + b.html + '</p>' +
+        '</div>';
+      }).join('');
 
       inner.innerHTML =
         '<div class="ng-verdict-result">' +
           (radar ? '<div class="ng-radar-wrap">' + radar + '</div>' : '') +
           '<h2>' + esc(perfil.nome) + '</h2>' +
-          '<div class="ng-verdict-block">' +
-            '<span class="ng-verdict-block-label">Sua força</span>' +
-            '<p>' + esc(perfil.forca_dominante) + '</p>' +
-          '</div>' +
-          '<div class="ng-verdict-block">' +
-            '<span class="ng-verdict-block-label">Ponto cego</span>' +
-            '<p>' + esc(perfil.ponto_cego) + '</p>' +
-          '</div>' +
+          blocosHtml +
           '<p class="ng-verdict-share-text">Compartilhe seu resultado e descubra o perfil dos seus amigos!</p>' +
           '<button class="ng-btn-cta ng-btn-share" style="display:block;margin:0 auto 0.75rem">Compartilhar</button>' +
           '<button class="ng-btn-cta ng-btn-restart" style="display:block;margin:0 auto">Jogar novamente</button>' +
