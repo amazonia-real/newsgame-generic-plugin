@@ -215,3 +215,27 @@ O que o gerador **não deve fazer**, baseado em erros recorrentes:
 | Revelar nomes próprios no nível PEDAGÓGICO | Viola Regra 2 — o PEDAGÓGICO exige universalização completa |
 | Gerar `titulo` com mais de 3 palavras ou com letras maiúsculas | Campo de indexação interna; nunca aparece na interface |
 | Gerar dilema a partir de fato único e isolado | Viola o princípio de densidade jornalística — síntese de múltiplas matérias é obrigatória |
+
+---
+
+## 8. Segurança e Comunicação Backend
+
+O backend Python (`backend-python/app/`) **não é acessado diretamente pelo
+browser em nenhum ponto**. Toda chamada do painel WordPress passa por um
+proxy PHP (`admin-ajax`/`wp_remote_post`), que:
+
+- Injeta o header `X-Api-Key` server-to-server — a chave nunca chega ao JS do navegador
+- É a única superfície autenticada: as rotas do backend exigem
+  `Depends(_verify_token)`, com o token comparado via `secrets.compare_digest`
+  (proteção contra timing attack) e sem valor default (o servidor recusa
+  subir sem `API_SECRET_TOKEN` configurado)
+
+Por isso **não há `CORSMiddleware`** no backend — não há necessidade, pois
+nenhuma origem de browser faz requisição direta a ele.
+
+A chave do Gemini segue prioridade própria, resolvida a cada chamada às
+rotas `/analyze-domain`, `/assign-weights` e `/generate-verdict`:
+`header X-Gemini-Api-Key` → `body.gemini_api_key` → `env GEMINI_API_KEY`
+(ver `CLAUDE.md` §5).
+
+Detalhe histórico das decisões acima: `TECH_FLAGS.md` FLAGS 003 e 005.
