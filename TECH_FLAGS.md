@@ -82,6 +82,150 @@ Após o commit do `/assign-weights` e antes de iniciar a fase de UX.
 - `news-game-plugin/admin/views/page-instance-form.php` 
   (bloco `<script>` inline)
 
+---
+
+## FLAG 003 — Segurança: Segredos Fora do Browser e Autenticação Robusta
+
+**Status:** ✅ Implementado — commits `C1+A2`, `C2`, `C3`, `C4` (10/06/2026)
+
+**Problema:**
+O JS do painel WordPress chamava `/analyze-domain` e `/assign-weights` diretamente do
+backend Python em alguns pontos, arriscando expor segredos ao browser; erros do
+backend devolviam traceback ao cliente (e um workaround retornava HTTP 200 mesmo em
+falha); o token de autenticação (`api_secret_token`) tinha valor default, permitindo
+o servidor subir sem proteção real; e havia 5 ocorrências de verificação TLS
+desabilitada (`sslverify`/`CURLOPT_SSL_VERIFYPEER = false`) no plugin.
+
+**Solução implementada:**
+- **C1+A2** (`fb2c828`): `/analyze-domain` e `/assign-weights` passam a exigir
+  `Depends(_verify_token)`; `handle_analyze_domain()` atua como proxy PHP; header
+  `X-Api-Key` adicionado ao `wp_remote_post` de `/assign-weights`. Nenhum fetch direto
+  do JS para o backend Python permanece.
+- **C2** (`c908da9`): `logging.exception()` no servidor; cliente recebe só `detail` +
+  `dilema_invalido`; removido o workaround que retornava HTTP 200 em erro.
+- **C3** (`1960a75`): `api_secret_token` deixou de ter default (campo obrigatório);
+  comparação via `secrets.compare_digest` (proteção contra timing attack); servidor
+  recusa subir (503) sem `API_SECRET_TOKEN` configurado.
+- **C4** (`4515f8d`): as 5 ocorrências de TLS desabilitado corrigidas em
+  generator/ingestor/admin-instances/review; TLS só é desabilitado em dev local
+  (`WP_DEBUG` + localhost).
+
+**Onde está:**
+- `backend-python/app/main.py`, `config.py`
+- `news-game-plugin/includes/class-newsgame-admin-instances.php`,
+  `class-newsgame-generator.php`, `class-newsgame-ingestor.php`,
+  `class-newsgame-review.php`
+- `news-game-plugin/admin/views/page-instance-form.php`
+
+**Risco remanescente:**
+Nenhuma rota nova deve ser exposta ao JS do painel sem seguir este mesmo padrão
+(proxy PHP + `X-Api-Key` + `Depends(_verify_token)`).
+
+---
+
+## FLAG 004 — Resiliência e Limpeza de Dívida Técnica
+
+**Status:** ✅ Implementado — commits `A1`, `A3`, `A4`, `A5` (10–11/06/2026)
+
+**Problema:**
+Quatro pontos de fragilidade acumulados: geração de veredito sem limite de taxa
+(mesmo sendo cálculo local); caminho Windows hardcoded em `rag.py`; duplicação de
+chunks no ChromaDB ao reingerir o mesmo artigo; e ~150 linhas de um fluxo de polling
+em background que nunca era alcançado no plugin.
+
+**Solução implementada:**
+- **A1** (`e239861`): throttle de 5 requisições/min por IP em
+  `ajax_generate_verdict`; cache de 24h por `instance_id` + vetor arredondado.
+- **A3** (`91d357e`): `chroma_dir` passa a vir de `get_settings().chroma_db_dir`, com
+  `RuntimeError` claro se o diretório não existir (antes: caminho fixo de máquina de
+  desenvolvimento).
+- **A4** (`0af2472`): upsert com IDs determinísticos no ingest — elimina duplicação
+  de chunks ao reindexar o mesmo artigo.
+- **A5** (`c3900d1`): removido fluxo de polling em background inalcançável (~150
+  linhas em `class-newsgame-generator.php`).
+
+**Onde está:**
+- `news-game-plugin/includes/class-newsgame-shortcodes.php` (A1)
+- `backend-python/app/rag.py` (A3)
+- `backend-python/app/ingestor.py` (A4)
+- `news-game-plugin/includes/class-newsgame-generator.php` (A5)
+
+---
+
+## FLAG 005 — Infraestrutura: Proxy Sem CORS, Logging Estruturado, Telemetria
+
+**Status:** ✅ Implementado — commits `M1`, `M2`, `M4`, `M5` (11/06/2026)
+
+**Problema:**
+A rota `/generate-one` ainda era chamada diretamente do browser (expondo `api_key`),
+o que também obrigava manter `CORSMiddleware` com `allow_origins=["*"]`; os logs
+eram `print()` sem estrutura; e a telemetria do ChromaDB (`ANONYMIZED_TELEMETRY`) não
+respeitava o `.env` por falta de `load_dotenv` em certos pontos de entrada.
+
+**Solução implementada:**
+- **M1** (`4593c11`, `73796f2`): o loop de geração no painel passa a chamar
+  `wp_ajax_newsgame_generate_one` (admin-ajax), que repassa o payload
+  server-to-server via `wp_remote_post` (timeout 120s), preservando os status
+  429/422 que o JS usa para retry/skip; `ajax_start` deixou de devolver `backend_url`
+  e `api_key` ao browser. Com isso, nenhum `fetch()` do plugin acessa o backend
+  Python direto — `CORSMiddleware` (`allow_origins=["*"]`) e o import correspondente
+  foram removidos.
+- **M2+M4** (`02d7b39`): `print()` migrado para logging estruturado
+  (`logging_config.py` novo) em `generator.py`, `main.py`, `rag.py`,
+  `regenerator.py`.
+- **M5** (`e829c56`, `60bbe91`): `.gitignore` e `.env.example` revisados, telemetria
+  desativada por padrão; garantido `load_dotenv` para que `ANONYMIZED_TELEMETRY`
+  chegue ao ChromaDB.
+
+**Onde está:**
+- `backend-python/app/main.py`, `logging_config.py`, `generator.py`, `rag.py`,
+  `regenerator.py`
+- `news-game-plugin/admin/views/page-instance-form.php`,
+  `includes/class-newsgame-generator.php`
+
+**Nota:** com o M1, toda a superfície do backend Python passou a ser server-to-server
+(nenhuma rota chamada direto do browser) — decisão coerente com e reforçada pela
+FLAG 003.
+
+---
+
+## FLAG 006 — Incidente: Contaminação Cruzada JDA → News-Game (RESOLVIDO)
+
+**Status:** ✅ Corrigido em 21/07/2026 — registrado retroativamente (o incidente
+ocorreu em 12/06/2026)
+
+**Problema:**
+O commit `83f41e1` ("veredito dinâmico local...") misturou, junto com a mudança real
+(94 linhas em `shortcodes.php`, 95 em `newsgame-game.js`), **41.635 linhas de
+arquivos do Jogo da Amazônia original**: `acervo_amazonia.txt`,
+`acervo_amazonia_v2.json`, `dilemas_para_revisao.txt`, e 10 scripts Python
+(`build_db.py`, `check_db_count.py`, `clean_identity.py`, `completar_matriz.py`,
+`config.py`, `exportar_dilemas.py`, `extrair_acervo_wp.py`,
+`gerar_acervo_imagens.py`, `gerar_matriz_crise_climatica.py`,
+`inserir_tags_imagem.py`). Viola diretamente a regra absoluta do `CLAUDE.md` §8.
+
+Os commits seguintes (`07b743a`, `86e8ff8`) desindexaram os arquivos de dados
+(`.txt`/`.json`) e reforçaram o `.gitignore`, mas os 10 scripts Python continuaram
+rastreados até esta auditoria.
+
+**Solução implementada:**
+`git rm --cached` nos 10 scripts (commit `2c89798`) — confirmado por busca que
+nenhum código atual de `backend-python/app` ou `news-game-plugin` os referencia.
+Arquivos físicos mantidos localmente; `.gitignore` (`/*.py`, linha 40) já impede que
+arquivos `.py` na raiz voltem a ser rastreados.
+
+**Lição para não repetir:**
+Antes de commitar mudanças que tocam múltiplos arquivos, revisar `git status`/
+`git diff --stat` para confirmar que só os arquivos pretendidos estão staged —
+especialmente ao trabalhar em paralelo nos dois repositórios (`E:\news-game` e
+`E:\jogo-da-amazonia`). O histórico já enviado a `origin/main` ainda contém esses
+arquivos nos commits antigos (`83f41e1` e anteriores) — não foi feito rewrite de
+histórico porque o conteúdo não é sensível (scripts e acervo já conhecidos), só
+indevido.
+
+**Onde está:** histórico do commit `83f41e1` (arquivos removidos por commits
+posteriores, mas presentes na árvore git) e commit `2c89798` (a correção).
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.
