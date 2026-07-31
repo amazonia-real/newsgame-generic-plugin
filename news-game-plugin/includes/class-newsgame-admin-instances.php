@@ -180,6 +180,16 @@ class Newsgame_Admin_Instances {
             wp_send_json_error( array( 'msg' => 'JSON inválido: ' . json_last_error_msg() ) );
         }
 
+        // Sanitiza os nomes de eixo na origem: eles chegam crus da resposta
+        // do LLM (/analyze-domain) e depois são interpolados no HTML público.
+        if ( isset( $decoded['eixos_principais'] ) && is_array( $decoded['eixos_principais'] ) ) {
+            foreach ( $decoded['eixos_principais'] as $key => $eixo ) {
+                if ( is_array( $eixo ) && isset( $eixo['nome'] ) ) {
+                    $decoded['eixos_principais'][ $key ]['nome'] = sanitize_text_field( $eixo['nome'] );
+                }
+            }
+        }
+
         global $wpdb;
         $result = $wpdb->update(
             $wpdb->prefix . 'newsgame_instances',
