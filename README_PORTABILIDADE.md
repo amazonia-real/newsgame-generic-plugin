@@ -279,8 +279,9 @@ Use esta lista ao adaptar o plugin para um novo domínio editorial:
   (não apenas de `localhost`)
 
 ### Segurança (antes de ir ao ar)
-- [ ] **Token do Backend** em News-Game → Configurações é uma string aleatória longa —
-  não o valor padrão `REDIGIDO`
+- [ ] **Token do Backend** em News-Game → Configurações é uma string aleatória longa,
+  idêntica ao `API_SECRET_TOKEN` do backend (obrigatório e sem valor padrão — o
+  FastAPI se recusa a subir sem ele)
 - [ ] A Gemini API Key não está exposta em logs nem versionada no git
 - [ ] O backend não está exposto diretamente na internet sem autenticação —
   use o token ou coloque o FastAPI atrás de um proxy reverso (nginx)
