@@ -837,6 +837,16 @@ if ( $id && $review_total > 0 ) :
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  /* ── Allowlist de esquema para hrefs — esc() não valida esquema,
+     "javascript:" sobreviveria intacto ──────────────────────── */
+  function safeUrl(url) {
+    try {
+      var u = new URL(String(url), window.location.href);
+      if (u.protocol === 'http:' || u.protocol === 'https:') return u.href;
+    } catch (e) { /* URL malformada cai no '#' */ }
+    return '#';
+  }
+
   /* ── Tabs ───────────────────────────────────────────────── */
   document.querySelectorAll('.ng-tab').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -958,7 +968,7 @@ if ( $id && $review_total > 0 ) :
             '<tr><th>Síntese</th><td><textarea name="verd_sintese" rows="2" class="widefat">' + esc(q.verd_sintese) + '</textarea></td></tr>',
             '<tr><th>URL da Fonte</th><td>',
               '<input type="url" name="source_url" class="widefat" value="' + esc(q.source_url) + '">',
-              (q.source_url ? '<a href="' + esc(q.source_url) + '" target="_blank" rel="noopener" class="ng-source-check">Verificar fonte ↗</a>' : ''),
+              (q.source_url ? '<a href="' + esc(safeUrl(q.source_url)) + '" target="_blank" rel="noopener" class="ng-source-check">Verificar fonte ↗</a>' : ''),
             '</td></tr>',
           '</table>',
           '<input type="hidden" name="opt_a_impacto" value="' + esc(impactoA) + '">',

@@ -15,6 +15,18 @@
     return esc(str).replace(/\n/g, '<br>');
   }
 
+  /* ── Allowlist de esquema para hrefs vindos do DB ──
+     esc() neutraliza quebra de atributo mas não valida o esquema —
+     "javascript:" sobreviveria intacto. Defesa em profundidade sobre
+     o esc_url_raw() do PHP, cobrindo linhas gravadas antes dele. */
+  function safeUrl(url) {
+    try {
+      var u = new URL(String(url), window.location.href);
+      if (u.protocol === 'http:' || u.protocol === 'https:') return u.href;
+    } catch (e) { /* URL malformada cai no '#' */ }
+    return '#';
+  }
+
   /* ── Gráfico triangular de perfil (adaptado do JDA) ──── */
   function buildRadarSVG(vetor, eixos) {
     var W = 480, H = 230, cx = 240, cy = 132, r = 83;
@@ -300,7 +312,7 @@
           vSection('Contexto', verd.sintese) +
           (d.source_url
             ? '<div><span class="ng-verd-label">Fonte</span>' +
-              '<a class="ng-source-link" href="' + esc(d.source_url) + '" target="_blank" rel="noopener">' +
+              '<a class="ng-source-link" href="' + esc(safeUrl(d.source_url)) + '" target="_blank" rel="noopener">' +
               esc(d.source_url) + '</a></div>'
             : '') +
         '</div>' +

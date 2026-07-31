@@ -3,14 +3,14 @@
  * Plugin Name:  News-Game
  * Plugin URI:   https://github.com/amazonia-real/news-game
  * Description:  Motor de dilemas jornalísticos gamificados. Shortcode: [news-game id="X"]
- * Version:      1.0.0
+ * Version:      1.0.1
  * Author:       Eduardo Nunomura
  * License:      GPL-2.0-or-later
  * Text Domain:  news-game
  */
 defined( 'ABSPATH' ) || exit;
 
-define( 'NEWSGAME_VERSION', '1.0.0' );
+define( 'NEWSGAME_VERSION', '1.0.1' ); // Bump: hardening de segurança (esc nos eixos do radar, safeUrl nos hrefs)
 define( 'NEWSGAME_DIR',     plugin_dir_path( __FILE__ ) );
 define( 'NEWSGAME_URL',     plugin_dir_url( __FILE__ ) );
 
