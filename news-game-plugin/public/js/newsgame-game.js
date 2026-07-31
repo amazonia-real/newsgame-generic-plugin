@@ -81,7 +81,7 @@
       return '<text x="' + lx + '" y="' + (ly - 4) + '"' +
                ' text-anchor="' + anchor + '" font-size="11" font-weight="700"' +
                ' letter-spacing="0.5" fill="rgba(255,255,255,0.65)"' +
-               ' font-family="system-ui,sans-serif">' + labels[i].toUpperCase() + '</text>' +
+               ' font-family="system-ui,sans-serif">' + esc(labels[i].toUpperCase()) + '</text>' +
              '<text x="' + lx + '" y="' + (ly + 14) + '"' +
                ' text-anchor="' + anchor + '" font-size="17" font-weight="800"' +
                ' fill="' + dotClrs[i] + '" font-family="system-ui,sans-serif">' + pctTxt + '</text>';
@@ -89,7 +89,7 @@
 
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%"' +
            ' style="display:block;margin:0 auto;"' +
-           ' role="img" aria-label="Gráfico de perfil: ' + labels.join(', ') + '">' +
+           ' role="img" aria-label="Gráfico de perfil: ' + esc(labels.join(', ')) + '">' +
       '<g>' + gridSVG + '</g>' +
       '<g>' + axesSVG + '</g>' +
       '<polygon points="' + polyPts + '" fill="' + fillClr + '"' +
