@@ -218,13 +218,121 @@ arquivos `.py` na raiz voltem a ser rastreados.
 Antes de commitar mudanças que tocam múltiplos arquivos, revisar `git status`/
 `git diff --stat` para confirmar que só os arquivos pretendidos estão staged —
 especialmente ao trabalhar em paralelo nos dois repositórios (`E:\news-game` e
-`E:\jogo-da-amazonia`). O histórico já enviado a `origin/main` ainda contém esses
-arquivos nos commits antigos (`83f41e1` e anteriores) — não foi feito rewrite de
-histórico porque o conteúdo não é sensível (scripts e acervo já conhecidos), só
-indevido.
+`E:\jogo-da-amazonia`).
 
-**Onde está:** histórico do commit `83f41e1` (arquivos removidos por commits
-posteriores, mas presentes na árvore git) e commit `2c89798` (a correção).
+**Atualização de 2026-07-31 — o histórico FOI reescrito.** Este parágrafo dizia
+que não haveria rewrite porque o conteúdo não era sensível. Deixou de valer: a
+auditoria de segurança de 2026-07-29 encontrou **PII de terceiros** (16 CPFs,
+114 e-mails, 3 chaves PIX) nos arquivos de acervo commitados no commit inicial
+`fcd775b`, o que bloqueava tornar o repositório público. Em 2026-07-31 o
+histórico foi reescrito com `git filter-repo` (removendo `acervo_amazonia*`,
+`jogo-amazonia-plugin/` herdado e `.claude/`, e redigindo os segredos
+`jda2026`/`teste123`), o repositório do GitHub foi **deletado e recriado** — não
+foi `push --force`, para não deixar blobs órfãos alcançáveis pela API — e o
+histórico limpo foi enviado. Novo HEAD de referência: `387a687`. Pack de ~88 MB
+para ~1 MB.
+
+**Consequência prática:** qualquer clone anterior a 2026-07-31 está obsoleto e
+não deve receber merge nem push — reclonar. Os históricos antigos, com a PII,
+sobrevivem só em espelhos locais na máquina do Eduardo e são material sensível.
+
+**Onde está:** commit `2c89798` (a correção original) e a reescrita de
+2026-07-31. O detalhamento completo está em
+`E:\jogo-da-amazonia\AUDITORIA_SEGURANCA.md` e
+`REAUDITORIA_ZERADA_2026-07-31.md`.
+
+---
+
+## FLAG 007 — Compatibilidade com CSP estrita (pré-requisito de distribuição)
+
+**Status:** 🟡 Pendente — diagnóstico feito em 2026-07-31, correção não aplicada
+
+**Origem:** reauditoria de segurança do Jogo da Amazônia (2026-07-31), que
+concluiu: *no JDA a defesa real contra conteúdo malicioso é a revisão humana
+das fundadoras — e essa defesa não viaja com o plugin.* O news-game é
+justamente o plugin que **vai** viajar.
+
+### O problema, e por que ele é do news-game e não do JDA
+
+**CSP** (`Content-Security-Policy`) é o cabeçalho em que a página declara ao
+navegador de onde ele pode executar script. Com `script-src` estrito, um
+`<script>` injetado **não roda** — o navegador se recusa, mesmo que a injeção
+tenha funcionado. É a rede que segura quando o escape de HTML falha.
+
+No news-game a cadeia de contaminação é `resposta do LLM → banco → HTML`, e
+**não há editora humana no meio** na instalação de destino. Um veículo qualquer
+instala, aponta o pipeline para o acervo dele e publica. Se o escape falhar uma
+vez, em qualquer versão futura editada por terceiros, não há segunda linha de
+defesa. Daí a CSP ser requisito de distribuição, não refinamento.
+
+**Princípio:** o plugin **não deve emitir** CSP própria — isso é decisão do site
+hospedeiro. O plugin deve ser **compatível** com uma CSP estrita que o site
+imponha, sem exigir `'unsafe-inline'` por causa dele.
+
+### Estado medido (2026-07-31)
+
+| Superfície | Bloqueadores de `script-src` | Gravidade |
+|---|---|---|
+| **Pública** (o que o leitor carrega) | **1** — `wp_add_inline_script` em `includes/class-newsgame-shortcodes.php:90`, que emite `window._ngGame_<id> = {...}` | 🎯 é o único que importa |
+| **Admin** (autenticada) | 5 blocos `<script>` inline: `admin/views/page-instance-form.php:387, 601, 819, 1233` e `page-settings.php:108`; mais 1 `onclick` em `page-instances.php:84` | Baixa — só usuário logado |
+| Estilos | ~70 atributos `style="` | Ignorar — `style-src` não vale o esforço |
+
+**Boa notícia: a página pública está a UMA mudança de ficar limpa.** Isso é
+melhor que o JDA, onde há 4 `onerror` inline no template mais 2 `<script>`
+inline — lá a CSP exigiria refatorar o template todo.
+
+### Solução recomendada — bloco de dados não-executável
+
+Trocar o `wp_add_inline_script` por um `<script type="application/json">`. A CSP
+`script-src` **não governa** script com MIME não-executável: o navegador trata
+como bloco de dados, não como código. Resultado: zero JS inline na página
+pública, compatível com **qualquer** CSP do site hospedeiro, sem nonce e sem
+configuração no destino.
+
+```php
+// includes/class-newsgame-shortcodes.php — em vez de wp_add_inline_script()
+return '<div id="ng-game-' . $id . '" class="ng-game-wrap">'
+     . '<script type="application/json" id="ng-game-data-' . $id . '">'
+     . $json   // já sai de wp_json_encode com JSON_HEX_TAG|HEX_AMP|HEX_APOS|HEX_QUOT
+     . '</script>'
+     . '<div class="ng-game-inner"></div>'
+     . '</div>';
+```
+
+```js
+// public/js/newsgame-game.js:203 — em vez de window['_ngGame_' + gid]
+var el   = document.getElementById('ng-game-data-' + gid);
+var data = el ? JSON.parse(el.textContent) : null;
+```
+
+O `JSON_HEX_TAG` que já está no `wp_json_encode` continua sendo o que impede
+fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
+
+### Ordem de execução sugerida
+
+1. **O par acima** (~10 linhas) — fecha a superfície pública. É o item que
+   habilita a promessa "compatível com CSP estrita" no README.
+2. `onclick="return confirm(...)"` de `page-instances.php:84` → `addEventListener`.
+3. Os 5 `<script>` inline do admin → arquivos `.js` enfileirados com
+   `wp_enqueue_script`, dados via `wp_localize_script`. Trabalho maior, ganho
+   menor (superfície autenticada).
+4. **Documentar no README** um exemplo de cabeçalho CSP que o veículo pode
+   aplicar, e declarar que o plugin funciona sob ele. Isso é argumento de
+   adoção: nenhum plugin de quiz WP oferece isso.
+
+### O que NÃO fazer
+
+- Não emitir `Content-Security-Policy` pelo plugin (conflita com o site).
+- Não resolver com nonce de CSP: funciona, mas exige que o site coordene o
+  nonce com o plugin. O bloco de dados não exige nada do hospedeiro.
+- Não perseguir `style-src` — os ~70 `style="` são cosméticos e a CSP de estilo
+  tem retorno de segurança marginal.
+
+**Ver também:** FLAG 003 (segredos fora do browser) e a correção de
+2026-07-31 que aplicou `esc()` nos nomes de eixo do radar mais
+`sanitize_text_field()` no save — a CSP é a terceira camada sobre essas duas.
+
+---
 
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
