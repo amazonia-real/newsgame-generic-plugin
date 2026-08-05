@@ -187,6 +187,27 @@ respeitava o `.env` por falta de `load_dotenv` em certos pontos de entrada.
 (nenhuma rota chamada direto do browser) — decisão coerente com e reforçada pela
 FLAG 003.
 
+**Risco remanescente do M5 — medido em 2026-08-05:**
+O M5 está correto sobre o encanamento e sobre o `.env.example`, mas a afirmação
+"telemetria desativada por padrão" merece precisão, porque esta FLAG é citada
+como trilha de auditoria no guia de portabilidade:
+
+- **A desativação depende de o `.env` ter a variável.** No `.env` desta máquina
+  de desenvolvimento `ANONYMIZED_TELEMETRY` está **ausente** — o
+  `load_dotenv()` funciona, só não há o que carregar, e o ChromaDB cai no
+  default `True`. O `.env.example:24` traz a linha, então quem seguir o guia
+  (`cp .env.example .env`) fica coberto; quem montar o `.env` à mão, não.
+- **`posthog` não está pinado no `requirements.txt`.** Com
+  `chromadb==0.5.11` (assinatura posicional antiga) e posthog 7.x instalado, a
+  tentativa de telemetria falha com
+  `capture() takes 1 positional argument but 3 were given`. Observado em
+  `POST /generate-one` durante o teste do C1; a rota retorna 200 OK e a geração
+  não é afetada.
+
+Nenhum dos dois é vazamento de dado — a telemetria **falha** ao ser enviada.
+São questões de reprodutibilidade de install e de precisão da documentação.
+Ação registrada como D3 no `ROADMAP_OPEN_SOURCE.md`.
+
 ---
 
 ## FLAG 006 — Incidente: Contaminação Cruzada JDA → News-Game (RESOLVIDO)
