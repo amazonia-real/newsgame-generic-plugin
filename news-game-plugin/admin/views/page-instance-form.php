@@ -742,8 +742,12 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           '">' +
             '❌ Erro ao conectar com o servidor Python:<br><br>' +
             '<strong>' + err.message + '</strong><br><br>' +
-            'Verifique se o servidor está rodando em ' +
-            'http://127.0.0.1:8000 e se o CORS está habilitado.' +
+            'Verifique, nesta ordem:<br>' +
+            '1. O backend Python (uvicorn) está rodando?<br>' +
+            '2. O <em>Token do Backend</em> em News-Game › Configurações é ' +
+            'igual ao <code>API_SECRET_TOKEN</code> do <code>.env</code>?<br>' +
+            '3. A <em>URL do Backend Python</em> em News-Game › Configurações ' +
+            'está correta e acessível a partir deste servidor WordPress?' +
           '</div>';
       } finally {
         btn.disabled = false;
