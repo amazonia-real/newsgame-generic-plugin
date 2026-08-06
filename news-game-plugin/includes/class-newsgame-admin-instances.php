@@ -213,6 +213,11 @@ class Newsgame_Admin_Instances {
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array( 'msg' => 'Permissão insuficiente.' ) );
         }
+        // Um clique processa todos os dilemas da instância de uma vez — chamada
+        // única e caríssima. Teto baixo.
+        if ( Newsgame_Settings::rate_limited( 'assign_weights', 10 ) ) {
+            wp_send_json_error( array( 'msg' => 'Muitas reatribuições em sequência. Aguarde um minuto — cada reatribuição consome cota da chave Gemini.' ) );
+        }
 
         $instance_id = (int) ( $_POST['instance_id'] ?? 0 );
         if ( ! $instance_id ) {
@@ -346,6 +351,10 @@ class Newsgame_Admin_Instances {
         check_ajax_referer( self::NONCE_ANALYZE, 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array( 'msg' => 'Permissão insuficiente.' ) );
+        }
+        // Um clique por instância no uso normal — teto baixo basta.
+        if ( Newsgame_Settings::rate_limited( 'analyze_domain', 10 ) ) {
+            wp_send_json_error( array( 'msg' => 'Muitas análises em sequência. Aguarde um minuto — cada análise consome cota da chave Gemini.' ) );
         }
 
         $instance_id  = (int) ( $_POST['instance_id'] ?? 0 );

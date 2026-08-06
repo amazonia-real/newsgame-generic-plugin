@@ -62,4 +62,43 @@ class Newsgame_Settings {
     public static function backend_url() {
         return (string) get_option( 'newsgame_backend_url', '' );
     }
+
+    /* ── Throttle de custo — protege a cota da chave Gemini ─────── */
+
+    /**
+     * Contador de janela fixa por usuário, gravado em transient.
+     *
+     * Protege contra erro operacional (clique duplo numa UI que parece
+     * travada, loop de JS com bug), não contra ataque: as rotas protegidas
+     * já exigem editor autenticado com manage_options. Por isso a chave é o
+     * usuário, e não o IP — dois editores atrás do mesmo NAT não disputam
+     * a mesma cota.
+     *
+     * A janela é gravada dentro do valor (campo 'reset') em vez de depender
+     * do TTL do transient: incrementar com set_transient() renovaria o TTL a
+     * cada chamada, virando "60 s de silêncio obrigatório" e quebrando o
+     * loop legítimo de /generate-one.
+     *
+     * Janela fixa, não deslizante — permite rajada de até 2x na virada da
+     * janela. Suficiente para erro operacional; não serviria contra ataque.
+     *
+     * @param  string $bucket        Identificador da rota (ex: 'generate_one').
+     * @param  int    $limit_per_min Máximo de chamadas por minuto por usuário.
+     * @return bool   true se o limite foi excedido — o chamador deve recusar.
+     */
+    public static function rate_limited( $bucket, $limit_per_min ) {
+        $key   = 'newsgame_rl_' . sanitize_key( $bucket ) . '_' . get_current_user_id();
+        $now   = time();
+        $state = get_transient( $key );
+
+        if ( ! is_array( $state ) || $now >= (int) ( $state['reset'] ?? 0 ) ) {
+            $state = array( 'count' => 0, 'reset' => $now + 60 );
+        }
+
+        $state['count']++;
+        // TTL com folga: a expiração real é o campo 'reset'; o TTL só coleta lixo.
+        set_transient( $key, $state, 120 );
+
+        return $state['count'] > (int) $limit_per_min;
+    }
 }

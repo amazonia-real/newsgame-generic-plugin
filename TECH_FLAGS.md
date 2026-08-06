@@ -134,8 +134,9 @@ chunks no ChromaDB ao reingerir o mesmo artigo; e ~150 linhas de um fluxo de pol
 em background que nunca era alcançado no plugin.
 
 **Solução implementada:**
-- **A1** (`e239861`): throttle de 5 requisições/min por IP em
+- **A1** (`4af7bec`): throttle de 5 requisições/min por IP em
   `ajax_generate_verdict`; cache de 24h por `instance_id` + vetor arredondado.
+  **⚠️ Este código não existe mais — ver correção abaixo.**
 - **A3** (`91d357e`): `chroma_dir` passa a vir de `get_settings().chroma_db_dir`, com
   `RuntimeError` claro se o diretório não existir (antes: caminho fixo de máquina de
   desenvolvimento).
@@ -145,10 +146,57 @@ em background que nunca era alcançado no plugin.
   linhas em `class-newsgame-generator.php`).
 
 **Onde está:**
-- `news-game-plugin/includes/class-newsgame-shortcodes.php` (A1)
+- ~~`news-game-plugin/includes/class-newsgame-shortcodes.php` (A1)~~ — removido
 - `backend-python/app/rag.py` (A3)
 - `backend-python/app/ingestor.py` (A4)
 - `news-game-plugin/includes/class-newsgame-generator.php` (A5)
+
+### Correção do A1 — 2026-08-05
+
+**O throttle do A1 foi deletado um mês depois de ser criado, e esta FLAG
+registrou como implementado algo que já não existia.**
+
+O commit seguinte ao `4af7bec` neste mesmo arquivo foi o `dd794aa` ("veredito
+dinâmico local"), que moveu o cálculo do veredito para o JS e removeu 94
+linhas de `class-newsgame-shortcodes.php` — levando o endpoint AJAX inteiro,
+com throttle e cache dentro. A FLAG 004 foi redigida retroativamente em
+`cd767eb` (21/07/2026) sem notar a remoção.
+
+Estado medido em 2026-08-05, antes da correção: `grep` por
+`set_transient|get_transient|rate.?limit|throttle` no plugin inteiro não
+retornava **nenhum** throttle. `class-newsgame-shortcodes.php` tem 127 linhas
+e nenhum handler AJAX — o veredito é 100% client-side, sem custo de API por
+jogada, o que torna o throttle original desnecessário naquele ponto.
+
+**O throttle novo protege outro alvo: cota da chave Gemini do adotante.**
+As rotas que gastam cota são as de geração e análise, não o veredito. Modelo
+de ameaça é erro operacional — clique duplo numa UI que parece travada, bug
+futuro de JS em loop — e não ataque externo: as quatro rotas já exigem editor
+autenticado com `manage_options` atrás de proxy PHP (FLAG 003).
+
+| Rota | Limite/min | Por quê |
+|---|---|---|
+| `/analyze-domain` | 10 | Um clique por instância |
+| `/assign-weights` | 10 | Um clique processa todos os dilemas de uma vez |
+| `/regenerate` | 10 | Um botão por dilema — o mais exposto a clique duplo |
+| `/generate-one` | 60 | Loop legítimo de até ~15 chamadas + retentativas |
+
+Implementação: `Newsgame_Settings::rate_limited( $bucket, $limit_per_min )`.
+Contador de janela fixa em transient, **chaveado por usuário e não por IP** —
+dois editores atrás do mesmo NAT não disputam cota. A janela é gravada no
+campo `reset` do valor em vez de depender do TTL: incrementar com
+`set_transient()` renovaria o TTL a cada chamada e viraria "60 s de silêncio
+obrigatório", quebrando o loop legítimo do `/generate-one`.
+
+**Onde está:** `class-newsgame-settings.php` (helper),
+`class-newsgame-generator.php`, `class-newsgame-admin-instances.php`,
+`class-newsgame-review.php`.
+
+**Risco remanescente:** janela fixa permite rajada de até 2× na virada.
+Aceitável para erro operacional; insuficiente se o modelo de ameaça mudar
+para abuso deliberado por um editor autenticado. Transients podem ser
+não-persistentes sob certos object caches, o que torna o limite mais
+permissivo — nunca mais restritivo.
 
 ---
 
