@@ -81,7 +81,11 @@ $status_colors = array( 'draft' => '#777',     'review' => '#b8860b',     'publi
             &nbsp;|&nbsp;
             <a href="<?php echo esc_url( $delete_url ); ?>"
                style="color:#c00"
-               onclick="return confirm('Excluir «<?php echo esc_js( $inst->title ); ?>» e todos os seus dilemas?\n\nEsta ação não pode ser desfeita.')">
+               class="ng-confirm"
+               data-ng-confirm="<?php echo esc_attr(
+                   'Excluir «' . $inst->title . '» e todos os seus dilemas?' . "\n\n"
+                   . 'Esta ação não pode ser desfeita.'
+               ); ?>">
               Excluir
             </a>
           </td>

@@ -7,8 +7,12 @@ class Newsgame_Admin_Instances {
     const NONCE_ASSIGN  = 'newsgame_assign_weights';
     const NONCE_ANALYZE = 'newsgame_analyze_domain';
 
+    /** Hook suffix devolvido por add_submenu_page — usado para enfileirar o JS só nesta tela */
+    private static $hook_suffix = '';
+
     public static function init() {
         add_action( 'admin_menu',                                      array( __CLASS__, 'register_submenu' ) );
+        add_action( 'admin_enqueue_scripts',                           array( __CLASS__, 'enqueue_assets' ) );
         add_action( 'admin_post_newsgame_save_instance',               array( __CLASS__, 'handle_save' ) );
         add_action( 'admin_post_newsgame_delete_instance',             array( __CLASS__, 'handle_delete' ) );
         add_action( 'wp_ajax_newsgame_save_axis_matrix',               array( __CLASS__, 'handle_save_axis_matrix' ) );
@@ -17,13 +21,38 @@ class Newsgame_Admin_Instances {
     }
 
     public static function register_submenu() {
-        add_submenu_page(
+        self::$hook_suffix = add_submenu_page(
             'newsgame',
             'Instâncias — News-Game',
             'Instâncias',
             'manage_options',
             'newsgame-instances',
             array( __CLASS__, 'render' )
+        );
+    }
+
+    /**
+     * Enfileira o JS da listagem de instâncias.
+     * Arquivo externo em vez de onclick inline: CSP estrita bloqueia atributo
+     * de evento. Ver TECH_FLAGS FLAG 007.
+     */
+    public static function enqueue_assets( $hook ) {
+        if ( $hook !== self::$hook_suffix ) {
+            return;
+        }
+
+        // render() despacha listagem e formulário no mesmo slug — este JS é só da listagem
+        $action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list';
+        if ( 'new' === $action || 'edit' === $action ) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'newsgame-admin-instances',
+            NEWSGAME_URL . 'admin/js/newsgame-admin-instances.js',
+            array(),
+            NEWSGAME_VERSION,
+            true  // footer
         );
     }
 
