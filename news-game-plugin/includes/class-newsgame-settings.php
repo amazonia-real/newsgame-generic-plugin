@@ -66,7 +66,7 @@ class Newsgame_Settings {
     /* ── Throttle de custo — protege a cota da chave Gemini ─────── */
 
     /**
-     * Contador de janela fixa por usuário, gravado em transient.
+     * Contador de janela fixa por usuário, incrementado atomicamente no banco.
      *
      * Protege contra erro operacional (clique duplo numa UI que parece
      * travada, loop de JS com bug), não contra ataque: as rotas protegidas
@@ -74,31 +74,58 @@ class Newsgame_Settings {
      * usuário, e não o IP — dois editores atrás do mesmo NAT não disputam
      * a mesma cota.
      *
-     * A janela é gravada dentro do valor (campo 'reset') em vez de depender
-     * do TTL do transient: incrementar com set_transient() renovaria o TTL a
-     * cada chamada, virando "60 s de silêncio obrigatório" e quebrando o
-     * loop legítimo de /generate-one.
+     * A implementação anterior usava get_transient() + set_transient(), o que
+     * é um read-modify-write: N requisições simultâneas liam o mesmo contador
+     * antes de qualquer uma escrever, e todas passavam. Medido com 12 chamadas
+     * paralelas em /analyze-domain — nenhuma bloqueada. Justamente o cenário
+     * que motiva o throttle (loop de JS sem await), então o incremento agora
+     * acontece dentro de uma única instrução SQL.
      *
-     * Janela fixa, não deslizante — permite rajada de até 2x na virada da
-     * janela. Suficiente para erro operacional; não serviria contra ataque.
+     * A janela é fixa e alinhada ao minuto do relógio (floor(time()/60) entra
+     * na chave), não deslizante — permite rajada de até 2x na virada. Suficiente
+     * para erro operacional; não serviria contra ataque.
+     *
+     * Sob rajada simultânea o contador lido de volta pode já incluir chamadas
+     * irmãs, bloqueando algumas a mais do que o limite estrito. Para uma trava
+     * de custo, errar para o lado de bloquear é o lado certo. Em uso sequencial
+     * — o caso normal — a contagem é exata.
      *
      * @param  string $bucket        Identificador da rota (ex: 'generate_one').
      * @param  int    $limit_per_min Máximo de chamadas por minuto por usuário.
      * @return bool   true se o limite foi excedido — o chamador deve recusar.
      */
     public static function rate_limited( $bucket, $limit_per_min ) {
-        $key   = 'newsgame_rl_' . sanitize_key( $bucket ) . '_' . get_current_user_id();
-        $now   = time();
-        $state = get_transient( $key );
+        global $wpdb;
 
-        if ( ! is_array( $state ) || $now >= (int) ( $state['reset'] ?? 0 ) ) {
-            $state = array( 'count' => 0, 'reset' => $now + 60 );
+        $prefixo = 'newsgame_rl_' . sanitize_key( $bucket ) . '_' . get_current_user_id() . '_';
+        $chave   = $prefixo . (int) floor( time() / 60 );
+
+        // Atômico: o MySQL resolve o incremento dentro da própria instrução,
+        // então não há janela entre ler e escrever. Depende do índice único
+        // em wp_options.option_name, que faz parte do schema do WordPress.
+        $wpdb->query( $wpdb->prepare(
+            "INSERT INTO {$wpdb->options} (option_name, option_value, autoload)
+             VALUES (%s, '1', 'no')
+             ON DUPLICATE KEY UPDATE option_value = option_value + 1",
+            $chave
+        ) );
+
+        // rows_affected é 1 quando a linha foi criada — ou seja, primeira
+        // chamada desta janela. É o momento barato de varrer as janelas
+        // velhas deste mesmo usuário/rota, sem cron nem coleta probabilística.
+        if ( 1 === $wpdb->rows_affected ) {
+            $wpdb->query( $wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s AND option_name <> %s",
+                $wpdb->esc_like( $prefixo ) . '%',
+                $chave
+            ) );
         }
 
-        $state['count']++;
-        // TTL com folga: a expiração real é o campo 'reset'; o TTL só coleta lixo.
-        set_transient( $key, $state, 120 );
+        $count = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
+            $chave
+        ) );
 
-        return $state['count'] > (int) $limit_per_min;
+        return $count > (int) $limit_per_min;
     }
 }
