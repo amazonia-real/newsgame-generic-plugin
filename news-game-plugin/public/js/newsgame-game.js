@@ -200,8 +200,16 @@
   /* ── Instância do jogo ───────────────────────────────── */
   function NgGame(wrap) {
     var gid     = wrap.id.replace('ng-game-', '');
-    var data    = window['_ngGame_' + gid];
+    var el      = document.getElementById('ng-game-data-' + gid);
     var inner   = wrap.querySelector('.ng-game-inner');
+    var data    = null;
+
+    /* bloco <script type="application/json"> emitido pelo shortcode (FLAG 007) */
+    try {
+      data = el ? JSON.parse(el.textContent) : null;
+    } catch (e) {
+      data = null;   // JSON corrompido cai no mesmo aviso de "nenhum dilema"
+    }
 
     if (!data || !data.dilemas || !data.dilemas.length) {
       inner.innerHTML = '<p style="padding:2rem;color:#f88">Nenhum dilema disponível para esta instância.</p>';

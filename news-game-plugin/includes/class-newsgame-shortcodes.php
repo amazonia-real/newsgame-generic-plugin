@@ -86,14 +86,14 @@ class Newsgame_Shortcodes {
             NEWSGAME_VERSION,
             true  // footer
         );
-        // Injeta os dados antes do script (window._ngGame_N é lido pelo JS ao inicializar)
-        wp_add_inline_script(
-            'newsgame-game',
-            'window._ngGame_' . $id . ' = ' . $json . ';',
-            'before'
-        );
-
+        // Dados do jogo num bloco de MIME não-executável — a CSP `script-src` não
+        // governa `application/json`, o navegador trata como dado e não como código.
+        // Não usar wp_add_inline_script aqui: exigiria 'unsafe-inline' no site
+        // hospedeiro. Ver TECH_FLAGS FLAG 007.
         return '<div id="ng-game-' . $id . '" class="ng-game-wrap">'
+             . '<script type="application/json" id="ng-game-data-' . $id . '">'
+             . $json  // JSON_HEX_TAG no wp_json_encode impede fechar </script> de dentro do JSON
+             . '</script>'
              . '<div class="ng-game-inner"></div>'
              . '</div>';
     }
