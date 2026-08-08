@@ -336,7 +336,25 @@ sobrevivem só em espelhos locais na máquina do Eduardo e são material sensív
 
 ## FLAG 007 — Compatibilidade com CSP estrita (pré-requisito de distribuição)
 
-**Status:** 🟡 Pendente — diagnóstico feito em 2026-07-31, correção não aplicada
+**Status:** 🟡 Parcial — superfície **pública** fechada em 2026-08-08 (passos 1 e 2);
+os 5 `<script>` inline do admin (passo 3) e o exemplo de CSP no README (passo 4)
+seguem abertos. Diagnóstico original de 2026-07-31.
+
+**Validado em runtime em 2026-08-08** — não marcado ✅ por revisão de código:
+- **Passo 1** (`719838c`): jogo carregado do início ao fim, dilemas corretos,
+  `Ctrl+U` confirmou o bloco `application/json` e a ausência de
+  `window._ngGame_` na página
+- **Passo 2** (`75e143f`): `newsgame-admin-instances.js` servido com `200`, caixa
+  de confirmação com o nome da instância entre `«»` e a segunda linha separada,
+  `Cancelar` mantendo na listagem sem excluir
+
+> Achado durante o teste do passo 1, **sem relação com a CSP**: o veredito e o
+> gráfico triangular não aparecem no news-game, embora a §10 do `CLAUDE.md` os
+> registre como ✅. Suspeita no gate de `public/js/newsgame-game.js:342`
+> (`data.perfis && data.eixos && pesoCount > 0`), que degrada em silêncio nos
+> três termos. O transporte dos dados está descartado como causa: todo o objeto
+> vem de um único `JSON.parse`, então os dilemas renderizarem prova que
+> `perfis`/`eixos` também chegaram. Em diagnóstico.
 
 **Origem:** reauditoria de segurança do Jogo da Amazônia (2026-07-31), que
 concluiu: *no JDA a defesa real contra conteúdo malicioso é a revisão humana
@@ -401,15 +419,34 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
 
 ### Ordem de execução sugerida
 
-1. **O par acima** (~10 linhas) — fecha a superfície pública. É o item que
-   habilita a promessa "compatível com CSP estrita" no README.
-2. `onclick="return confirm(...)"` de `page-instances.php:84` → `addEventListener`.
+1. ✅ **O par acima** (`719838c`, 2026-08-08) — fecha a superfície pública. É o
+   item que habilita a promessa "compatível com CSP estrita" no README.
+2. ✅ `onclick="return confirm(...)"` de `page-instances.php:84` →
+   `addEventListener` (`75e143f`, 2026-08-08).
+
+   **Custou mais que as ~2 linhas previstas aqui, e vale registrar por quê:** o
+   plugin não tinha **nenhum** `admin_enqueue_scripts` — os únicos enqueues
+   eram os do frontend. Trocar o `onclick` por um `<script>` inline no próprio
+   view teria ganho de CSP **zero** (bloco inline também exige
+   `'unsafe-inline'`), então o passo exigiu criar o pipeline de assets do
+   admin: arquivo `admin/js/newsgame-admin-instances.js` +
+   `Newsgame_Admin_Instances::enqueue_assets()` + mensagem via
+   `data-ng-confirm`. Esse pipeline é pré-requisito do passo 3, que agora
+   herda a infra.
+
+   Duas armadilhas encontradas no caminho: `esc_js` → `esc_attr` é
+   **obrigatório** (o destino deixou de ser string JS e passou a ser atributo
+   HTML), e o `\n\n` precisa ser newline real do PHP — `&#10;` não serve,
+   porque o `esc_attr` escaparia o `&`.
 3. Os 5 `<script>` inline do admin → arquivos `.js` enfileirados com
    `wp_enqueue_script`, dados via `wp_localize_script`. Trabalho maior, ganho
-   menor (superfície autenticada).
+   menor (superfície autenticada). O `enqueue_assets()` do passo 2 é o ponto de
+   entrada; note que ele sai fora quando `action` é `new`/`edit`, exatamente as
+   telas do passo 3 — a guarda vai precisar mudar.
 4. **Documentar no README** um exemplo de cabeçalho CSP que o veículo pode
    aplicar, e declarar que o plugin funciona sob ele. Isso é argumento de
-   adoção: nenhum plugin de quiz WP oferece isso.
+   adoção: nenhum plugin de quiz WP oferece isso. Já desbloqueado: a superfície
+   pública não exige mais `'unsafe-inline'`.
 
 ### O que NÃO fazer
 
