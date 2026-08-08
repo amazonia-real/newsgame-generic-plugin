@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     batch_size_index: int = 200
     # Segurança
     api_secret_token: str
+    # Logging — consumido por logging_config.py via os.getenv("LOG_LEVEL").
+    # Declarado aqui para que o .env seja aceito sem erro de campo extra.
+    log_level: str = "INFO"
+    # Telemetria — consumida pelo próprio ChromaDB via ambiente
+    # (load_dotenv em main.py). Declarada aqui pelo mesmo motivo.
+    anonymized_telemetry: bool = False
 
     model_config = {"env_file": ".env"}
 

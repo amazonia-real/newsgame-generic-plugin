@@ -256,6 +256,28 @@ Nenhum dos dois é vazamento de dado — a telemetria **falha** ao ser enviada.
 São questões de reprodutibilidade de install e de precisão da documentação.
 Ação registrada como D3 no `ROADMAP_OPEN_SOURCE.md`.
 
+**Atualização 2026-08-07 — `.env` corrigido e efeito colateral no `Settings`:**
+`LOG_LEVEL` e `ANONYMIZED_TELEMETRY` foram acrescentados ao `.env` desta máquina,
+o que resolve o primeiro item do risco acima (o segundo, o `posthog` não pinado,
+continua aberto como D3). O acréscimo, porém, quebrou o boot do uvicorn com
+`extra_forbidden`: o `pydantic-settings` lê o mesmo `.env` que o `load_dotenv()` e,
+no modo padrão, rejeita chave que não seja campo declarado. Corrigido declarando
+os dois campos em `config.py` (`log_level: str = "INFO"`,
+`anonymized_telemetry: bool = False`).
+
+Fica registrado que **são dois caminhos de leitura distintos** para as mesmas
+variáveis, e é isso que torna o erro pouco intuitivo:
+
+| Variável | Quem consome de fato | Papel do `Settings` |
+|----------|----------------------|---------------------|
+| `LOG_LEVEL` | `logging_config.py:14` via `os.getenv` | só validar |
+| `ANONYMIZED_TELEMETRY` | ChromaDB via ambiente (`load_dotenv` em `main.py:14`) | só validar |
+
+**Limpeza futura (pequena, sem pressa):** fazer o `logging_config.py` consumir
+`get_settings().log_level` em vez de `os.getenv("LOG_LEVEL")`, para haver uma
+fonte única. Hoje os dois caminhos concordam porque compartilham o default
+`"INFO"` — divergiriam se alguém mudasse um dos dois. Não bloqueia nada.
+
 ---
 
 ## FLAG 006 — Incidente: Contaminação Cruzada JDA → News-Game (RESOLVIDO)
