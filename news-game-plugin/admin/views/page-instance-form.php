@@ -122,6 +122,25 @@ $page_title = $is_edit
     <div class="notice notice-error"><p>O nome do jogo é obrigatório.</p></div>
   <?php endif; ?>
 
+  <?php
+  // Pendência de pesos: sem eles o jogador recebe veredito genérico e nada avisa
+  // — nem ele, nem o editor. Sem is-dismissible de propósito: reaparece a cada
+  // carga da tela até a pendência sumir.
+  $sem_peso = $id ? Newsgame_Admin_Instances::count_unweighted_approved( $id ) : 0;
+  if ( $sem_peso > 0 ) : ?>
+    <div class="notice notice-error">
+      <p>
+        <strong>⚖ <?php echo (int) $sem_peso; ?> pergunta(s) aprovada(s) sem pesos de eixo.</strong>
+        Sem pesos o jogo entrega um veredito genérico no fim da partida, sem o
+        gráfico de perfil — e nada avisa o jogador.
+        Use <strong>&ldquo;⚖ Atribuir Pesos&rdquo;</strong> na Mesa Editorial para resolver.
+        <?php if ( isset( $_GET['error'] ) && 'unweighted_approved' === $_GET['error'] ) : ?>
+          <br><em>A publicação foi bloqueada por isso — o status voltou para &ldquo;Em Revisão&rdquo;.</em>
+        <?php endif; ?>
+      </p>
+    </div>
+  <?php endif; ?>
+
   <form method="post" action="<?php echo esc_url( $form_url ); ?>" id="ng-form">
     <?php wp_nonce_field( 'newsgame_save_instance', 'nonce' ); ?>
     <?php if ( $is_edit ) : ?>
@@ -1180,6 +1199,7 @@ if ( $id && $review_total > 0 ) :
         approveAllBtn.disabled = false;
         approveAllBtn.textContent = '✓ Aprovar Todas as Pendentes';
         if (r.success) {
+          if (r.data && r.data.warning) { alert('⚠ ' + r.data.warning); }
           loadTab(curTab, curPage[curTab]);
           refreshCounts();
         } else {

@@ -89,8 +89,38 @@ class Newsgame_Review {
             wp_send_json_error( array( 'msg' => 'Pergunta não encontrada.' ) );
         }
 
+        $table = $wpdb->prefix . 'newsgame_dilemas';
+
+        // Texto ANTES da edição: edited_fields() sobrescreve body/option_a/option_b,
+        // que são exatamente as entradas do /assign-weights. Se mudaram, o peso
+        // existente descreve um texto que não existe mais.
+        $antes = $wpdb->get_row( $wpdb->prepare(
+            "SELECT body, option_a, option_b FROM {$table} WHERE id = %d",
+            $id
+        ), ARRAY_A );
+
         $data = array_merge( self::edited_fields(), array( 'review_status' => 'approved' ) );
-        $wpdb->update( $wpdb->prefix . 'newsgame_dilemas', $data, array( 'id' => $id ), null, array( '%d' ) );
+        $wpdb->update( $table, $data, array( 'id' => $id ), null, array( '%d' ) );
+
+        // Zera o peso obsoleto. O recálculo NÃO acontece aqui: acontece na próxima
+        // vez que "Aprovar Todas" ou "⚖ Atribuir Pesos" rodar. Enquanto isso o dilema
+        // conta como pendência e aparece no aviso da tela de edição.
+        //
+        // Query direta em vez de incluir no $wpdb->update acima: aquela chamada passa
+        // $format = null, o que trataria tudo como %s e gravaria '' no lugar de NULL.
+        // String vazia passaria pelo filtro axis_weights IS NULL e mentiria no
+        // contador ⚖.
+        $texto_mudou = $antes && (
+            $antes['body']     !== ( $data['body']     ?? null ) ||
+            $antes['option_a'] !== ( $data['option_a'] ?? null ) ||
+            $antes['option_b'] !== ( $data['option_b'] ?? null )
+        );
+        if ( $texto_mudou ) {
+            $wpdb->query( $wpdb->prepare(
+                "UPDATE {$table} SET axis_weights = NULL WHERE id = %d",
+                $id
+            ) );
+        }
 
         wp_send_json_success( array( 'msg' => 'Aprovada.' ) );
     }
@@ -246,17 +276,58 @@ class Newsgame_Review {
             wp_send_json_error( array( 'msg' => 'ID de instância inválido.' ) );
         }
 
+        $table = $wpdb->prefix . 'newsgame_dilemas';
+
+        // Os IDs precisam ser capturados ANTES do UPDATE: $wpdb->update devolve
+        // contagem, não IDs, e depois não há como distinguir os recém-aprovados
+        // dos que já estavam aprovados.
+        $ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT id FROM {$table} WHERE instance_id = %d AND review_status = 'pending'",
+            $instance_id
+        ) );
+
         $updated = $wpdb->update(
-            $wpdb->prefix . 'newsgame_dilemas',
+            $table,
             array( 'review_status' => 'approved' ),
             array( 'instance_id' => $instance_id, 'review_status' => 'pending' ),
             array( '%s' ),
             array( '%d', '%s' )
         );
 
+        // UMA chamada cobre os N recém-aprovados. Fatiar por dilema não traria ganho
+        // (o backend pontua cada um independentemente) e transformaria uma aprovação
+        // de 12 em 12 acertos de throttle, estourando o teto de 10/min.
+        //
+        // A aprovação é decisão editorial e NÃO é desfeita se a IA falhar — mas a
+        // falha é sempre reportada, nunca silenciosa.
+        $aviso = null;
+        if ( $ids ) {
+            if ( Newsgame_Settings::rate_limited( 'assign_weights', 10 ) ) {
+                $aviso = 'limite de atribuições por minuto atingido';
+            } else {
+                $res = Newsgame_Admin_Instances::assign_weights_for( $instance_id, $ids );
+                if ( $res['error'] ) {
+                    $aviso = $res['error'];
+                } elseif ( $res['updated'] < count( $ids ) ) {
+                    $aviso = sprintf(
+                        'apenas %d de %d receberam peso',
+                        $res['updated'],
+                        count( $ids )
+                    );
+                }
+            }
+        }
+
         wp_send_json_success( array(
-            'msg'     => 'Todas as pendentes foram aprovadas.',
+            'msg'     => $aviso
+                ? 'Aprovadas, mas com pendência de pesos.'
+                : 'Todas as pendentes foram aprovadas.',
             'updated' => (int) $updated,
+            'warning' => $aviso
+                ? 'Aprovadas, mas sem pesos de eixo: ' . $aviso
+                  . '. Use "⚖ Atribuir Pesos" antes de publicar — sem pesos o jogo '
+                  . 'entrega veredito genérico.'
+                : null,
         ) );
     }
 

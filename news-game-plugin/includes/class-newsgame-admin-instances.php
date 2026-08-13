@@ -101,6 +101,18 @@ class Newsgame_Admin_Instances {
 
         $slug = self::unique_slug( $title, $id );
 
+        // Publicar com aprovados sem peso entregaria veredito genérico ao jogador,
+        // em silêncio. Em vez de rejeitar o save inteiro — que descartaria as demais
+        // edições do formulário —, rebaixa o status para 'review' e avisa. O editor
+        // não perde trabalho e a publicação não acontece.
+        $pendentes_sem_peso = 0;
+        if ( $id && 'published' === $status ) {
+            $pendentes_sem_peso = self::count_unweighted_approved( $id );
+            if ( $pendentes_sem_peso > 0 ) {
+                $status = 'review';
+            }
+        }
+
         $row = array(
             'title'         => $title,
             'slug'          => $slug,
@@ -119,6 +131,19 @@ class Newsgame_Admin_Instances {
         } else {
             $wpdb->insert( $table, $row, $fmt );
             $id = (int) $wpdb->insert_id;
+        }
+
+        // Com pendência de pesos, volta para o formulário: é onde estão o aviso e o
+        // botão que resolve. Sem pendência, mantém o destino histórico (a listagem).
+        if ( $pendentes_sem_peso > 0 ) {
+            wp_safe_redirect( add_query_arg( array(
+                'page'   => 'newsgame-instances',
+                'action' => 'edit',
+                'id'     => $id,
+                'saved'  => 1,
+                'error'  => 'unweighted_approved',
+            ), admin_url( 'admin.php' ) ) );
+            exit;
         }
 
         wp_safe_redirect( add_query_arg( array(
@@ -235,50 +260,86 @@ class Newsgame_Admin_Instances {
         wp_send_json_success( array( 'msg' => 'Matriz de eixos salva.' ) );
     }
 
-    /* ── AJAX: atribui pesos de eixo via /assign-weights ──────── */
+    /* ── Motor de pesagem de eixos ────────────────────────────── */
 
-    public static function handle_assign_weights() {
-        check_ajax_referer( self::NONCE_ASSIGN, 'nonce' );
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array( 'msg' => 'Permissão insuficiente.' ) );
-        }
-        // Um clique processa todos os dilemas da instância de uma vez — chamada
-        // única e caríssima. Teto baixo.
-        if ( Newsgame_Settings::rate_limited( 'assign_weights', 10 ) ) {
-            wp_send_json_error( array( 'msg' => 'Muitas reatribuições em sequência. Aguarde um minuto — cada reatribuição consome cota da chave Gemini.' ) );
+    /**
+     * Conta dilemas aprovados sem pesos de eixo.
+     *
+     * É a pendência que faz o jogo entregar veredito genérico: o gate de
+     * newsgame-game.js:342 exige pesoCount > 0 e degrada em silêncio sem ele.
+     * Usado pelo aviso persistente da tela de edição e pelo bloqueio de
+     * publicação em handle_save().
+     */
+    public static function count_unweighted_approved( $instance_id ) {
+        global $wpdb;
+        return (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}newsgame_dilemas
+              WHERE instance_id = %d AND review_status = 'approved' AND axis_weights IS NULL",
+            (int) $instance_id
+        ) );
+    }
+
+    /**
+     * Atribui pesos de eixo a um conjunto específico de dilemas.
+     *
+     * Extraído de handle_assign_weights() para que o handler de aprovação em lote
+     * da Mesa Editorial reuse o mesmo caminho. Uma única chamada ao backend cobre
+     * todos os IDs: o /assign-weights pontua cada dilema contra os polos dos
+     * eixos de forma independente — o lote é eficiência de token, não requisito
+     * de contexto. Por isso lote de 1 é perfeitamente válido.
+     *
+     * NÃO envia resposta HTTP e NÃO aplica throttle: quem chama decide as duas
+     * coisas, porque o custo aceitável difere entre o botão manual e a aprovação.
+     *
+     * @param  int   $instance_id
+     * @param  int[] $dilema_ids  IDs a pesar. Vazio = no-op.
+     * @param  bool  $force       true reprocessa quem já tem peso (botão manual
+     *                            "Reatribuir"); false só pesa axis_weights NULL.
+     * @return array{updated:int, skipped:int, error:?string}
+     */
+    public static function assign_weights_for( $instance_id, array $dilema_ids, $force = false ) {
+        global $wpdb;
+
+        $instance_id = (int) $instance_id;
+        $dilema_ids  = array_values( array_unique( array_filter( array_map( 'intval', $dilema_ids ) ) ) );
+
+        if ( ! $instance_id || ! $dilema_ids ) {
+            return array( 'updated' => 0, 'skipped' => 0, 'error' => null );
         }
 
-        $instance_id = (int) ( $_POST['instance_id'] ?? 0 );
-        if ( ! $instance_id ) {
-            wp_send_json_error( array( 'msg' => 'ID de instância inválido.' ) );
-        }
-
-        // Carrega instância e valida presença de axis_matrix
         $instance = self::get( $instance_id );
         if ( ! $instance || ! $instance->axis_matrix ) {
-            wp_send_json_error( array( 'msg' => 'Instância sem matriz de eixos. Execute /analyze-domain primeiro.' ) );
+            return array( 'updated' => 0, 'skipped' => count( $dilema_ids ),
+                'error' => 'instância sem matriz de eixos — rode "Analisar Domínio" antes de pesar.' );
         }
 
         $axis_data = json_decode( $instance->axis_matrix, true );
         if ( ! isset( $axis_data['eixos_principais'] ) ) {
-            wp_send_json_error( array( 'msg' => 'Matriz de eixos inválida ou sem eixos_principais.' ) );
+            return array( 'updated' => 0, 'skipped' => count( $dilema_ids ),
+                'error' => 'matriz de eixos inválida ou sem eixos_principais.' );
         }
 
-        // Busca todos os dilemas da instância, independente de review_status
-        global $wpdb;
         $table_dilemas = $wpdb->prefix . 'newsgame_dilemas';
+        $placeholders  = implode( ',', array_fill( 0, count( $dilema_ids ), '%d' ) );
+
+        // Sem $force, só quem ainda não tem peso: reaprovar dilema já pesado não
+        // gasta cota. Quem editou o texto zera o campo antes de chamar.
+        $filtro_peso = $force ? '' : ' AND axis_weights IS NULL';
 
         $rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT id, body, option_a, option_b, option_c FROM {$table_dilemas} WHERE instance_id = %d ORDER BY id ASC",
-            $instance_id
+            "SELECT id, body, option_a, option_b, option_c FROM {$table_dilemas}
+              WHERE instance_id = %d AND id IN ({$placeholders}){$filtro_peso}
+              ORDER BY id ASC",
+            array_merge( array( $instance_id ), $dilema_ids )
         ), ARRAY_A );
 
+        // Todos já tinham peso — caminho idempotente, não é erro
         if ( empty( $rows ) ) {
-            wp_send_json_error( array( 'msg' => 'Nenhum dilema encontrado para esta instância.' ) );
+            return array( 'updated' => 0, 'skipped' => count( $dilema_ids ), 'error' => null );
         }
 
-        // Monta payload: inclui dilema_id como campo extra para rastrear o UPDATE de retorno.
-        // O backend Python ignora campos desconhecidos no dict — dilema_id volta na resposta intacto.
+        // Monta payload: dilema_id é campo extra para rastrear o UPDATE de retorno.
+        // O backend Python ignora campos desconhecidos — dilema_id volta intacto.
         $dilemmas = array();
         foreach ( $rows as $row ) {
             $opt_a = json_decode( $row['option_a'] ?? '{}', true ) ?: array();
@@ -300,7 +361,6 @@ class Newsgame_Admin_Instances {
             );
         }
 
-        // Chama /assign-weights no backend Python
         $backend_url = rtrim( Newsgame_Settings::backend_url(), '/' );
         $gemini_key  = Newsgame_Settings::gemini_key();
 
@@ -322,27 +382,23 @@ class Newsgame_Admin_Instances {
         );
 
         if ( is_wp_error( $response ) ) {
-            wp_send_json_error( array( 'msg' => 'Falha de conexão com o backend: ' . $response->get_error_message() ) );
+            return array( 'updated' => 0, 'skipped' => count( $rows ),
+                'error' => 'falha de conexão com o backend: ' . $response->get_error_message() );
         }
 
         $status_code = (int) wp_remote_retrieve_response_code( $response );
-        if ( $status_code !== 200 ) {
-            $body = wp_remote_retrieve_body( $response );
-            wp_send_json_error( array( 'msg' => "Backend retornou HTTP {$status_code}: " . substr( $body, 0, 300 ) ) );
+        if ( 200 !== $status_code ) {
+            return array( 'updated' => 0, 'skipped' => count( $rows ),
+                'error' => "backend retornou HTTP {$status_code}: "
+                    . substr( wp_remote_retrieve_body( $response ), 0, 300 ) );
         }
 
         $result = json_decode( wp_remote_retrieve_body( $response ), true );
         if ( ! is_array( $result ) || ! isset( $result['dilemmas_weighted'] ) ) {
-            wp_send_json_error( array( 'msg' => 'Resposta inesperada do backend.' ) );
+            return array( 'updated' => 0, 'skipped' => count( $rows ),
+                'error' => 'resposta inesperada do backend.' );
         }
 
-        // Salva os pesos de volta — um UPDATE por dilema.
-        //
-        // Nota intencional: todos os dilemas são reprocessados no "Reatribuir", incluindo
-        // os que não mudaram. Comportamento deliberado por simplicidade — garante consistência
-        // sem controle de estado entre chamadas. Otimização futura: enviar apenas dilemas com
-        // axis_weights IS NULL ou com updated_at posterior ao último assign, reduzindo chamadas
-        // ao Gemini em lotes grandes.
         $updated = 0;
         foreach ( $result['dilemmas_weighted'] as $item ) {
             $dilema_id = (int) ( $item['dilema_id'] ?? 0 );
@@ -368,9 +424,54 @@ class Newsgame_Admin_Instances {
             }
         }
 
-        wp_send_json_success( array(
-            'msg'     => "Pesos atribuídos para {$updated} dilema(s).",
+        return array(
             'updated' => $updated,
+            'skipped' => max( 0, count( $rows ) - $updated ),
+            'error'   => $updated ? null : 'o backend respondeu, mas nenhum peso válido voltou.',
+        );
+    }
+
+    /* ── AJAX: atribui pesos de eixo via /assign-weights ──────── */
+
+    public static function handle_assign_weights() {
+        check_ajax_referer( self::NONCE_ASSIGN, 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'msg' => 'Permissão insuficiente.' ) );
+        }
+        // Um clique processa todos os dilemas da instância de uma vez — chamada
+        // única e caríssima. Teto baixo.
+        if ( Newsgame_Settings::rate_limited( 'assign_weights', 10 ) ) {
+            wp_send_json_error( array( 'msg' => 'Muitas reatribuições em sequência. Aguarde um minuto — cada reatribuição consome cota da chave Gemini.' ) );
+        }
+
+        $instance_id = (int) ( $_POST['instance_id'] ?? 0 );
+        if ( ! $instance_id ) {
+            wp_send_json_error( array( 'msg' => 'ID de instância inválido.' ) );
+        }
+
+        // Busca todos os dilemas da instância, independente de review_status
+        global $wpdb;
+        $ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}newsgame_dilemas WHERE instance_id = %d ORDER BY id ASC",
+            $instance_id
+        ) );
+
+        if ( empty( $ids ) ) {
+            wp_send_json_error( array( 'msg' => 'Nenhum dilema encontrado para esta instância.' ) );
+        }
+
+        // force = true: este botão é o "Reatribuir" e reprocessa tudo, inclusive quem
+        // já tem peso. Comportamento deliberado, preservado da versão anterior — garante
+        // consistência sem controle de estado entre chamadas.
+        $res = self::assign_weights_for( $instance_id, $ids, true );
+
+        if ( $res['error'] ) {
+            wp_send_json_error( array( 'msg' => ucfirst( $res['error'] ) ) );
+        }
+
+        wp_send_json_success( array(
+            'msg'     => "Pesos atribuídos para {$res['updated']} dilema(s).",
+            'updated' => $res['updated'],
         ) );
     }
 
