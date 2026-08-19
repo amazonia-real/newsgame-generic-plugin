@@ -294,40 +294,65 @@ class Newsgame_Review {
             array( '%d', '%s' )
         );
 
+        // Apura só a CAUSA de a atribuição não ter rodado. O estado — quantos ficaram
+        // sem peso — é lido do banco mais abaixo, e não deduzido daqui.
+        //
         // UMA chamada cobre os N recém-aprovados. Fatiar por dilema não traria ganho
         // (o backend pontua cada um independentemente) e transformaria uma aprovação
         // de 12 em 12 acertos de throttle, estourando o teto de 10/min.
-        //
-        // A aprovação é decisão editorial e NÃO é desfeita se a IA falhar — mas a
-        // falha é sempre reportada, nunca silenciosa.
-        $aviso = null;
+        $erro = null;
         if ( $ids ) {
             if ( Newsgame_Settings::rate_limited( 'assign_weights', 10 ) ) {
-                $aviso = 'limite de atribuições por minuto atingido';
+                $erro = 'limite de atribuições por minuto atingido';
             } else {
-                $res = Newsgame_Admin_Instances::assign_weights_for( $instance_id, $ids );
-                if ( $res['error'] ) {
-                    $aviso = $res['error'];
-                } elseif ( $res['updated'] < count( $ids ) ) {
-                    $aviso = sprintf(
-                        'apenas %d de %d receberam peso',
-                        $res['updated'],
-                        count( $ids )
-                    );
-                }
+                $res  = Newsgame_Admin_Instances::assign_weights_for( $instance_id, $ids );
+                $erro = $res['error'];
             }
         }
 
+        // Estado real, perguntado ao banco DEPOIS da operação — não inferido do
+        // retorno dela. Inferir foi o que produziu o falso alarme do C5:
+        // assign_weights_for() não seleciona quem já tem peso e devolve updated = 0,
+        // que a versão anterior lia como falha e anunciava ao editor. O custo é uma
+        // query indexada por instance_id, uma vez por aprovação em lote.
+        $sem_peso = Newsgame_Admin_Instances::count_unweighted_approved( $instance_id );
+
+        // Causa e estado ficam distinguíveis de propósito: "não deu para tentar"
+        // (throttle, backend fora) não é a mesma coisa que "sobrou peso faltando", e
+        // "nada a fazer" não é nenhuma das duas. A aprovação é decisão editorial e
+        // NÃO é desfeita se a IA falhar — mas a falha é sempre reportada.
+        $pedido = ' Use "⚖ Atribuir Pesos" antes de publicar, porque sem pesos o jogo'
+            . ' entrega veredito genérico.';
+
+        $warning = null;
+        if ( $erro && $sem_peso > 0 ) {
+            $warning = sprintf(
+                'A atribuição automática de pesos não foi concluída (%s). %d pergunta(s)'
+                    . ' aprovada(s) seguem sem peso de eixo.%s',
+                $erro,
+                $sem_peso,
+                $pedido
+            );
+        } elseif ( $erro ) {
+            $warning = sprintf(
+                'A atribuição automática de pesos não foi concluída (%s), mas nenhuma'
+                    . ' pergunta aprovada está sem peso — nada a corrigir agora.',
+                $erro
+            );
+        } elseif ( $sem_peso > 0 ) {
+            $warning = sprintf(
+                '%d pergunta(s) aprovada(s) seguem sem peso de eixo.%s',
+                $sem_peso,
+                $pedido
+            );
+        }
+
         wp_send_json_success( array(
-            'msg'     => $aviso
+            'msg'     => $sem_peso > 0
                 ? 'Aprovadas, mas com pendência de pesos.'
                 : 'Todas as pendentes foram aprovadas.',
             'updated' => (int) $updated,
-            'warning' => $aviso
-                ? 'Aprovadas, mas sem pesos de eixo: ' . $aviso
-                  . '. Use "⚖ Atribuir Pesos" antes de publicar — sem pesos o jogo '
-                  . 'entrega veredito genérico.'
-                : null,
+            'warning' => $warning,
         ) );
     }
 
