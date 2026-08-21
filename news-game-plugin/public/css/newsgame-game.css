@@ -1,17 +1,79 @@
 /* News-Game — frontend do jogo. Paleta: verde terra / Mint (mesma identidade do jogo-amazonia). */
+
+/*
+ * ── Camada de tokens (H2, fase 1) ──────────────────────────────────────
+ * Trocar os valores DESTE bloco troca 100% da aparência do jogo. Nenhuma
+ * cor, raio ou tamanho de fonte deve voltar a aparecer literal fora daqui.
+ *
+ * COR — a fonte única é o token `-rgb`, em canais. Os tokens de uso derivam
+ * dele, então trocar um hex propaga para a base E para todas as variantes
+ * com alpha. Antes desta fase havia 6 cores que re-derivavam os tokens à
+ * mão (rgba(61,139,55,…) era o --ng-primary reescrito), e trocar o token
+ * deixava essas seis para trás, sem sintoma visível. Quem escreve skin
+ * mexe só nos `-rgb`.
+ *
+ * TIPOGRAFIA — os 12 `--ng-fs-*` NÃO são uma escala. São o inventário dos
+ * 12 valores distintos que o arquivo já usava (em 17 declarações),
+ * preservados um a um para que esta fase não mude nenhum pixel. A
+ * redundância é real e está exposta de propósito: `--ng-fs-1` e `-2`
+ * diferem 0,32px, e `-6` a `-9` cabem numa faixa de 15%. Consolidar para
+ * 6–8 degraus MUDA a tela e é item separado, com aprovação própria.
+ *
+ * PERGUNTAS ABERTAS registradas nesta fase (não resolver sem decisão):
+ *  - `--ng-radius-md` (8px) veste .ng-btn-next e .ng-btn-cta, enquanto
+ *    .ng-btn-option usa --ng-radius (12px). Botões do mesmo jogo com raios
+ *    diferentes: provável drift, mas corrigir muda pixel.
+ *  - O radar tem duas identidades de verde: traço #27ae60 e preenchimento
+ *    #2ECC71 com alpha. Não é alpha da mesma base. Ver tokens do radar.
+ */
 .ng-game-wrap {
-  --ng-bg:           #0D2010;
-  --ng-card:         #1B480C;
-  --ng-primary:      #3D8B37;
-  --ng-accent:       #7EC850;
-  --ng-text:         rgba(255, 255, 255, 0.92);
-  --ng-muted:        rgba(255, 255, 255, 0.55);
-  --ng-border:       rgba(126, 200, 80, 0.22);
+  /* Canais — fonte única de cor. Trocar aqui propaga para todo o resto. */
+  --ng-bg-rgb:       13, 32, 16;      /* #0D2010 */
+  --ng-card-rgb:     27, 72, 12;      /* #1B480C */
+  --ng-primary-rgb:  61, 139, 55;     /* #3D8B37 */
+  --ng-accent-rgb:   126, 200, 80;    /* #7EC850 */
+  --ng-on-rgb:       255, 255, 255;   /* branco: texto e superfície clara */
+  --ng-shadow-rgb:   0, 0, 0;
+
+  /* Cores de uso — todas derivadas dos canais acima */
+  --ng-bg:           rgb(var(--ng-bg-rgb));
+  --ng-card:         rgb(var(--ng-card-rgb));
+  --ng-primary:      rgb(var(--ng-primary-rgb));
+  --ng-accent:       rgb(var(--ng-accent-rgb));
+  --ng-text:         rgba(var(--ng-on-rgb), 0.92);
+  --ng-muted:        rgba(var(--ng-on-rgb), 0.55);
+  --ng-border:       rgba(var(--ng-accent-rgb), 0.22);
+  --ng-on-primary:   rgb(var(--ng-on-rgb));
+  --ng-primary-soft: rgba(var(--ng-primary-rgb), 0.18);
+  --ng-primary-hover:rgba(var(--ng-primary-rgb), 0.42);
+  --ng-accent-soft:  rgba(var(--ng-accent-rgb), 0.2);
+  --ng-track:        rgba(var(--ng-on-rgb), 0.12);
+  --ng-spinner-track:rgba(var(--ng-accent-rgb), 0.2);
+  --ng-veil:         rgba(var(--ng-shadow-rgb), 0.28);
+
+  /* Raios. O 50% do spinner é geometria de círculo, não tema — fica fora. */
   --ng-radius:       12px;
+  --ng-radius-md:    8px;
+  --ng-radius-sm:    3px;
+
+  /* Tipografia — ver a nota "NÃO são uma escala" acima */
+  --ng-font:         -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --ng-fs-1:         0.68rem;
+  --ng-fs-2:         0.7rem;
+  --ng-fs-3:         12px;  /* px de propósito: não controlamos a raiz do tema hospedeiro */
+  --ng-fs-4:         0.8rem;
+  --ng-fs-5:         0.85rem;
+  --ng-fs-6:         0.9rem;
+  --ng-fs-7:         0.95rem;
+  --ng-fs-8:         1rem;
+  --ng-fs-9:         1.05rem;
+  --ng-fs-10:        1.35rem;
+  --ng-fs-11:        1.75rem;
+  --ng-fs-12:        1.9rem;
 
   background:        var(--ng-bg);
   color:             var(--ng-text);
-  font-family:       -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:       var(--ng-font);
   min-height:        85vh;
   display:           flex;
   align-items:       flex-start;
@@ -36,20 +98,20 @@
 .ng-progress-track {
   flex:            1;
   height:          6px;
-  background:      rgba(255, 255, 255, 0.12);
-  border-radius:   3px;
+  background:      var(--ng-track);
+  border-radius:   var(--ng-radius-sm);
   overflow:        hidden;
 }
 
 .ng-progress-fill {
   height:          100%;
   background:      var(--ng-accent);
-  border-radius:   3px;
+  border-radius:   var(--ng-radius-sm);
   transition:      width 0.4s ease;
 }
 
 .ng-progress-label {
-  font-size:       12px;
+  font-size:       var(--ng-fs-3);
   color:           var(--ng-muted);
   white-space:     nowrap;
   min-width:       3.5rem;
@@ -66,7 +128,7 @@
 }
 
 .ng-dilema-title {
-  font-size:       1.35rem;
+  font-size:       var(--ng-fs-10);
   font-weight:     700;
   color:           var(--ng-accent);
   margin:          0 0 1rem;
@@ -75,7 +137,7 @@
 }
 
 .ng-dilema-body {
-  font-size:       1rem;
+  font-size:       var(--ng-fs-8);
   line-height:     1.75;
   color:           var(--ng-text);
   margin:          0;
@@ -95,12 +157,12 @@
 }
 
 .ng-btn-option {
-  background:      rgba(61, 139, 55, 0.18);
+  background:      var(--ng-primary-soft);
   border:          2px solid var(--ng-primary);
   border-radius:   var(--ng-radius);
   color:           var(--ng-text);
   cursor:          pointer;
-  font-size:       0.95rem;
+  font-size:       var(--ng-fs-7);
   line-height:     1.55;
   padding:         1rem 1.2rem;
   text-align:      left;
@@ -109,7 +171,7 @@
 }
 
 .ng-btn-option:hover:not(:disabled) {
-  background:      rgba(61, 139, 55, 0.42);
+  background:      var(--ng-primary-hover);
   border-color:    var(--ng-accent);
   transform:       translateY(-2px);
 }
@@ -117,7 +179,7 @@
 .ng-btn-option:disabled { cursor: default; }
 
 .ng-btn-option.is-chosen {
-  background:      rgba(126, 200, 80, 0.2);
+  background:      var(--ng-accent-soft);
   border-color:    var(--ng-accent);
 }
 
@@ -127,7 +189,7 @@
 
 .ng-opt-label {
   display:         block;
-  font-size:       0.7rem;
+  font-size:       var(--ng-fs-2);
   font-weight:     700;
   color:           var(--ng-accent);
   letter-spacing:  0.1em;
@@ -137,7 +199,7 @@
 
 .ng-opt-consequence {
   display:         block;
-  font-size:       0.85rem;
+  font-size:       var(--ng-fs-5);
   font-style:      italic;
   color:           var(--ng-muted);
   margin-top:      0.5rem;
@@ -146,7 +208,7 @@
 
 /* ── Veredito ────────────────────────────────────────── */
 .ng-veredicto {
-  background:      rgba(0, 0, 0, 0.28);
+  background:      var(--ng-veil);
   border-left:     4px solid var(--ng-accent);
   border-radius:   0 var(--ng-radius) var(--ng-radius) 0;
   padding:         1.25rem 1.5rem;
@@ -158,7 +220,7 @@
 
 .ng-verd-label {
   display:         block;
-  font-size:       0.68rem;
+  font-size:       var(--ng-fs-1);
   font-weight:     700;
   color:           var(--ng-accent);
   letter-spacing:  0.12em;
@@ -167,14 +229,14 @@
 }
 
 .ng-verd-text {
-  font-size:       0.95rem;
+  font-size:       var(--ng-fs-7);
   line-height:     1.65;
   color:           var(--ng-text);
   margin:          0;
 }
 
 .ng-source-link {
-  font-size:       0.8rem;
+  font-size:       var(--ng-fs-4);
   color:           var(--ng-accent);
   opacity:         0.75;
   word-break:      break-all;
@@ -187,11 +249,11 @@
 .ng-btn-next {
   background:      var(--ng-primary);
   border:          none;
-  border-radius:   8px;
-  color:           #fff;
+  border-radius:   var(--ng-radius-md);
+  color:           var(--ng-on-primary);
   cursor:          pointer;
   display:         block;
-  font-size:       1rem;
+  font-size:       var(--ng-fs-8);
   font-weight:     600;
   margin-left:     auto;
   padding:         0.8rem 2.2rem;
@@ -200,7 +262,7 @@
 
 .ng-btn-next:hover {
   background:      var(--ng-accent);
-  color:           #0D2010;
+  color:           var(--ng-bg);
   transform:       translateY(-1px);
 }
 
@@ -211,14 +273,14 @@
 }
 
 .ng-screen h2 {
-  font-size:       1.9rem;
+  font-size:       var(--ng-fs-12);
   color:           var(--ng-accent);
   margin:          0 0 0.75rem;
 }
 
 .ng-screen p {
   color:           var(--ng-muted);
-  font-size:       1rem;
+  font-size:       var(--ng-fs-8);
   margin:          0 0 2rem;
   line-height:     1.6;
 }
@@ -226,10 +288,10 @@
 .ng-btn-cta {
   background:      var(--ng-primary);
   border:          none;
-  border-radius:   8px;
-  color:           #fff;
+  border-radius:   var(--ng-radius-md);
+  color:           var(--ng-on-primary);
   cursor:          pointer;
-  font-size:       1.05rem;
+  font-size:       var(--ng-fs-9);
   font-weight:     600;
   padding:         0.85rem 2.5rem;
   transition:      background 0.18s, transform 0.14s;
@@ -237,7 +299,7 @@
 
 .ng-btn-cta:hover {
   background:      var(--ng-accent);
-  color:           #0D2010;
+  color:           var(--ng-bg);
   transform:       translateY(-2px);
 }
 
@@ -245,7 +307,7 @@
 .ng-spinner {
   width:           36px;
   height:          36px;
-  border:          3px solid rgba(126, 200, 80, 0.2);
+  border:          3px solid var(--ng-spinner-track);
   border-top-color:var(--ng-accent);
   border-radius:   50%;
   margin:          1.5rem auto 0;
@@ -262,7 +324,7 @@
 }
 
 .ng-verdict-result h2 {
-  font-size:       1.75rem;
+  font-size:       var(--ng-fs-11);
   color:           var(--ng-accent);
   margin:          0 0 1.5rem;
   text-align:      center;
@@ -270,7 +332,7 @@
 }
 
 .ng-verdict-block {
-  background:      rgba(0, 0, 0, 0.28);
+  background:      var(--ng-veil);
   border-left:     4px solid var(--ng-accent);
   border-radius:   0 var(--ng-radius) var(--ng-radius) 0;
   padding:         1rem 1.25rem;
@@ -279,7 +341,7 @@
 
 .ng-verdict-block-label {
   display:         block;
-  font-size:       0.68rem;
+  font-size:       var(--ng-fs-1);
   font-weight:     700;
   color:           var(--ng-accent);
   letter-spacing:  0.12em;
@@ -289,13 +351,13 @@
 
 .ng-verdict-block p {
   color:           var(--ng-text);
-  font-size:       0.95rem;
+  font-size:       var(--ng-fs-7);
   line-height:     1.65;
   margin:          0;
 }
 
 .ng-verdict-share-text {
-  font-size:       0.9rem;
+  font-size:       var(--ng-fs-6);
   color:           var(--ng-muted);
   font-style:      italic;
   text-align:      center;
