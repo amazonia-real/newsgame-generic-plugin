@@ -57,30 +57,92 @@ editor na interface WordPress.
 
 ---
 
-## FLAG 002 — Complexidade Ciclomática do JavaScript (Pendente)
+## FLAG 002 — Complexidade Ciclomática do JavaScript
 
-**Status:** ⏳ Pendente — a ser executado antes da fase de UX
+**Status:** ✅ Implementado — A4, 2026-08-21.
+**Cobertura parcial por natureza: ~33% do JS do plugin.** A trava alcança os
+dois arquivos `.js` (~463 linhas). As outras ~959 linhas seguem **inline** em
+blocos `<script>` dentro dos views PHP e **não são lintáveis** — ESLint não lê
+JS dentro de PHP. Só entram na trava com o **A3**, que está fora do escopo do
+lançamento por decisão. Esta flag **não** significa "todo o JS do plugin está
+sob limite de complexidade"; ver "Limite de cobertura" abaixo.
 
 **Contexto:**
 O JavaScript do plugin (`public/js/newsgame-game.js` e o inline 
-de `page-instance-form.php`) ainda não tem controle de complexidade 
+de `page-instance-form.php`) não tinha controle de complexidade 
 ciclomática. Durante a fase de UX, o JS vai crescer significativamente.
 
-**Ação planejada:**
-Configurar a regra `complexity` no ESLint com limite máximo de 10:
-- Adicionar apenas a regra `complexity` na config ESLint existente
-- Não instalar dependências adicionais
-- Não alterar código de negócio
-- Auditar funções que já ultrapassam o limite e refatorar antes 
-  de adicionar nova lógica de UX
+**Duas premissas da redação original estavam erradas:**
+1. *"Adicionar apenas a regra `complexity` na config ESLint existente"* —
+   **não havia config ESLint.** Não havia `package.json`, `.eslintrc` nem
+   `eslint.config.*` em nenhum lugar do repositório. Executar a flag exigiu
+   criar o ferramental do zero (reescopado no roadmap em 2026-08-05)
+2. *"Não instalar dependências adicionais"* — o ESLint **é** uma dependência
+   (69 pacotes com as transitivas). Fica como `devDependency` e `node_modules/`
+   segue fora do git: **não entra no runtime do jogo e não é requisito de
+   instalação do plugin**. Quem só quer usar precisa de WordPress + Python,
+   como antes. A regra do `CLAUDE.md` §7 ("JS vanilla, sem bibliotecas novas")
+   governa o que o navegador do leitor baixa, e isso não mudou
 
-**Quando executar:**
-Após o commit do `/assign-weights` e antes de iniciar a fase de UX.
+**O que foi implementado:**
+- `package.json` na raiz — `eslint` como única `devDependency`, um único
+  script (`npm run lint`). Sem build, sem Prettier, sem plugins
+- `eslint.config.mjs` — flat config com **uma regra**, `complexity: ['error', 10]`.
+  Não é `.eslintrc`: esse formato foi removido no ESLint 9 e não é lido no 10
+- `.gitignore` ganhou `!/package.json` e `!/package-lock.json` — a regra
+  `/*.json` da raiz (que barra arquivos de acervo) engolia os dois, e o
+  ferramental nasceria invisível para quem clonasse
+
+**Auditoria de complexidade — 50 funções medidas, 1 acima do limite:**
+
+| Função | Complexidade |
+|---|---|
+| `buildRadarSVG` | 12 |
+| `NgGame` | 8 |
+| `buildNarrativa` | 7 |
+| `renderVeredicto` / `renderVerdictNarrativa` | 6 |
+| `renderEnd` | 5 |
+| (cauda: 43 funções) | 1–4 |
+
+O limite 10 **não bloqueou nada de saída** — há 2 pontos de folga até a
+segunda pior função. `buildRadarSVG` recebeu `eslint-disable-next-line`
+com justificativa no código: os 12 não são fluxo de controle (não há um
+`if`, `for` ou `case` no corpo), são 9 curtos-circuitos de valor default
+mais 2 ternários de cor — a regra cobra `||` com o mesmo peso de um `if`.
+Não foi refatorado porque é o código do gráfico triangular validado em
+runtime em 13/08 (C7), e mexer nele exigiria nova partida completa.
+
+**Limite de cobertura — o que a flag pedia e a trava não alcança:**
+O bloco `<script>` inline de `page-instance-form.php`, citado abaixo em
+"onde monitorar", **não é lintável**: ESLint não lê JS dentro de PHP. São
+5 blocos e ~959 linhas (`page-instance-form.php` 406–618, 620–778,
+842–1252, 1257–1362; `page-settings.php` 108–182) contra ~463 linhas
+cobertas — a trava vale para **33%** do JS do plugin. Os outros 67% entram
+quando o **A3** mover os blocos para arquivos `.js`, e o A3 está fora do
+escopo do lançamento por decisão.
+
+**Validação (regra do ✅ — ver §6 do roadmap):**
+Quatro testes executados em 2026-08-21, config nunca aceita por leitura:
+1. `npm run lint` na árvore limpa → exit 0
+2. Função-sonda com complexidade 11 gravada em `public/js/` → erro
+   apontando a sonda, exit 1. **Prova que a regra alcança os arquivos do
+   plugin**, e não que passou por não ter sido aplicada
+3. `eslint . --no-inline-config` → reexpõe `buildRadarSVG` (12). Prova que
+   é o `disable` que suprime, e que a função continua sendo medida
+4. `disable` obsoleto numa função trivial → *"Unused eslint-disable
+   directive"*. Se alguém refatorar o `buildRadarSVG` no futuro, o
+   comentário morto é denunciado (como **warning**, exit 0 — não quebra
+   o lint)
+
+Sondas removidas ao fim de cada teste. `eslint . -f json` confirma 3
+arquivos percorridos: os 2 do plugin + a própria config — os JS vendorizados
+do `.venv` do backend estão excluídos.
 
 **Onde monitorar:**
-- `news-game-plugin/public/js/newsgame-game.js`
+- `news-game-plugin/public/js/newsgame-game.js` (coberto)
+- `news-game-plugin/admin/js/newsgame-admin-instances.js` (coberto)
 - `news-game-plugin/admin/views/page-instance-form.php` 
-  (bloco `<script>` inline)
+  (bloco `<script>` inline — **não coberto até o A3**)
 
 ---
 

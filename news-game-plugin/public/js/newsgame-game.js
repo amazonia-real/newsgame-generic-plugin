@@ -28,6 +28,17 @@
   }
 
   /* ── Gráfico triangular de perfil (adaptado do JDA) ──── */
+  /*
+   * Dívida consciente do A4 (FLAG 002): complexidade 12, acima do limite 10.
+   * Os 12 não são fluxo de controle — não há um `if`, `for` ou `case` no corpo
+   * desta função. São 9 curtos-circuitos de valor default (`vetor.eixoN || 0` e
+   * `eixos.eixoN && eixos.eixoN.nome || 'Eixo N'`) mais 2 ternários de cor, e a
+   * regra `complexity` cobra `||` com o mesmo peso de um `if`.
+   * Não refatorado agora porque este é o código do gráfico triangular validado
+   * em runtime em 13/08 (C7) — mexer nele exige nova partida completa para
+   * reconceder o ✅. Ver A4 no ROADMAP_OPEN_SOURCE.md.
+   */
+  // eslint-disable-next-line complexity
   function buildRadarSVG(vetor, eixos) {
     var W = 480, H = 230, cx = 240, cy = 132, r = 83;
 

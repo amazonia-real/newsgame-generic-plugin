@@ -1,0 +1,15 @@
+{
+  "name": "news-game-plugin-dev",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Ferramental de desenvolvimento do News Game Plugin. NAO e dependencia de instalacao: quem so quer usar o plugin precisa apenas de WordPress + Python. Ver A4 no ROADMAP_OPEN_SOURCE.md e FLAG 002 no TECH_FLAGS.md.",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "eslint": "^10.9.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

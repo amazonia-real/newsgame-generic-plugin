@@ -40,6 +40,10 @@ chroma_db/
 /*.py
 /*.txt
 /*.json
+# Exceções ao /*.json acima: ferramental de dev do A4 (FLAG 002) precisa
+# ser rastreado, senão a trava de complexidade não existe para quem clona.
+!/package.json
+!/package-lock.json
 
 # Pastas de backup, logs e arquivos pesados de sistema
 _backup_jogo-amazonia_antigo/
