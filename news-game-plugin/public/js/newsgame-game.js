@@ -104,12 +104,11 @@
       var anchor = Math.cos(a) > 0.15 ? 'start' : Math.cos(a) < -0.15 ? 'end' : 'middle';
       return '<text x="' + lx + '" y="' + (ly - 4) + '"' +
                ' text-anchor="' + anchor + '" font-size="11" font-weight="700"' +
-               ' letter-spacing="0.5" class="ng-radar-label"' +
-               ' font-family="system-ui,sans-serif">' + esc(labels[i].toUpperCase()) + '</text>' +
+               ' letter-spacing="0.5" class="ng-radar-label">' +
+               esc(labels[i].toUpperCase()) + '</text>' +
              '<text x="' + lx + '" y="' + (ly + 14) + '"' +
                ' text-anchor="' + anchor + '" font-size="17" font-weight="800"' +
-               ' class="ng-radar-pct ' + dotCls[i] + '"' +
-               ' font-family="system-ui,sans-serif">' + pctTxt + '</text>';
+               ' class="ng-radar-pct ' + dotCls[i] + '">' + pctTxt + '</text>';
     }).join('');
 
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" class="ng-radar"' +

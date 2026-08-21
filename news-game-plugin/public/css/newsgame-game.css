@@ -181,12 +181,20 @@
   .ng-card    { padding: 1.25rem 1.25rem; }
 }
 
+/* `font-family: inherit` nos três botões: botão NÃO herda font-family do
+   ancestral, então até 21/08 a tipografia dos botões do jogo vinha do agente
+   de usuário ou do que o tema hospedeiro declarasse para `button` — a única
+   parte da aparência do jogo que não era nossa. `inherit` em vez de
+   `var(--ng-font)` de propósito: assim o botão segue o que o ancestral
+   declarar, e continua correto se uma skin trocar a fonte de um subtrecho em
+   vez do wrap inteiro. */
 .ng-btn-option {
   background:      var(--ng-primary-soft);
   border:          2px solid var(--ng-primary);
   border-radius:   var(--ng-radius);
   color:           var(--ng-text);
   cursor:          pointer;
+  font-family:     inherit;
   font-size:       var(--ng-fs-7);
   line-height:     1.55;
   padding:         1rem 1.2rem;
@@ -278,6 +286,7 @@
   color:           var(--ng-on-primary);
   cursor:          pointer;
   display:         block;
+  font-family:     inherit;
   font-size:       var(--ng-fs-8);
   font-weight:     600;
   margin-left:     auto;
@@ -316,6 +325,7 @@
   border-radius:   var(--ng-radius-md);
   color:           var(--ng-on-primary);
   cursor:          pointer;
+  font-family:     inherit;
   font-size:       var(--ng-fs-9);
   font-weight:     600;
   padding:         0.85rem 2.5rem;
@@ -419,7 +429,14 @@
 .ng-radar-grid-outer { stroke: var(--ng-radar-grid-outer); }
 .ng-radar-axis       { stroke: var(--ng-radar-axis); }
 .ng-radar-center     { fill:   var(--ng-radar-center); }
-.ng-radar-label      { fill:   var(--ng-radar-label); }
+/* A fonte do radar vinha fixa em atributo (`font-family="system-ui,sans-serif"`),
+   um stack diferente do resto do jogo. Passa a seguir o token. Nas três
+   plataformas principais `system-ui` e o stack de --ng-font resolvem para a
+   mesma face (Segoe UI no Windows, SF no macOS, Roboto no Android), então a
+   mudança visual tende a zero — o ganho é o radar deixar de ter tipografia
+   própria e passar a seguir a skin. */
+.ng-radar-label { fill: var(--ng-radar-label); font-family: var(--ng-font); }
+.ng-radar-pct   { font-family: var(--ng-font); }
 
 .ng-radar-poly.is-positive {
   fill:            var(--ng-radar-positive-fill);
