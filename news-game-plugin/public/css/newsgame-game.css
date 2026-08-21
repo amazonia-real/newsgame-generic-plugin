@@ -51,6 +51,31 @@
   --ng-spinner-track:rgba(var(--ng-accent-rgb), 0.2);
   --ng-veil:         rgba(var(--ng-shadow-rgb), 0.28);
 
+  /*
+   * Gráfico triangular. Duas naturezas diferentes, de propósito:
+   *
+   * SEMÂNTICAS — verde=bom, vermelho=ruim, cinza=neutro. Descrevem o
+   * RESULTADO do jogador, não a identidade do veículo, e por decisão NÃO
+   * seguem a skin: não derivam dos canais. Uma redação que troque a marca
+   * para roxo não deve ganhar um radar roxo onde antes lia "positivo".
+   */
+  --ng-radar-positive:      #27ae60;
+  --ng-radar-positive-fill: rgba(46, 204, 113, 0.25);
+  --ng-radar-negative:      #E74C3C;
+  --ng-radar-negative-fill: rgba(231, 76, 60, 0.2);
+  --ng-radar-neutral:       #95A5A6;
+  /*
+   * CROMO — grade, eixos, rótulos e centro. Estas SEGUEM a skin, derivadas
+   * de --ng-on-rgb como --ng-text e --ng-muted: são branco-sobre-escuro, e
+   * numa skin de fundo claro ficariam invisíveis se fossem fixas.
+   */
+  --ng-radar-grid:          rgba(var(--ng-on-rgb), 0.07);
+  --ng-radar-grid-outer:    rgba(var(--ng-on-rgb), 0.18);
+  --ng-radar-axis:          rgba(var(--ng-on-rgb), 0.18);
+  --ng-radar-dot-stroke:    rgba(var(--ng-on-rgb), 0.5);
+  --ng-radar-label:         rgba(var(--ng-on-rgb), 0.65);
+  --ng-radar-center:        rgba(var(--ng-on-rgb), 0.35);
+
   /* Raios. O 50% do spinner é geometria de círculo, não tema — fica fora. */
   --ng-radius:       12px;
   --ng-radius-md:    8px;
@@ -370,3 +395,49 @@
   margin-bottom:   2rem;
   padding:         0.5rem 0;
 }
+
+/*
+ * O SVG do radar é montado em `buildRadarSVG` (newsgame-game.js). As cores
+ * vinham em atributo `fill=`/`stroke=` gerado ali dentro; agora o JS emite
+ * apenas a classe e a pintura vive aqui.
+ *
+ * Por que classe e não `fill="var(--ng-radar-positive)"`: `var()` em
+ * ATRIBUTO de apresentação não é confiável — o atributo é parseado por
+ * gramática isolada, sem passar pela cascata, que é onde o `var()` se
+ * resolve. Firefox e WebKit resolvem para atributos de paint, Chromium não
+ * resolve para atributos de comprimento, e a questão segue aberta no SVG WG
+ * do W3C. `style="fill:…"` funcionaria, mas exigiria `style-src
+ * 'unsafe-inline'` na CSP do site hospedeiro — contra o que o A1 conquistou.
+ * A propriedade CSS `fill` sobre elemento SVG não tem nenhuma dessas dúvidas.
+ */
+.ng-radar {
+  display:         block;
+  margin:          0 auto;
+}
+
+.ng-radar-grid       { stroke: var(--ng-radar-grid); }
+.ng-radar-grid-outer { stroke: var(--ng-radar-grid-outer); }
+.ng-radar-axis       { stroke: var(--ng-radar-axis); }
+.ng-radar-center     { fill:   var(--ng-radar-center); }
+.ng-radar-label      { fill:   var(--ng-radar-label); }
+
+.ng-radar-poly.is-positive {
+  fill:            var(--ng-radar-positive-fill);
+  stroke:          var(--ng-radar-positive);
+}
+
+.ng-radar-poly.is-negative {
+  fill:            var(--ng-radar-negative-fill);
+  stroke:          var(--ng-radar-negative);
+}
+
+.ng-radar-dot { stroke: var(--ng-radar-dot-stroke); }
+
+.ng-radar-dot.is-positive,
+.ng-radar-pct.is-positive { fill: var(--ng-radar-positive); }
+
+.ng-radar-dot.is-negative,
+.ng-radar-pct.is-negative { fill: var(--ng-radar-negative); }
+
+.ng-radar-dot.is-neutral,
+.ng-radar-pct.is-neutral  { fill: var(--ng-radar-neutral); }

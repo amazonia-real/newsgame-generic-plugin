@@ -28,17 +28,21 @@
   }
 
   /* ── Gráfico triangular de perfil (adaptado do JDA) ──── */
-  /*
-   * Dívida consciente do A4 (FLAG 002): complexidade 12, acima do limite 10.
-   * Os 12 não são fluxo de controle — não há um `if`, `for` ou `case` no corpo
-   * desta função. São 9 curtos-circuitos de valor default (`vetor.eixoN || 0` e
-   * `eixos.eixoN && eixos.eixoN.nome || 'Eixo N'`) mais 2 ternários de cor, e a
-   * regra `complexity` cobra `||` com o mesmo peso de um `if`.
-   * Não refatorado agora porque este é o código do gráfico triangular validado
-   * em runtime em 13/08 (C7) — mexer nele exige nova partida completa para
-   * reconceder o ✅. Ver A4 no ROADMAP_OPEN_SOURCE.md.
-   */
-  // eslint-disable-next-line complexity
+  /* Classe de sinal do polígono. Zero conta como positivo (`>= 0`), e não há
+     zona neutra — é o comportamento que estava no ternário original. */
+  function polySignClass(v) {
+    return v >= 0 ? 'is-positive' : 'is-negative';
+  }
+
+  /* Classe de sinal do vértice. Aqui há zona morta de ±0.05, que vira neutro —
+     também idêntico ao original. Semântica diferente da do polígono de
+     propósito: por isso são duas funções e não uma com parâmetro. */
+  function dotSignClass(v) {
+    if (v > 0.05)  { return 'is-positive'; }
+    if (v < -0.05) { return 'is-negative'; }
+    return 'is-neutral';
+  }
+
   function buildRadarSVG(vetor, eixos) {
     var W = 480, H = 230, cx = 240, cy = 132, r = 83;
 
@@ -67,7 +71,7 @@
                (cy + lv * r * Math.sin(a)).toFixed(2);
       }).join(' ');
       return '<polygon points="' + gPts + '" fill="none"' +
-             ' stroke="rgba(255,255,255,' + (lv === 1.0 ? '0.18' : '0.07') + ')"' +
+             ' class="' + (lv === 1.0 ? 'ng-radar-grid-outer' : 'ng-radar-grid') + '"' +
              ' stroke-width="' + (lv === 1.0 ? 1.3 : 0.7) + '"/>';
     }).join('');
 
@@ -76,22 +80,19 @@
       return '<line x1="' + cx + '" y1="' + cy + '"' +
              ' x2="' + (cx + r * Math.cos(a)).toFixed(2) + '"' +
              ' y2="' + (cy + r * Math.sin(a)).toFixed(2) + '"' +
-             ' stroke="rgba(255,255,255,0.18)" stroke-width="1"/>';
+             ' class="ng-radar-axis" stroke-width="1"/>';
     }).join('');
 
-    // Polígono de dados colorido pela média geral
-    var avgNorm   = (norms[0] + norms[1] + norms[2]) / 3;
-    var fillClr   = avgNorm >= 0 ? 'rgba(46,204,113,0.25)' : 'rgba(231,76,60,0.20)';
-    var strokeClr = avgNorm >= 0 ? '#27ae60' : '#E74C3C';
-    var polyPts   = pts.map(function (p) { return p.join(','); }).join(' ');
+    // Polígono de dados: a classe de sinal governa a cor, que vive no CSS
+    var avgNorm = (norms[0] + norms[1] + norms[2]) / 3;
+    var polyCls = polySignClass(avgNorm);
+    var polyPts = pts.map(function (p) { return p.join(','); }).join(' ');
 
-    // Círculos nos vértices, coloridos individualmente
-    var dotClrs = norms.map(function (n) {
-      return n > 0.05 ? '#27ae60' : n < -0.05 ? '#E74C3C' : '#95A5A6';
-    });
+    // Círculos nos vértices, com classe de sinal própria por eixo
+    var dotCls  = norms.map(dotSignClass);
     var dotsSVG = pts.map(function (pt, i) {
       return '<circle cx="' + pt[0] + '" cy="' + pt[1] + '" r="6"' +
-             ' fill="' + dotClrs[i] + '" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>';
+             ' class="ng-radar-dot ' + dotCls[i] + '" stroke-width="2"/>';
     }).join('');
 
     // Rótulos: nome do eixo + percentual com sinal
@@ -103,22 +104,22 @@
       var anchor = Math.cos(a) > 0.15 ? 'start' : Math.cos(a) < -0.15 ? 'end' : 'middle';
       return '<text x="' + lx + '" y="' + (ly - 4) + '"' +
                ' text-anchor="' + anchor + '" font-size="11" font-weight="700"' +
-               ' letter-spacing="0.5" fill="rgba(255,255,255,0.65)"' +
+               ' letter-spacing="0.5" class="ng-radar-label"' +
                ' font-family="system-ui,sans-serif">' + esc(labels[i].toUpperCase()) + '</text>' +
              '<text x="' + lx + '" y="' + (ly + 14) + '"' +
                ' text-anchor="' + anchor + '" font-size="17" font-weight="800"' +
-               ' fill="' + dotClrs[i] + '" font-family="system-ui,sans-serif">' + pctTxt + '</text>';
+               ' class="ng-radar-pct ' + dotCls[i] + '"' +
+               ' font-family="system-ui,sans-serif">' + pctTxt + '</text>';
     }).join('');
 
-    return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%"' +
-           ' style="display:block;margin:0 auto;"' +
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" class="ng-radar"' +
            ' role="img" aria-label="Gráfico de perfil: ' + esc(labels.join(', ')) + '">' +
       '<g>' + gridSVG + '</g>' +
       '<g>' + axesSVG + '</g>' +
-      '<polygon points="' + polyPts + '" fill="' + fillClr + '"' +
-               ' stroke="' + strokeClr + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '<polygon points="' + polyPts + '" class="ng-radar-poly ' + polyCls + '"' +
+               ' stroke-width="2.5" stroke-linejoin="round"/>' +
       '<g>' + dotsSVG + '</g>' +
-      '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="rgba(255,255,255,0.35)"/>' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" class="ng-radar-center"/>' +
       '<g>' + labelsSVG + '</g>' +
     '</svg>';
   }
