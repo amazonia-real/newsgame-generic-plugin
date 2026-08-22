@@ -439,6 +439,26 @@ class Newsgame_Review {
             $fields['option_c'] = wp_json_encode( $opt_c, JSON_UNESCAPED_UNICODE );
         }
 
+        /*
+         * Imagem de fundo do dilema.
+         *
+         * Só entra em $fields quando o campo foi realmente enviado — mesmo
+         * critério do option_c. Se usasse `?? ''`, um chamador que não conhece
+         * o campo apagaria a imagem escolhida sem querer.
+         *
+         * `0` vira NULL de propósito: é assim que o editor REMOVE a imagem.
+         *
+         * NOTA DE PROJETO — não cabear isto no zeramento do axis_weights.
+         * O ajax_approve() zera os pesos quando o texto foi editado, porque
+         * peso é derivado do texto e descreveria um texto que não existe mais.
+         * Imagem NÃO é derivada do texto: editar o enunciado não deve apagar a
+         * escolha do editor. A simetria é tentadora e estaria errada.
+         */
+        if ( isset( $_POST['image_id'] ) ) {
+            $image_id = absint( wp_unslash( $_POST['image_id'] ) );
+            $fields['image_id'] = $image_id ? $image_id : null;
+        }
+
         return $fields;
     }
 
@@ -470,7 +490,20 @@ class Newsgame_Review {
             'level'         => (int) $row->level,
             'character_slug'=> $row->character_slug ?? 'geral',
             'review_status' => $row->review_status ?? 'pending',
+            // Imagem de fundo: o ID alimenta o campo oculto, e miniatura e
+            // crédito alimentam a pré-visualização ao lado do seletor. O
+            // crédito aparece ali para que a AUSÊNCIA dele seja visível na hora
+            // de escolher, e não só quando o jogo já estiver publicado.
+            'image_id'      => (int) ( $row->image_id ?? 0 ),
+            'image_thumb'   => '',
+            'image_credito' => '',
         );
+
+        if ( $data['image_id'] ) {
+            $thumb = wp_get_attachment_image_url( $data['image_id'], 'thumbnail' );
+            $data['image_thumb']   = $thumb ? esc_url_raw( $thumb ) : '';
+            $data['image_credito'] = (string) wp_get_attachment_caption( $data['image_id'] );
+        }
 
         if ( ! empty( $row->option_c ) ) {
             $opt_c = json_decode( $row->option_c, true ) ?: array();

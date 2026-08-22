@@ -89,14 +89,31 @@ $page_title = $is_edit
                              vertical-align: top; font-size: 12px; color: #555;
                              font-weight: 600; white-space: nowrap; }
 .ng-edit-table td          { padding: 4px 0; }
+.ng-img-field              { display: flex; align-items: flex-start; gap: 12px; }
+.ng-img-preview            { flex: 0 0 80px; }
+.ng-img-preview img        { width: 80px; height: 60px; object-fit: cover; display: block;
+                             border-radius: 3px; border: 1px solid #c3c4c7; }
+.ng-img-vazio              { display: flex; align-items: center; justify-content: center;
+                             width: 80px; height: 60px; font-size: 11px; color: #646970;
+                             border: 1px dashed #c3c4c7; border-radius: 3px; text-align: center; }
+.ng-img-controls           { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.ng-img-credito            { font-size: 12px; color: #646970; }
+.ng-img-sem-credito        { color: #b32d2e; }
 .ng-edit-table textarea,
 .ng-edit-table input[type=text],
 .ng-edit-table input[type=url] { width: 100%; box-sizing: border-box;
                                  font-size: 13px; padding: 5px 8px; }
 .ng-source-check           { font-size: 12px; color: #2271b1; margin-top: 3px;
                              display: inline-block; }
+/* Zona de ações separada dos campos por margem e linha.
+   Antes eram 4px de padding entre o último campo e os botões — e "Pedir
+   Substituta", que gasta cota do Gemini, ficava a 4px de um campo de edição.
+   O campo de imagem, sendo a última linha da tabela, tornou o clique errado
+   fácil o suficiente para acontecer com quem conhece a tela. A separação vale
+   para qualquer campo que venha a ser o último, não só para este. */
 .ng-qrow-actions           { display: flex; gap: 8px; align-items: center;
-                             padding-top: 4px; flex-wrap: wrap; }
+                             margin-top: 18px; padding-top: 12px; flex-wrap: wrap;
+                             border-top: 1px solid #dcdcde; }
 .ng-action-msg             { font-size: 12px; margin-left: 6px; }
 .ng-review-empty           { padding: 1.5rem; color: #888; font-style: italic;
                              text-align: center; }
@@ -993,6 +1010,7 @@ if ( $id && $review_total > 0 ) :
               '<input type="url" name="source_url" class="widefat" value="' + esc(q.source_url) + '">',
               (q.source_url ? '<a href="' + esc(safeUrl(q.source_url)) + '" target="_blank" rel="noopener" class="ng-source-check">Verificar fonte ↗</a>' : ''),
             '</td></tr>',
+            '<tr><th>Imagem de fundo</th><td>', imagemCampo(q), '</td></tr>',
           '</table>',
           '<input type="hidden" name="opt_a_impacto" value="' + esc(impactoA) + '">',
           '<input type="hidden" name="opt_b_impacto" value="' + esc(impactoB) + '">',
@@ -1006,7 +1024,109 @@ if ( $id && $review_total > 0 ) :
     ].join('');
   }
 
+  /* ── Campo de imagem de fundo do dilema ────────────────────
+     O `image_id` vai num hidden com `name`, então é recolhido de graça pela
+     serialização genérica de `[name]` que já existe abaixo.
+     O crédito vem da LEGENDA do anexo e é exibido aqui de propósito: legenda
+     vazia significa foto sem atribuição, e isso tem de aparecer na hora de
+     escolher, não depois de publicar. */
+  function imagemCampo(q) {
+    var temImg   = !!q.image_id;
+    var credito  = q.image_credito || '';
+    var avisoSem = '<span class="ng-img-sem-credito">sem crédito — preencha a legenda do anexo na Biblioteca de Mídia</span>';
+
+    return [
+      '<div class="ng-img-field">',
+        '<input type="hidden" name="image_id" value="' + esc(String(q.image_id || '')) + '">',
+        '<span class="ng-img-preview">',
+          (temImg && q.image_thumb
+            ? '<img src="' + esc(safeUrl(q.image_thumb)) + '" alt="">'
+            : '<span class="ng-img-vazio">sem imagem</span>'),
+        '</span>',
+        '<span class="ng-img-controls">',
+          '<button type="button" class="button ng-img-pick">' + (temImg ? 'Trocar imagem' : 'Escolher imagem') + '</button>',
+          (temImg ? ' <button type="button" class="button-link ng-img-clear">Remover</button>' : ''),
+          '<span class="ng-img-credito">' + (temImg ? (credito ? 'Crédito: ' + esc(credito) : avisoSem) : '') + '</span>',
+        '</span>',
+      '</div>',
+    ].join('');
+  }
+
+  /* Redesenha o campo a partir do estado atual, sem recarregar a linha. */
+  function pintarImagem(field, id, thumbUrl, credito) {
+    var hidden  = field.querySelector('input[name="image_id"]');
+    var preview = field.querySelector('.ng-img-preview');
+    var pick    = field.querySelector('.ng-img-pick');
+    var creditoEl = field.querySelector('.ng-img-credito');
+    var clear   = field.querySelector('.ng-img-clear');
+
+    hidden.value = id ? String(id) : '';
+
+    if (id) {
+      preview.innerHTML = thumbUrl
+        ? '<img src="' + esc(safeUrl(thumbUrl)) + '" alt="">'
+        : '<span class="ng-img-vazio">sem miniatura</span>';
+      pick.textContent = 'Trocar imagem';
+      creditoEl.innerHTML = credito
+        ? 'Crédito: ' + esc(credito)
+        : '<span class="ng-img-sem-credito">sem crédito — preencha a legenda do anexo na Biblioteca de Mídia</span>';
+      if (!clear) {
+        pick.insertAdjacentHTML('afterend', ' <button type="button" class="button-link ng-img-clear">Remover</button>');
+      }
+    } else {
+      preview.innerHTML   = '<span class="ng-img-vazio">sem imagem</span>';
+      pick.textContent    = 'Escolher imagem';
+      creditoEl.innerHTML = '';
+      if (clear) { clear.remove(); }
+    }
+  }
+
+  /* Um frame de mídia POR CAMPO, reaproveitado.
+     A primeira versão criava um `wp.media(...)` novo a cada clique, sem
+     reaproveitar nem destruir: vazava frame e acumulava handler de `select` a
+     cada abertura. WeakMap e não propriedade no elemento porque `buildRow()`
+     recria as linhas a cada paginação e troca de aba — com WeakMap, o campo
+     antigo sai de escopo e o frame vai com ele. */
+  var seletores = new WeakMap();
+
+  function abrirSeletor(field) {
+    if (typeof wp === 'undefined' || !wp.media) {
+      window.alert('O seletor de mídia do WordPress não carregou nesta tela. Recarregue a página.');
+      return;
+    }
+
+    var frame = seletores.get(field);
+
+    if (!frame) {
+      frame = wp.media({
+        title:    'Imagem de fundo do dilema',
+        button:   { text: 'Usar esta imagem' },
+        library:  { type: 'image' },
+        multiple: false,
+      });
+
+      frame.on('select', function () {
+        var att   = frame.state().get('selection').first().toJSON();
+        var thumb = (att.sizes && att.sizes.thumbnail && att.sizes.thumbnail.url) || att.url || '';
+        // att.caption é a legenda do anexo — a mesma que o shortcode lê no render.
+        pintarImagem(field, att.id, thumb, att.caption || '');
+      });
+
+      seletores.set(field, frame);
+    }
+
+    frame.open();
+  }
+
   /* ── Delegação de eventos no container ─────────────────── */
+  list.addEventListener('click', function (e) {
+    var imgField = e.target.closest('.ng-img-field');
+    if (imgField) {
+      if (e.target.closest('.ng-img-pick'))  { e.preventDefault(); abrirSeletor(imgField); return; }
+      if (e.target.closest('.ng-img-clear')) { e.preventDefault(); pintarImagem(imgField, 0, '', ''); return; }
+    }
+  });
+
   list.addEventListener('click', function (e) {
     var head   = e.target.closest('.ng-qrow-head');
     var row    = e.target.closest('.ng-qrow');

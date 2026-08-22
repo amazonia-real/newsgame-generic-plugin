@@ -41,9 +41,24 @@ class Newsgame_Admin_Instances {
             return;
         }
 
-        // render() despacha listagem e formulário no mesmo slug — este JS é só da listagem
-        $action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list';
-        if ( 'new' === $action || 'edit' === $action ) {
+        // render() despacha listagem e formulário no mesmo slug.
+        $action    = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list';
+        $is_form   = ( 'new' === $action || 'edit' === $action );
+
+        /*
+         * A guarda antiga dava `return` aqui e o método não fazia mais nada nas
+         * telas de formulário. Agora ela apenas separa os dois destinos: o JS da
+         * listagem continua exclusivo da listagem, e o formulário ganha o seu.
+         *
+         * O A3 (FLAG 007 passo 3) herda esta guarda já corrigida — era a
+         * armadilha registrada na nota dele ("sai fora quando `action` é
+         * new/edit; a guarda vai precisar mudar"). Quem for mover os 5 <script>
+         * inline do admin não precisa mais mexer nisto.
+         */
+        if ( $is_form ) {
+            // Seletor nativo de mídia, para a imagem de fundo do dilema.
+            // Sem esta chamada `wp.media` é undefined na tela.
+            wp_enqueue_media();
             return;
         }
 

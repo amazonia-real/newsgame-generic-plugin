@@ -7,7 +7,7 @@ class Newsgame_DB {
      * Versão interna do schema — incrementar aqui ao adicionar colunas.
      * Independente da versão do plugin: só muda quando o banco muda.
      */
-    const SCHEMA_VERSION = '1.4';
+    const SCHEMA_VERSION = '1.5';
 
     /* ── Ponto de entrada público ──────────────────────────── */
 
@@ -86,6 +86,14 @@ class Newsgame_DB {
             'axis_weights',
             "LONGTEXT NULL COMMENT 'JSON: {A:{eixo1,eixo2,eixo3}, B:{...}} — pesos por alternativa via /assign-weights' AFTER `source_url`"
         );
+        // ATENÇÃO: acrescentar coluna aqui exige incrementar SCHEMA_VERSION acima.
+        // Sem o incremento, maybe_upgrade() retorna na primeira linha e a coluna
+        // nunca nasce — os arquivos ficam atualizados e todo write falha.
+        self::add_column_if_missing(
+            $dilemas,
+            'image_id',
+            "BIGINT UNSIGNED NULL COMMENT 'ID de anexo do WP: imagem de fundo deste dilema, escolhida pelo editor' AFTER `axis_weights`"
+        );
     }
 
     /* ── dbDelta: cria as tabelas do zero ──────────────────── */
@@ -127,6 +135,7 @@ class Newsgame_DB {
             veredicto      LONGTEXT        COMMENT 'JSON: {sintese, desfecho, licao}',
             source_url     VARCHAR(2048)   DEFAULT NULL,
             axis_weights   LONGTEXT        NULL COMMENT 'JSON: {A:{eixo1,eixo2,eixo3}, B:{...}} — pesos por alternativa via /assign-weights',
+            image_id       BIGINT UNSIGNED NULL COMMENT 'ID de anexo do WP: imagem de fundo deste dilema, escolhida pelo editor',
             review_status  VARCHAR(20)     NOT NULL DEFAULT 'pending' COMMENT 'pending | approved | discarded',
             created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),

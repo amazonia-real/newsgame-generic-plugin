@@ -3,11 +3,67 @@ defined( 'ABSPATH' ) || exit;
 
 class Newsgame_Shortcodes {
 
+    /** Tamanho servido no fundo do dilema. Ver register_image_size(). */
+    const BG_SIZE = 'newsgame-bg';
+
     public static function init() {
         add_shortcode( 'news-game',    array( __CLASS__, 'render' ) );
         add_shortcode( 'jogo_amazonia', array( __CLASS__, 'render_legacy' ) ); // retrocompatibilidade
         add_filter( 'body_class',      array( __CLASS__, 'body_class' ) );
         add_action( 'wp_head',         array( __CLASS__, 'force_viewport' ), 0 );
+        add_action( 'after_setup_theme', array( __CLASS__, 'register_image_size' ) );
+    }
+
+    /**
+     * Tamanho próprio para o fundo do dilema: 1600px de largura, altura livre,
+     * sem crop.
+     *
+     * Nem `large` nem `full`. O `large` padrão do WP (1024px) fica mole em fundo
+     * sangrado em tela larga; o `full` entrega o original, que pode passar de
+     * 1,5MB — e o público real é leitor de celular com conexão ruim.
+     *
+     * RESSALVA: tamanho registrado só vale para imagem enviada DEPOIS do
+     * registro. Quem já tem biblioteca precisa regenerar as miniaturas
+     * (plugin de regeneração ou WP-CLI). Sem isso, `wp_get_attachment_image_url`
+     * cai no original — funciona, mas sem o ganho de peso. Documentado, não
+     * resolvido: regenerar biblioteca de terceiro não é decisão nossa.
+     */
+    public static function register_image_size() {
+        add_image_size( self::BG_SIZE, 1600, 0, false );
+    }
+
+    /**
+     * Resolve o anexo do dilema para o que o cliente precisa: URL e crédito.
+     *
+     * O ID é resolvido AQUI, no servidor, e não no cliente, por três razões: o
+     * JS não sabe resolver ID de anexo; o JSON passa a carregar URL simples e o
+     * jogo não precisa saber nada de WordPress; e se o anexo foi excluído a
+     * resolução falha aqui, a chave é omitida do payload e a cascata de fundo
+     * assume sem o cliente ter de adivinhar.
+     *
+     * O crédito vem da LEGENDA do anexo (`post_excerpt`), não de coluna própria:
+     * uma imagem reusada por N dilemas tem um crédito só, editado na Biblioteca
+     * de Mídia, sem deriva possível entre os dilemas.
+     */
+    private static function image_payload( $image_id ) {
+        $image_id = (int) $image_id;
+        if ( ! $image_id ) {
+            return null;
+        }
+
+        $url = wp_get_attachment_image_url( $image_id, self::BG_SIZE );
+        if ( ! $url ) {
+            return null; // anexo excluído ou não é imagem — cai no fallback
+        }
+
+        $payload = array( 'url' => esc_url_raw( $url ) );
+
+        $credito = wp_get_attachment_caption( $image_id );
+        if ( $credito ) {
+            $payload['credito'] = sanitize_text_field( $credito );
+        }
+
+        return $payload;
     }
 
     /**
@@ -56,6 +112,12 @@ class Newsgame_Shortcodes {
             if ( ! empty( $d->option_c ) ) {
                 $item['option_c'] = json_decode( $d->option_c, true ) ?: array();
             }
+            // Chave omitida quando não há imagem — mesmo padrão condicional do
+            // option_c. No cliente, "tem imagem?" é teste de verdade simples.
+            $imagem = self::image_payload( $d->image_id ?? 0 );
+            if ( $imagem ) {
+                $item['imagem'] = $imagem;
+            }
             $dilemas[] = $item;
         }
 
@@ -95,6 +157,12 @@ class Newsgame_Shortcodes {
              . $json  // JSON_HEX_TAG no wp_json_encode impede fechar </script> de dentro do JSON
              . '</script>'
              . '<div class="ng-game-inner"></div>'
+             // Crédito da foto de fundo. Vem vazio e com `hidden`: o JS preenche
+             // e revela quando o dilema tem imagem com legenda. Usa o atributo
+             // `hidden` em vez de esconder por atributo de estilo, que somaria
+             // ao A5. (Sem escrever o atributo aqui nem em comentário: a
+             // auditoria do A5 é um grep, e comentário sujaria a contagem.)
+             . '<div class="ng-photo-credit" hidden></div>'
              . '</div>';
     }
 

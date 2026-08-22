@@ -27,6 +27,15 @@
     return '#';
   }
 
+  /* Neutraliza os caracteres que fechariam o `url('…')` do CSS. Adaptado do
+     cssUrlSafe() do JDA (jogo-amazonia.js:298), que é hardening registrado lá.
+     Aqui o risco é MENOR — a URL vem de wp_get_attachment_image_url(), ou seja
+     do próprio uploads, e já passou por esc_url_raw() no PHP —, mas custa nada
+     e cobre linha gravada por versão futura ou por importação de banco. */
+  function cssUrlSafe(url) {
+    return String(url).replace(/['"()\\\r\n]/g, '');
+  }
+
   /* ── Gráfico triangular de perfil (adaptado do JDA) ──── */
   /* Classe de sinal do polígono. Zero conta como positivo (`>= 0`), e não há
      zona neutra — é o comportamento que estava no ternário original. */
@@ -230,6 +239,43 @@
     var dilemas  = data.dilemas;
     var title    = data.title || 'News-Game';
     var idx      = -1;   // -1 = tela inicial
+    var creditoEl = wrap.querySelector('.ng-photo-credit');
+
+    /*
+     * ── Fundo: função ÚNICA de decisão ────────────────────────
+     * Três degraus, cada um caindo para o de baixo, e nenhum estado fica sem
+     * fundo:
+     *   1. imagem do dilema — dado no banco, escolhido pelo editor
+     *   2. fundo da skin para o momento do jogo (capa/dilema/resultado) — NÃO
+     *      IMPLEMENTADO, é o degrau 2 do H2. O ponto de entrada é aqui, e é por
+     *      isso que esta decisão vive numa função só: o degrau 2 entra neste
+     *      `else` sem tocar em nenhum dos chamadores.
+     *   3. `--ng-bg`, a cor sólida que o CSS já aplica no wrap. Não precisa de
+     *      código: basta não haver imagem inline.
+     *
+     * A atribuição é `wrap.style.backgroundImage`, propriedade via CSSOM —
+     * NÃO é bloqueada por `style-src`. Nunca trocar por `setAttribute('style',
+     * …)` nem por `style.cssText`: as duas são bloqueadas, e transformariam
+     * isto em mais um item do A5. Tudo que é estático (`background-size`,
+     * `position`, `repeat`, cor de base, véu) vive no CSS.
+     */
+    function aplicarFundo(imagem) {
+      if (imagem && imagem.url) {
+        var veu = 'linear-gradient(var(--ng-overlay), var(--ng-overlay))';
+        wrap.style.backgroundImage = veu + ", url('" + cssUrlSafe(imagem.url) + "')";
+        if (creditoEl) {
+          creditoEl.textContent = imagem.credito ? 'Foto: ' + imagem.credito : '';
+          creditoEl.hidden      = !imagem.credito;
+        }
+        return;
+      }
+
+      wrap.style.backgroundImage = '';   // degrau 3: revela --ng-bg
+      if (creditoEl) {
+        creditoEl.textContent = '';
+        creditoEl.hidden      = true;
+      }
+    }
 
     var numOptions = data.num_options || 2;
     var optKeys    = ['a', 'b', 'c'].slice(0, numOptions);
@@ -240,6 +286,7 @@
 
     /* ── Tela inicial ── */
     function renderStart() {
+      aplicarFundo(null);
       inner.innerHTML =
         '<div class="ng-screen">' +
           '<h2>' + esc(title) + '</h2>' +
@@ -254,6 +301,8 @@
     function renderDilema() {
       var d   = dilemas[idx];
       var pct = Math.round(idx / dilemas.length * 100);
+
+      aplicarFundo(d.imagem);
 
       var optsHtml = optKeys.map(function (key) {
         var opt = d['option_' + key] || {};
@@ -287,6 +336,10 @@
       var pct     = Math.round((idx + 1) / dilemas.length * 100);
       var nextLbl = idx + 1 < dilemas.length ? 'Próxima pergunta →' : 'Ver resultado final';
       var verd    = d.veredicto || {};
+
+      // Mesmo dilema, mesmo fundo: reaplicar mantém a imagem no veredito, e
+      // evita depender de o render anterior ter deixado o estado certo.
+      aplicarFundo(d.imagem);
 
       /* Acumula pesos de eixo da alternativa escolhida */
       var pesos = d.axis_weights && d.axis_weights[pick.toUpperCase()];
@@ -350,6 +403,7 @@
 
     /* ── Tela final: decide entre veredito narrativo e tela genérica ── */
     function renderEnd() {
+      aplicarFundo(null);
       var temVerdict = data.perfis && data.eixos && pesoCount > 0;
 
       if (!temVerdict) {

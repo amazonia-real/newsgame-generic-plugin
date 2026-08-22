@@ -50,6 +50,18 @@
   --ng-track:        rgba(var(--ng-on-rgb), 0.12);
   --ng-spinner-track:rgba(var(--ng-accent-rgb), 0.2);
   --ng-veil:         rgba(var(--ng-shadow-rgb), 0.28);
+  /*
+   * Véu sobre a imagem de fundo do dilema. Sem ele o texto fica ilegível sobre
+   * foto clara. O JDA cabeia rgba(0,0,0,0.42) direto no JS; aqui é token, por
+   * duas razões: a fase 1 proibiu literal de cor fora deste bloco, e uma skin
+   * de fundo claro precisa de véu claro — que é justamente o que um valor
+   * fixo impediria.
+   *
+   * ATENÇÃO: este é o único token consumido de FORA do CSS — o JS o interpola
+   * no `linear-gradient` que monta o fundo (`aplicarFundo`). Uma checagem de
+   * "token declarado e nunca usado" vai apontá-lo como órfão. **Não é órfão.**
+   */
+  --ng-overlay:      rgba(var(--ng-shadow-rgb), 0.42);
 
   /*
    * Gráfico triangular. Duas naturezas diferentes, de propósito:
@@ -96,7 +108,21 @@
   --ng-fs-11:        1.75rem;
   --ng-fs-12:        1.9rem;
 
-  background:        var(--ng-bg);
+  /*
+   * `background-color`, e NÃO o atalho `background`. O atalho zera
+   * `background-image`, e o fundo do dilema é aplicado exatamente ali, via
+   * CSSOM (`wrap.style.backgroundImage`). Inline vence a folha, então hoje
+   * funcionaria dos dois jeitos — mas qualquer atalho `background:` que alguém
+   * acrescente depois nesta regra apagaria a imagem em silêncio.
+   *
+   * Isto é o degrau 3 da cascata de fundo: sem imagem, aparece a cor. Não há
+   * código de fallback porque não é preciso — é a camada de baixo.
+   */
+  background-color:  var(--ng-bg);
+  background-size:     cover;
+  background-position: center;
+  background-repeat:   no-repeat;
+  position:          relative;   /* âncora do crédito da foto */
   color:             var(--ng-text);
   font-family:       var(--ng-font);
   min-height:        85vh;
@@ -110,6 +136,42 @@
 .ng-game-inner {
   width:     100%;
   max-width: 740px;
+}
+
+/* Crédito da foto de fundo. Compromisso editorial, não enfeite: quando há foto
+   com legenda, a atribuição aparece. Sem `display` declarado aqui de propósito,
+   para o atributo `hidden` do markup continuar funcionando. */
+.ng-photo-credit {
+  position:      absolute;
+  right:         0.9rem;
+  bottom:        0.6rem;
+  font-size:     var(--ng-fs-1);
+  color:         var(--ng-muted);
+  letter-spacing: 0.02em;
+  max-width:     60%;
+  text-align:    right;
+  pointer-events: none;
+}
+
+/*
+ * PALIATIVO REVERSÍVEL (2026-08-21), NÃO decisão. O crédito lê a legenda inteira
+ * do anexo, e num teste ela ocupou quatro linhas sobre a imagem, competindo com o
+ * conteúdo do jogo. Duas linhas é o limite enquanto o D2 não decide entre pedir
+ * crédito curto ao editor ou truncar de propósito — e truncar deixa atribuição de
+ * foto incompleta na tela, que é decisão editorial, não estética.
+ *
+ * O seletor é `:not([hidden])` porque a regra acima evita declarar `display`
+ * justamente para o atributo `hidden` continuar escondendo o elemento. Declarar
+ * `display: -webkit-box` sem a guarda revelaria uma caixa vazia em todo estado
+ * sem foto.
+ *
+ * Para reverter: apagar este bloco inteiro. Nada mais depende dele.
+ */
+.ng-photo-credit:not([hidden]) {
+  display:            -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow:           hidden;
 }
 
 /* ── Barra de progresso ──────────────────────────────── */
