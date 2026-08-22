@@ -61,7 +61,7 @@ editor na interface WordPress.
 
 **Status:** ✅ Implementado — A4, 2026-08-21.
 **Cobertura parcial por natureza: ~33% do JS do plugin.** A trava alcança os
-dois arquivos `.js` (~463 linhas). As outras ~959 linhas seguem **inline** em
+dois arquivos `.js` (~472 linhas). As outras ~959 linhas seguem **inline** em
 blocos `<script>` dentro dos views PHP e **não são lintáveis** — ESLint não lê
 JS dentro de PHP. Só entram na trava com o **A3**, que está fora do escopo do
 lançamento por decisão. Esta flag **não** significa "todo o JS do plugin está
@@ -116,7 +116,7 @@ runtime em 13/08 (C7), e mexer nele exigiria nova partida completa.
 O bloco `<script>` inline de `page-instance-form.php`, citado abaixo em
 "onde monitorar", **não é lintável**: ESLint não lê JS dentro de PHP. São
 5 blocos e ~959 linhas (`page-instance-form.php` 406–618, 620–778,
-842–1252, 1257–1362; `page-settings.php` 108–182) contra ~463 linhas
+842–1252, 1257–1362; `page-settings.php` 108–182) contra ~472 linhas
 cobertas — a trava vale para **33%** do JS do plugin. Os outros 67% entram
 quando o **A3** mover os blocos para arquivos `.js`, e o A3 está fora do
 escopo do lançamento por decisão.
@@ -446,7 +446,7 @@ imponha, sem exigir `'unsafe-inline'` por causa dele.
 |---|---|---|
 | **Pública** (o que o leitor carrega) | **1** — `wp_add_inline_script` em `includes/class-newsgame-shortcodes.php:90`, que emite `window._ngGame_<id> = {...}` | 🎯 é o único que importa |
 | **Admin** (autenticada) | 5 blocos `<script>` inline: `admin/views/page-instance-form.php:387, 601, 819, 1233` e `page-settings.php:108`; mais 1 `onclick` em `page-instances.php:84` | Baixa — só usuário logado |
-| Estilos | ~70 atributos `style="` | Ignorar — `style-src` não vale o esforço |
+| Estilos | ~70 atributos `style="` | Ignorar — `style-src` não vale o esforço. *Os ~70 são plugin inteiro; na superfície **pública** são 6, em 4 grupos — ver a ressalva do passo 4 e o A5* |
 
 **Boa notícia: a página pública está a UMA mudança de ficar limpa.** Isso é
 melhor que o JDA, onde há 4 `onerror` inline no template mais 2 `<script>`
@@ -508,7 +508,58 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
 4. **Documentar no README** um exemplo de cabeçalho CSP que o veículo pode
    aplicar, e declarar que o plugin funciona sob ele. Isso é argumento de
    adoção: nenhum plugin de quiz WP oferece isso. Já desbloqueado: a superfície
-   pública não exige mais `'unsafe-inline'`.
+   pública não exige mais `'unsafe-inline'` **em `script-src`**.
+
+   > **RESSALVA, registrada em 2026-08-21 — a frase acima promete mais do que
+   > entrega, e é preciso ler a diretiva.** A superfície pública **ainda exige
+   > `style-src 'unsafe-inline'`**, por causa de **6 atributos `style=`, em 4
+   > grupos**. Atributo `style` exige `style-src 'unsafe-inline'` pelo mesmo
+   > mecanismo que script inline exige `script-src` — não é uma classe
+   > diferente de problema, e **as 6 acionam a diretiva**.
+   >
+   > | Onde | O quê | Removível? |
+   > |---|---|---|
+   > | `newsgame-game.js:226` | `color:#f88` — mensagem de erro | Sim |
+   > | `newsgame-game.js:406`, `:407` | `display:block;margin:0 auto` — layout dos botões de compartilhar e reiniciar | Sim |
+   > | `class-newsgame-shortcodes.php:38` | `font-family:monospace` — erro de instância sem dilemas aprovados | Sim |
+   > | `newsgame-game.js:269`, `:320` | `width:N%` — barra de progresso | **Não** — dado dinâmico |
+   >
+   > **As 6 são removíveis, por dois caminhos diferentes** — e a coluna acima
+   > diz "Não" só para *remoção via classe no CSS*, que não serve a valor
+   > calculado em tempo de execução.
+   >
+   > **CSP `style-src` não restringe a CSSOM.** Atribuir propriedade
+   > (`el.style.width = pct + '%'`) **não é bloqueado**; o que é bloqueado é
+   > `style=` no markup, `el.setAttribute('style', …)` e `el.style.cssText`.
+   > Então a barra de progresso sai do alcance da diretiva trocando a montagem
+   > por string pela atribuição depois de inserir o elemento — sem perder o
+   > dado dinâmico.
+   >
+   > **Armadilha a registrar antes de alguém tentar:** tem de ser atribuição de
+   > *propriedade*. Trocar `style="width:…"` por `setAttribute('style', …)` ou
+   > por `cssText` **não resolve nada** — as duas são bloqueadas igual. É o
+   > mesmo tipo de detalhe do `esc_js` → `esc_attr` do passo 2.
+   >
+   > **Consequência para o A5:** a opção "compatibilidade total com `style-src`
+   > estrita" **existe** e custa 4 grupos — 3 por classe no CSS, 1 por CSSOM.
+   > Eu havia escrito aqui que ela não existia; estava errado, e a correção
+   > amplia as opções em vez de reduzi-las.
+   >
+   > **Isso não reabre a decisão** de "O que NÃO fazer" abaixo: perseguir
+   > `style-src` segue fora de escopo, e o argumento de retorno marginal de
+   > segurança continua válido. O defeito é de **redação**: dizer "não exige
+   > mais `'unsafe-inline'`" sem nomear a diretiva faz a equipe de TI que lê o
+   > B1 concluir compatibilidade total, e ela não é total. Um ✅ que promete
+   > mais do que entrega é o padrão que a §6 do roadmap existe para pegar.
+   >
+   > **Dado novo sobre o custo de fechar, se algum dia se quiser:** na
+   > superfície **pública** são 6 em 4 grupos, não ~70 — os ~70 da tabela de
+   > diagnóstico acima incluem o admin, e essa distinção nunca tinha sido
+   > feita. A fase 1 do H2 removeu um sétimo (`style="display:block;margin:0
+   > auto;"` do `<svg>` do radar) **sem ter sido planejada para isso**, o que
+   > dá a medida do custo: os 3 grupos de dívida saem pelo mesmo caminho,
+   > classe no CSS. Rastreado como **A5** no roadmap, como *decisão* a tomar —
+   > três saídas, não duas —, não como tarefa de remoção já decidida.
 
 ### O que NÃO fazer
 
@@ -517,6 +568,12 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
   nonce com o plugin. O bloco de dados não exige nada do hospedeiro.
 - Não perseguir `style-src` — os ~70 `style="` são cosméticos e a CSP de estilo
   tem retorno de segurança marginal.
+  *Decisão mantida em 2026-08-21, com dois números corrigidos: na superfície
+  **pública** são **6, em 4 grupos** — não ~70, que incluem o admin. E o
+  "cosméticos" merece nuance: um dos grupos é `width:N%` de barra de progresso,
+  valor calculado em runtime, que não sai por classe no CSS (sai por CSSOM, que
+  a diretiva não alcança). A consequência da decisão é que a promessa de CSP
+  tem de ser escrita qualificada por diretiva; ver a ressalva no passo 4 e o A5.*
 
 **Ver também:** FLAG 003 (segredos fora do browser) e a correção de
 2026-07-31 que aplicou `esc()` nos nomes de eixo do radar mais
