@@ -581,6 +581,91 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
 
 ---
 
+## FLAG 008 — Incidente de ambiente: MariaDB com `force_recovery` ligado e grant tables Aria corrompidas (RESOLVIDO)
+
+**Status:** ✅ Ambiente reconstruído em 2026-08-22. Registrado retroativamente em
+2026-08-24.
+
+**Por que isto virou FLAG, sendo defeito de ambiente e não do plugin:** porque três
+itens de documentação já apontavam para um episódio que não estava escrito em lugar
+nenhum. Ele produziu (a) o banco sobre o qual o **C8** foi validado, (b) um mecanismo
+candidato para o **C10**, e (c) o backup de 0 bytes que gerou o aprendizado de método
+da §6 do roadmap. Sem este registro, as três referências ficam órfãs.
+
+### Linha do tempo
+
+1. **Junho/2026 — `innodb_force_recovery` ligado, e deixado ligado.** O motivo
+   original **não está registrado** e não é mais recuperável. O efeito é que o InnoDB
+   rodou cerca de dois meses em modo degradado sem que ninguém soubesse. No nível 1
+   (`SRV_FORCE_IGNORE_CORRUPT`) o servidor **ignora página corrompida em vez de
+   abortar**: a query volta com menos linhas — ou zero — e **sem erro**. Escrita
+   continua permitida nesse nível, o que torna o modo indistinguível do normal em uso
+   casual. É deste comportamento que sai o mecanismo candidato do C10.
+2. **19/08 — o incidente do C10** (`wp_newsgame_dilemas` vazia) ocorreu **com o
+   `force_recovery` ligado**. Isso não era conhecido na sessão de diagnóstico, e é o
+   único dado novo que o item recebeu desde então. Ver a atualização de 24/08 lá —
+   **sem evidência positiva**, e não reabre o item.
+3. **22/08 — erro 1130 ao tentar o `mysqldump`.** `ERROR 1130 (HY000): Host … is not
+   allowed to connect to this MariaDB server`. A leitura intuitiva do 1130 é "host
+   bloqueado", e está errada aqui: é também o que o servidor devolve quando **não
+   conseguiu carregar o cache de ACL**, porque não pôde ler as grant tables. Seis
+   grant tables (Aria) do banco `mysql` estavam corrompidas. A única confirmada por
+   nome é **`tables_priv`** — ver a correção do `aria_chk` abaixo. **A lista completa
+   das seis não foi transcrita na hora e está perdida**; fica registrado que eram
+   seis, não quais.
+4. **O 1130 é o que criou o backup falso.** O `mysqldump --result-file=…` cria o
+   arquivo de destino **antes** de saber se a conexão funciona, então
+   `backup-mesa-2026-08-22.sql` nasceu com **0 bytes** e ficou dois dias na raiz do
+   repositório. O aprendizado de método está na §6 do roadmap ("Backup não verificado
+   é pior que nenhum"), não repetido aqui.
+5. **22/08 — reconstrução.** Datadir novo criado com `mysql_install_db`,
+   `innodb_force_recovery` **desligado**, e o banco `jda` reimportado de dump
+   verificado: 14/14 tabelas conferidas e `CHECK TABLE` OK nas 14. Foi sobre este
+   estado que o C8 rodou no mesmo dia.
+6. **O que se perdeu, e é definitivo:** o usuário `pma` e o banco `phpmyadmin` — o
+   *configuration storage* do phpMyAdmin. Datadir novo significa que só volta o que
+   for reimportado, e desses não havia dump. Na prática se foram o histórico de
+   queries, os bookmarks, os metadados de relação e as coordenadas do Designer.
+   **Não afeta o plugin nem o `jda`.** Recriar o `pma` só é necessário se o
+   configuration storage voltar a ser usado — o phpMyAdmin funciona sem ele, com um
+   aviso na interface.
+
+### Correção — `aria_chk --check` **não** é read-only
+
+Durante o incidente foi afirmado que rodar `aria_chk --check` era seguro por ser
+somente leitura. **Está errado.** Quando a checagem termina sem encontrar problema, o
+`aria_chk` **grava o flag de "tabela checada" no header** do arquivo. Um comando
+apresentado como diagnóstico escreve, portanto, na tabela que se está tentando
+diagnosticar. **Aconteceu em `tables_priv`.**
+
+A opção que suprime exatamente essa escrita existe por esse motivo:
+`-T, --read-only` — *"don't mark table as checked"*. Era ela que deveria ter sido
+usada.
+
+**Consequência de método, e é a razão de a correção estar aqui e não só numa nota:**
+em perícia de corrupção, `aria_chk --check` sem `-T` **altera a evidência**. É a mesma
+classe de erro do aprendizado de 19/08 na §6 do roadmap ("em perda de dado, medir antes
+de restaurar"), um nível abaixo — lá o reparo destruiu a medição; aqui é a **própria
+ferramenta de medição** que mexe no que mede. Copiar o arquivo antes, ou passar `-T`.
+
+### Regras de ambiente que ficam
+
+- **`innodb_force_recovery` é medida de emergência, não configuração.** Ligar exige
+  registrar quando e por quê; desligar é parte do reparo, não um passo opcional. Dois
+  meses ligado em silêncio é o que torna o C10 indeterminável — não a falta de leitura
+  de código, que foi exaustiva.
+- **Antes de mexer em banco, dump verificado e fora do repositório.** Verificado =
+  tamanho maior que zero **e** última linha `-- Dump completed on …`. Destino:
+  `E:\db-backups\`, nunca `E:\news-game\` (§7 do `CLAUDE.md`).
+- **Corrupção de grant table se apresenta como 1130**, não como erro de permissão. Não
+  gastar tempo procurando bloqueio de host antes de checar as tabelas do banco `mysql`.
+
+**Ver também:** **C10** (o mecanismo candidato que este incidente ofereceu), **C8**
+(validado sobre o banco reconstruído) e §6 do roadmap (backup verificado; medir antes
+de restaurar).
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.
