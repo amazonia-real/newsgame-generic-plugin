@@ -414,7 +414,10 @@ class Newsgame_Admin_Instances {
                 'error' => 'resposta inesperada do backend.' );
         }
 
-        $updated = 0;
+        $updated           = 0;
+        $falhas_de_escrita = 0;
+        $erro_db           = '';
+
         foreach ( $result['dilemmas_weighted'] as $item ) {
             $dilema_id = (int) ( $item['dilema_id'] ?? 0 );
             if ( ! $dilema_id ) continue;
@@ -428,21 +431,56 @@ class Newsgame_Admin_Instances {
             }
 
             if ( $pesos ) {
-                $wpdb->update(
+                $gravado = $wpdb->update(
                     $table_dilemas,
                     array( 'axis_weights' => wp_json_encode( $pesos, JSON_UNESCAPED_UNICODE ) ),
                     array( 'id' => $dilema_id, 'instance_id' => $instance_id ),
                     array( '%s' ),
                     array( '%d', '%d' )
                 );
+
+                // $updated conta LINHAS GRAVADAS, não alternativas parseadas da
+                // resposta do backend. O ++ era incondicional dentro deste if,
+                // então uma falha de escrita em TODOS os dilemas ainda devolvia
+                // updated = N e error = null — "pesos atribuídos". O estado real
+                // era salvo pelo count_unweighted_approved() do C5, que lê o
+                // banco depois da operação; a CAUSA reportada é que ficava errada.
+                //
+                // 0 continua contando como gravado: significa que a linha já
+                // tinha exatamente estes pesos (reprocessamento com $force).
+                if ( false === $gravado ) {
+                    $erro_db = $wpdb->last_error ?: 'causa não informada';
+                    error_log( "[Newsgame] axis_weights não gravado no dilema {$dilema_id} — MySQL: {$erro_db}" );
+                    $falhas_de_escrita++;
+                    continue;
+                }
+
                 $updated++;
             }
+        }
+
+        // Falha de escrita entra no `error` mesmo com $updated > 0: atribuição
+        // parcial não foi "concluída", e quem chama precisa da causa. O ESTADO
+        // — quantos ficaram sem peso — continua vindo do
+        // count_unweighted_approved(), nunca inferido daqui (C5).
+        //
+        // $erro_db é capturado no laço, e não lido aqui: $wpdb->last_error é
+        // limpo pela primeira query bem-sucedida depois da que falhou.
+        $erro = null;
+        if ( $falhas_de_escrita ) {
+            $erro = sprintf(
+                'o backend respondeu, mas a gravação de %d peso(s) falhou no banco: %s',
+                $falhas_de_escrita,
+                $erro_db
+            );
+        } elseif ( ! $updated ) {
+            $erro = 'o backend respondeu, mas nenhum peso válido voltou.';
         }
 
         return array(
             'updated' => $updated,
             'skipped' => max( 0, count( $rows ) - $updated ),
-            'error'   => $updated ? null : 'o backend respondeu, mas nenhum peso válido voltou.',
+            'error'   => $erro,
         );
     }
 

@@ -38,6 +38,41 @@ class Newsgame_Review {
         }
     }
 
+    /**
+     * Aborta a resposta AJAX quando a escrita falhou de verdade.
+     *
+     * SÓ `false` é falha. $wpdb->update() devolve 0 quando achou a linha e
+     * nenhum valor mudou — aprovar um dilema sem editar nada, descartar o que
+     * já estava descartado. Testar `! $resultado` trataria esses casos como
+     * erro e produziria alarme falso: é o defeito do C5 em outra roupa.
+     *
+     * O 0 é seguro de ignorar aqui por uma razão LOCAL, não por convenção
+     * geral: self::owns() já confirmou que a linha existe antes de cada escrita
+     * deste arquivo, então "0 linhas afetadas" não pode significar "linha não
+     * encontrada". Quem copiar este padrão para um handler SEM owns() perde essa
+     * garantia e precisa decidir por conta própria o que 0 significa lá — nos
+     * dois handlers de lote daqui, significa "conjunto vazio", e está anotado
+     * em cada um.
+     *
+     * Não retorna quando falha: wp_send_json_error() encerra o request.
+     *
+     * @param mixed  $resultado Retorno de $wpdb->update/insert/delete/query.
+     * @param string $o_que     Trecho da mensagem ("a aprovação").
+     */
+    private static function abort_on_db_error( $resultado, $o_que ) {
+        global $wpdb;
+
+        if ( false !== $resultado ) {
+            return;
+        }
+
+        $erro = $wpdb->last_error ?: 'o banco não informou a causa.';
+        error_log( "[Newsgame] escrita falhou em {$o_que} — MySQL: {$erro}" );
+        wp_send_json_error( array(
+            'msg' => "Não foi possível gravar {$o_que}: {$erro}",
+        ) );
+    }
+
     /* ── 1. Carrega lista paginada de perguntas ─────────────── */
 
     public static function ajax_load() {
@@ -100,7 +135,8 @@ class Newsgame_Review {
         ), ARRAY_A );
 
         $data = array_merge( self::edited_fields(), array( 'review_status' => 'approved' ) );
-        $wpdb->update( $table, $data, array( 'id' => $id ), null, array( '%d' ) );
+        $gravado = $wpdb->update( $table, $data, array( 'id' => $id ), null, array( '%d' ) );
+        self::abort_on_db_error( $gravado, 'a aprovação' );
 
         // Zera o peso obsoleto. O recálculo NÃO acontece aqui: acontece na próxima
         // vez que "Aprovar Todas" ou "⚖ Atribuir Pesos" rodar. Enquanto isso o dilema
@@ -116,10 +152,27 @@ class Newsgame_Review {
             $antes['option_b'] !== ( $data['option_b'] ?? null )
         );
         if ( $texto_mudou ) {
-            $wpdb->query( $wpdb->prepare(
+            $zerado = $wpdb->query( $wpdb->prepare(
                 "UPDATE {$table} SET axis_weights = NULL WHERE id = %d",
                 $id
             ) );
+
+            // Falha AQUI é diferente das outras e não passa pelo helper: a
+            // aprovação já está gravada, então "não foi possível gravar" seria
+            // meia verdade. O peso velho sobrevive descrevendo um texto que não
+            // existe mais, e o contador ⚖ não vai acusar a pendência porque
+            // axis_weights não está NULL. Sem aviso explícito, é exatamente a
+            // corrupção silenciosa do C11 — pesos apontando para um enunciado
+            // que não os produziu.
+            if ( false === $zerado ) {
+                $erro = $wpdb->last_error ?: 'o banco não informou a causa.';
+                error_log( "[Newsgame] reset de axis_weights falhou no dilema {$id} — MySQL: {$erro}" );
+                wp_send_json_error( array(
+                    'msg' => 'A aprovação FOI gravada, mas o peso de eixo antigo não foi'
+                        . ' zerado e agora descreve o texto anterior. Use "⚖ Atribuir'
+                        . ' Pesos" antes de publicar. Erro do banco: ' . $erro,
+                ) );
+            }
         }
 
         wp_send_json_success( array( 'msg' => 'Aprovada.' ) );
@@ -138,12 +191,13 @@ class Newsgame_Review {
             wp_send_json_error( array( 'msg' => 'Pergunta não encontrada.' ) );
         }
 
-        $wpdb->update(
+        $gravado = $wpdb->update(
             $wpdb->prefix . 'newsgame_dilemas',
             array( 'review_status' => 'discarded' ),
             array( 'id' => $id ),
             array( '%s' ), array( '%d' )
         );
+        self::abort_on_db_error( $gravado, 'o descarte' );
 
         wp_send_json_success( array( 'msg' => 'Descartada.' ) );
     }
@@ -161,12 +215,13 @@ class Newsgame_Review {
             wp_send_json_error( array( 'msg' => 'Pergunta não encontrada.' ) );
         }
 
-        $wpdb->update(
+        $gravado = $wpdb->update(
             $wpdb->prefix . 'newsgame_dilemas',
             array( 'review_status' => 'pending' ),
             array( 'id' => $id ),
             array( '%s' ), array( '%d' )
         );
+        self::abort_on_db_error( $gravado, 'a devolução para revisão' );
 
         wp_send_json_success( array( 'msg' => 'Devolvida para revisão.' ) );
     }
@@ -243,16 +298,40 @@ class Newsgame_Review {
             wp_send_json_error( array( 'msg' => (string) $detail ) );
         }
 
-        // Salva a substituta como pending e descarta a original
-        Newsgame_Generator::save_dilema( $body, $instance_id );
+        // Salva a substituta como pending e SÓ ENTÃO descarta a original.
+        //
+        // A ordem já era esta; o que faltava era a confirmação no meio. Sem ela,
+        // um insert falhado descartava a original de qualquer jeito e o editor
+        // perdia o dilema sem receber nada em troca — perda de dado, não
+        // mensagem errada. Inverter a ordem não resolveria: o que protege é não
+        // descartar sem saber que a substituta entrou.
+        //
+        // O retorno de save_dilema() é a única sentinela confiável aqui.
+        // $wpdb->insert_id NÃO serve: um insert que falha não o zera, e o
+        // rate_limited() no topo deste handler já fez o seu próprio INSERT em
+        // wp_options no mesmo request — o valor remanescente pode ser não-zero e
+        // apontar para nada. save_dilema() já loga a causa no error_log.
+        $inserida = Newsgame_Generator::save_dilema( $body, $instance_id );
+        if ( false === $inserida ) {
+            $erro = $wpdb->last_error ?: 'o banco não informou a causa.';
+            wp_send_json_error( array(
+                'msg' => 'A substituta voltou do backend mas não foi gravada, então a'
+                    . ' pergunta original foi MANTIDA. Erro do banco: ' . $erro,
+            ) );
+        }
+
         $new_id = (int) $wpdb->insert_id;
 
-        $wpdb->update(
+        // Se o descarte falhar agora, a substituta fica no banco como pending:
+        // resíduo visível na Mesa e corrigível com um clique, ao contrário da
+        // perda da original.
+        $descartada = $wpdb->update(
             $wpdb->prefix . 'newsgame_dilemas',
             array( 'review_status' => 'discarded' ),
             array( 'id' => $question_id ),
             array( '%s' ), array( '%d' )
         );
+        self::abort_on_db_error( $descartada, 'o descarte da pergunta original' );
 
         $new_row = $wpdb->get_row( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}newsgame_dilemas WHERE id = %d",
@@ -293,6 +372,15 @@ class Newsgame_Review {
             array( '%s' ),
             array( '%d', '%s' )
         );
+
+        // Testa ANTES do (int) da linha do payload: `(int) false` é 0, o mesmo
+        // valor de "não havia nada pendente", e lá embaixo os dois casos ficam
+        // indistinguíveis.
+        //
+        // Este handler não passa por owns() — 0 aqui significa "conjunto vazio",
+        // não "linha não encontrada", e é legítimo: aprovar em lote sem
+        // pendentes é no-op, não erro.
+        self::abort_on_db_error( $updated, 'a aprovação em lote' );
 
         // Apura só a CAUSA de a atribuição não ter rodado. O estado — quantos ficaram
         // sem peso — é lido do banco mais abaixo, e não deduzido daqui.
@@ -373,12 +461,18 @@ class Newsgame_Review {
             array( '%d' )
         );
 
-        $wpdb->update(
+        // Mesma razão do lote acima: `(int) false` viraria 0 no payload, e 0 é
+        // o valor legítimo de "a instância já estava vazia". Sem owns() aqui
+        // também, e também sem precisar dele.
+        self::abort_on_db_error( $deleted, 'a remoção das perguntas' );
+
+        $rebaixada = $wpdb->update(
             $wpdb->prefix . 'newsgame_instances',
             array( 'status' => 'draft' ),
             array( 'id'     => $instance_id ),
             array( '%s' ), array( '%d' )
         );
+        self::abort_on_db_error( $rebaixada, 'o rebaixamento da instância para rascunho' );
 
         wp_send_json_success( array(
             'msg'     => 'Todas as perguntas foram removidas.',
