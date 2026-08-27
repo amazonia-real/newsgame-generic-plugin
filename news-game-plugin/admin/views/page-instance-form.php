@@ -12,6 +12,30 @@ $density       = $is_edit ? (int) $inst->density : 10;
 $num_options   = $is_edit ? (int) ( $inst->num_options   ?? 2 ) : 2;
 $enable_levels = $is_edit ? (bool) ( $inst->enable_levels ?? false ) : false;
 $nivel_padrao  = $is_edit ? ( $inst->nivel_padrao ?? 'pedagogico' ) : 'pedagogico';
+/*
+ * Skin normalizada na LEITURA, e não só na escrita. Uma linha gravada por SQL à
+ * mão, ou anterior à migração 1.6, chega aqui com valor ausente ou fora da
+ * whitelist — e um `selected()` contra valor inválido deixaria o <select> sem
+ * nenhuma opção marcada, que o navegador resolve marcando a primeira. O editor
+ * veria "Padrão" numa instância que tem outra coisa no banco, e o próximo save
+ * gravaria essa mentira.
+ */
+$skin          = $is_edit
+                    ? Newsgame_Admin_Instances::sanitize_skin( $inst->skin ?? '' )
+                    : Newsgame_Admin_Instances::SKIN_DEFAULT;
+/*
+ * Rótulos de tela. Ficam na view, e não na classe: slug é dado, rótulo é UI.
+ * Acrescentar skin exige editar a whitelist (classe) e este mapa (view) — e o
+ * `?? $slug` do loop faz a omissão aparecer como slug cru na tela, degradação
+ * visível em vez de opção que desaparece.
+ */
+$rotulos_skin  = array(
+    'default'   => 'Padrão — verde terra',
+    'neutro'    => 'Neutro — terroso sóbrio',
+    'mono'      => 'Mono — preto e branco editorial',
+    'colorido'  => 'Colorido — vibrante e lúdico',
+    'futurista' => 'Futurista — digital, ciano',
+);
 $status        = $is_edit ? $inst->status       : 'draft';
 $chars         = $is_edit ? (array) json_decode( $inst->characters ?? '[]', true ) : array();
 $axis_matrix   = $is_edit ? ( $inst->axis_matrix ?? '' ) : '';
@@ -297,6 +321,29 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
             <strong>Lúdico:</strong> linguagem leve, dilemas de fácil identificação.<br>
             <strong>Pedagógico:</strong> equilíbrio entre acessibilidade e profundidade (padrão).<br>
             <strong>Complexo:</strong> dilemas sistêmicos, linguagem jornalística densa.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">
+          <label for="ng-skin">Aparência (Skin)</label>
+        </th>
+        <td>
+          <select id="ng-skin" name="skin" style="min-width:260px">
+            <?php foreach ( Newsgame_Admin_Instances::SKINS as $slug ) : ?>
+              <option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $skin, $slug ); ?>>
+                <?php echo esc_html( $rotulos_skin[ $slug ] ?? $slug ); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+          <p class="description">
+            Paleta de cores e cantos do jogo publicado. <strong>Padrão</strong> usa
+            apenas a folha base, sem arquivo extra.<br>
+            As skins mudam <strong>somente cor, raio e tipografia</strong> — nenhuma
+            traz fotos de fábrica. A imagem de fundo continua sendo escolhida
+            dilema a dilema na Mesa Editorial, e vale em qualquer skin.<br>
+            O gráfico do veredito mantém verde/vermelho em todas as skins: essas
+            cores significam resultado do jogador, não identidade do veículo.
           </p>
         </td>
       </tr>

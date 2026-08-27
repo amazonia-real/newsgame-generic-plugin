@@ -7,7 +7,7 @@ class Newsgame_DB {
      * Versão interna do schema — incrementar aqui ao adicionar colunas.
      * Independente da versão do plugin: só muda quando o banco muda.
      */
-    const SCHEMA_VERSION = '1.5';
+    const SCHEMA_VERSION = '1.6';
 
     /* ── Ponto de entrada público ──────────────────────────── */
 
@@ -69,6 +69,28 @@ class Newsgame_DB {
             'axis_matrix',
             "LONGTEXT NULL COMMENT 'JSON: eixos e perfis propostos por /analyze-domain' AFTER `nivel_padrao`"
         );
+        /*
+         * Skin da instância — H2, degrau 2 (suporte de schema apenas).
+         *
+         * Escalar VARCHAR com slug, e não JSON: o valor é um item de whitelist
+         * fechada, e coluna opaca tornaria a inspeção de banco — que é o método
+         * de validação deste projeto — mais difícil. Mesmo critério que decidiu
+         * o `image_id` escalar no degrau 1.
+         *
+         * A whitelist vive em Newsgame_Admin_Instances::SKINS. O DEFAULT abaixo
+         * repete o literal 'default' porque schema é texto SQL e não alcança
+         * constante de PHP — as duas pontas têm de ser mudadas juntas.
+         *
+         * ORDEM IMPORTA: o `AFTER axis_matrix` exige que aquela coluna já
+         * exista. Numa base que não tinha nenhuma das duas, ambas nascem no
+         * mesmo carregamento do admin, nesta ordem — por isso esta chamada vem
+         * depois da de axis_matrix, e não antes.
+         */
+        self::add_column_if_missing(
+            $instances,
+            'skin',
+            "VARCHAR(64) NOT NULL DEFAULT 'default' COMMENT 'Slug da skin de fabrica: whitelist em Newsgame_Admin_Instances::SKINS' AFTER `axis_matrix`"
+        );
 
         // wp_newsgame_dilemas
         self::add_column_if_missing(
@@ -114,6 +136,7 @@ class Newsgame_DB {
             enable_levels TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '0=nivel unico, 1=Aprendiz/Pro',
             nivel_padrao  VARCHAR(20)     NOT NULL DEFAULT 'pedagogico' COMMENT 'ludico | pedagogico | complexo',
             axis_matrix   LONGTEXT        NULL COMMENT 'JSON: eixos e perfis propostos por /analyze-domain',
+            skin          VARCHAR(64)     NOT NULL DEFAULT 'default' COMMENT 'Slug da skin de fabrica (H2 degrau 2)',
             status        VARCHAR(20)     NOT NULL DEFAULT 'draft',
             created_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

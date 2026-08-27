@@ -1,0 +1,59 @@
+/*
+ * SKIN "COLORIDO" — H2, degrau 2.
+ *
+ * PROPOSTA ESTÉTICA: energia. Base índigo profundo, primária magenta e acento
+ * amarelo vivo — paleta saturada, cantos generosos, visual lúdico. É a skin
+ * para pauta que quer convidar, não para investigação sóbria. Serve
+ * especialmente a jogo voltado a público jovem ou a tema cultural.
+ *
+ * A PRIMÁRIA FOI ESCURECIDA DE PROPÓSITO. O magenta vibrante óbvio (#E0409B)
+ * dá 3.9:1 com texto branco e reprova o AA — e a primária é fundo de botão com
+ * `color: var(--ng-on-primary)` no base (:348 e :388). #C42E86 mantém o mesmo
+ * matiz e sobe para 5.1:1. Saturação aqui é escolha editorial; contraste é
+ * requisito de acessibilidade, e ganha.
+ *
+ * O QUE ESTE ARQUIVO MUDA: os seis canais `-rgb` e os três raios. Todos os
+ * tokens de uso derivam no arquivo base.
+ *
+ * O QUE ESTE ARQUIVO NÃO TOCA, de propósito: as cores SEMÂNTICAS do radar.
+ * Esta skin é o caso que a decisão da fase 1 previu literalmente — uma marca
+ * que vira magenta NÃO deve ganhar radar magenta onde antes lia "positivo". O
+ * verde e o vermelho ficam. O cromo do radar segue a skin, porque deriva de
+ * --ng-on-rgb.
+ *
+ * RAIOS: 16/12/4, mais generosos que os 12/8/3 do base — canto arredondado é o
+ * que faz a mesma estrutura ler como lúdica.
+ *
+ * COMPATIBILIDADE DO --ng-overlay: --ng-shadow-rgb é um preto arroxeado, ainda
+ * ESCURO. O overlay segue escurecendo a foto do dilema, que é o que mantém o
+ * texto claro legível. O matiz só dá coesão ao véu e aos painéis de contexto,
+ * que usam --ng-veil do mesmo canal.
+ *
+ * SELETOR COM A CLASSE DA SKIN, e não `.ng-game-wrap` puro. Duas razões:
+ *  1. Duas instâncias de skins diferentes na mesma página convivem — que é a
+ *     promessa registrada no bloco de tokens do base (tokens no wrap e não em
+ *     `:root`). Com seletor puro, os dois arquivos carregariam global e o
+ *     último venceria para ambas.
+ *  2. Especificidade 0-2-0 contra 0-1-0 do base: a skin vence INDEPENDENTE da
+ *     ordem de origem. Sem isso, qualquer plugin de otimização que reordene ou
+ *     combine CSS desligaria a skin em silêncio.
+ * A dependência `array('newsgame-game')` no wp_enqueue_style continua declarada
+ * — ela garante que o base esteja presente, não que a skin vença.
+ *
+ * CONTRASTE MEDIDO (WCAG, mínimo AA 4.5:1): texto/card 12.7:1 · acento como
+ * texto/card 10.5:1 · branco/primária 5.1:1 · fundo/acento 12.5:1.
+ */
+.ng-game-wrap.ng-skin-colorido {
+  /* Canais — fonte única de cor. */
+  --ng-bg-rgb:       26, 16, 51;      /* #1A1033 — índigo profundo */
+  --ng-card-rgb:     43, 27, 82;      /* #2B1B52 — violeta escuro */
+  --ng-primary-rgb:  196, 46, 134;    /* #C42E86 — magenta (ver nota do contraste) */
+  --ng-accent-rgb:   255, 210, 63;    /* #FFD23F — amarelo vivo */
+  --ng-on-rgb:       255, 255, 255;   /* branco: texto e superfície clara */
+  --ng-shadow-rgb:   12, 4, 28;       /* preto arroxeado — mantém o véu escuro */
+
+  /* Raios: generosos, para o registro lúdico. */
+  --ng-radius:       16px;
+  --ng-radius-md:    12px;
+  --ng-radius-sm:    4px;
+}

@@ -1,0 +1,71 @@
+/*
+ * SKIN "MONO" — H2, degrau 2.
+ *
+ * PROPOSTA ESTÉTICA: preto e branco editorial, contraste alto e sem nenhum
+ * matiz. Acento é branco puro, primária é um cinza carvão, e a ênfase se faz
+ * por peso e por luminosidade — nunca por cor. Tipografia serifada, que é o
+ * sinal editorial mais forte disponível sem baixar fonte de fora.
+ *
+ * É MONO DE FUNDO ESCURO, E NÃO DE PAPEL BRANCO. A escolha não é estética:
+ * numa base clara o texto fica escuro, e --ng-overlay — o véu de 42% sobre a
+ * foto do dilema — teria de virar esbranquiçado para o texto sobreviver à
+ * imagem. Ele deriva de --ng-shadow-rgb, o mesmo canal de que deriva --ng-veil,
+ * que precisa ser sombra. Um canal não serve aos dois, e mudar isso exige
+ * alterar o arquivo BASE (fazer --ng-overlay derivar de --ng-bg-rgb), o que
+ * muda pixel na skin `default` e é decisão fora do escopo desta skin.
+ *
+ * O QUE ESTE ARQUIVO MUDA: os seis canais `-rgb`, os três raios e --ng-font.
+ * Nada mais. Todo token de uso deriva no arquivo base.
+ *
+ * O QUE ESTE ARQUIVO NÃO TOCA, de propósito: as cores SEMÂNTICAS do radar.
+ * Numa skin sem matiz nenhum, o verde e o vermelho do resultado são a única
+ * cor da tela — e é assim que deve ser. Eles significam "positivo" e
+ * "negativo", não identidade do veículo, e cinza-sobre-cinza destruiria a
+ * leitura do gráfico. O cromo do radar segue a skin, porque deriva de
+ * --ng-on-rgb.
+ *
+ * O ACENTO É BRANCO PURO E O TEXTO NÃO. --ng-on-rgb fica em 232 para que o
+ * texto composto (92% de alpha) chegue a ~215 e o acento a 255: sem essa folga
+ * de 40 níveis o acento seria indistinguível do corpo do texto, e a hierarquia
+ * de destaque desapareceria.
+ *
+ * RAIOS: 2/2/1, quase esquadrados — canto arredondado é a marca visual que mais
+ * afasta do impresso.
+ *
+ * TIPOGRAFIA: pilha serifada de sistema, sem nenhum download. Fonte externa
+ * está fora de questão em skin — é rede no carregamento do jogo e é a mesma
+ * superfície de confiança que fez a skin externa ser descartada do H2.
+ * ATENÇÃO: trocar a família muda a largura do texto. Os botões de alternativa
+ * (90 chars) e a `situacao` (130 chars) precisam de conferência em runtime.
+ *
+ * SELETOR COM A CLASSE DA SKIN, e não `.ng-game-wrap` puro. Duas razões:
+ *  1. Duas instâncias de skins diferentes na mesma página convivem — que é a
+ *     promessa registrada no bloco de tokens do base (tokens no wrap e não em
+ *     `:root`). Com seletor puro, os dois arquivos carregariam global e o
+ *     último venceria para ambas.
+ *  2. Especificidade 0-2-0 contra 0-1-0 do base: a skin vence INDEPENDENTE da
+ *     ordem de origem. Sem isso, qualquer plugin de otimização que reordene ou
+ *     combine CSS desligaria a skin em silêncio.
+ * A dependência `array('newsgame-game')` no wp_enqueue_style continua declarada
+ * — ela garante que o base esteja presente, não que a skin vença.
+ *
+ * CONTRASTE MEDIDO (WCAG, mínimo AA 4.5:1): texto/card 12.5:1 · acento como
+ * texto/card 17.9:1 · branco/primária 7.8:1 · fundo/acento 19.8:1.
+ */
+.ng-game-wrap.ng-skin-mono {
+  /* Canais — sem matiz: os três valores de cada cor são iguais, de propósito. */
+  --ng-bg-rgb:       10, 10, 10;      /* #0A0A0A — quase preto */
+  --ng-card-rgb:     23, 23, 23;      /* #171717 — carvão */
+  --ng-primary-rgb:  82, 82, 82;      /* #525252 — cinza médio */
+  --ng-accent-rgb:   255, 255, 255;   /* #FFFFFF — branco puro */
+  --ng-on-rgb:       232, 232, 232;   /* ver a nota sobre a folga de 40 níveis */
+  --ng-shadow-rgb:   0, 0, 0;         /* preto absoluto — mantém o véu escuro */
+
+  /* Raios: quase esquadrados. */
+  --ng-radius:       2px;
+  --ng-radius-md:    2px;
+  --ng-radius-sm:    1px;
+
+  /* Serifada de sistema. Nenhuma fonte é baixada. */
+  --ng-font:         Georgia, "Times New Roman", "Nimbus Roman", "Liberation Serif", serif;
+}

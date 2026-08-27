@@ -7,6 +7,24 @@ class Newsgame_Admin_Instances {
     const NONCE_ASSIGN  = 'newsgame_assign_weights';
     const NONCE_ANALYZE = 'newsgame_analyze_domain';
 
+    /**
+     * Skins de fábrica permitidas — H2, degrau 2.
+     *
+     * Whitelist FECHADA, e não lista extensível por filtro: a skin externa —
+     * upload de skin de terceiro — está DESCARTADA como caminho do H2 (decisão
+     * registrada em 2026-08-24, ver §7 do roadmap). Acrescentar entrada aqui é
+     * decisão de escopo do projeto, não configuração do editor.
+     *
+     * Estas cinco entradas são o suporte de schema deste passo, e nada além
+     * dele: nenhuma tem folha de estilo ainda. O mecanismo que escolhe, carrega
+     * e aplica a skin é o resto do degrau 2, e o roadmap registra que o plano
+     * dele NÃO está escrito e não deve ser inferido daqui.
+     */
+    const SKINS = array( 'default', 'neutro', 'mono', 'colorido', 'futurista' );
+
+    /** Valor de queda quando a skin recebida não está na whitelist acima. */
+    const SKIN_DEFAULT = 'default';
+
     /** Hook suffix devolvido por add_submenu_page — usado para enfileirar o JS só nesta tela */
     private static $hook_suffix = '';
 
@@ -141,6 +159,25 @@ class Newsgame_Admin_Instances {
         );
         $fmt = array( '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s', '%s' );
 
+        /*
+         * A skin entra no write SÓ quando o formulário enviou o campo.
+         *
+         * Este passo não cria o campo na tela, por decisão de escopo. Se a chave
+         * fosse incluída incondicionalmente, todo save de instância existente
+         * gravaria 'default' e rebaixaria em silêncio a skin de quem já tivesse
+         * uma — mesma família do C11 (sobrescrita sem aviso e sem histórico). O
+         * custo de evitar é este `isset`, e ele continua correto depois de o
+         * campo existir.
+         *
+         * No INSERT a ausência é inofensiva: o DEFAULT da coluna resolve.
+         * `$fmt` é posicional no $wpdb — acrescentar nas duas pontas, no fim das
+         * duas, é o que mantém o alinhamento.
+         */
+        if ( isset( $_POST['skin'] ) ) {
+            $row['skin'] = self::sanitize_skin( wp_unslash( $_POST['skin'] ) );
+            $fmt[]       = '%s';
+        }
+
         if ( $id ) {
             $wpdb->update( $table, $row, array( 'id' => $id ), $fmt, array( '%d' ) );
         } else {
@@ -227,6 +264,29 @@ class Newsgame_Admin_Instances {
             );
         }
         return $clean;
+    }
+
+    /**
+     * Normaliza uma skin vinda de fora para um valor garantido da whitelist.
+     *
+     * Público, ao contrário do sanitize_characters(), porque o valor também vai
+     * precisar de normalização na LEITURA e não só na escrita: uma linha gravada
+     * por SQL à mão, ou anterior à remoção de uma entrada da whitelist, chega ao
+     * render com um valor que não existe mais. Quem construir o degrau 2 passa o
+     * `$instance->skin` por aqui antes de montar caminho de arquivo, e nunca
+     * concatena o valor cru — é o que impede que a coluna se torne vetor de
+     * path traversal.
+     *
+     * `is_scalar` antes do cast porque o valor vem do $_POST: `skin[]=x` chega
+     * como array, e `(string) array()` emitiria warning e produziria "Array".
+     *
+     * Falha em silêncio, de propósito: skin inválida cai para 'default', que é
+     * degradação visual e não perda de dado — não é caso de aviso ao editor.
+     */
+    public static function sanitize_skin( $value ) {
+        $skin = is_scalar( $value ) ? sanitize_key( (string) $value ) : '';
+
+        return in_array( $skin, self::SKINS, true ) ? $skin : self::SKIN_DEFAULT;
     }
 
     /* ── AJAX: salva matriz de eixos ───────────────────────────── */

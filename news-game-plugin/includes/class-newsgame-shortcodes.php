@@ -123,6 +123,17 @@ class Newsgame_Shortcodes {
 
         $axis_matrix = $instance->axis_matrix ? json_decode( $instance->axis_matrix, true ) : null;
 
+        /*
+         * Skin da instância, normalizada na leitura pelo mesmo helper que
+         * normaliza na escrita: linha gravada por SQL à mão, ou anterior à
+         * migração 1.6, devolve 'default' — então nada abaixo precisa de guarda
+         * própria, e o valor NUNCA é concatenado cru no caminho do arquivo.
+         *
+         * O `?? ''` cobre a linha sem a coluna: sem ele, acesso a propriedade
+         * inexistente emite warning no PHP 8.
+         */
+        $skin = Newsgame_Admin_Instances::sanitize_skin( $instance->skin ?? '' );
+
         $json = wp_json_encode(
             array(
                 'title'               => $instance->title,
@@ -141,6 +152,34 @@ class Newsgame_Shortcodes {
             array(),
             NEWSGAME_VERSION
         );
+        /*
+         * Skin de fábrica — H2, degrau 2.
+         *
+         * Arquivo enfileirado pelo wp_enqueue_style nativo, e nunca <style>
+         * inline: inline exigiria 'unsafe-inline' em style-src no site
+         * hospedeiro e desfaria o ganho do A1. Ver FLAG 007 e o A5.
+         *
+         * 'default' NÃO tem arquivo — é a própria folha base. Daí o `if`, em vez
+         * de um skin-default.css vazio: arquivo vazio seria uma requisição por
+         * render para não mudar nada.
+         *
+         * A dependência garante que o base esteja na página antes; quem garante
+         * que a skin VENÇA é a especificidade do seletor dela (0-2-0 contra
+         * 0-1-0), não esta ordem — ver o cabeçalho dos arquivos de skin.
+         *
+         * Sem file_exists() de propósito: o slug vem de whitelist fechada e os
+         * quatro arquivos são versionados com o plugin. Num deploy quebrado, o
+         * 404 aparece no devtools e o jogo renderiza com a paleta base; um skip
+         * silencioso renderizaria igual e não apareceria em lugar nenhum.
+         */
+        if ( Newsgame_Admin_Instances::SKIN_DEFAULT !== $skin ) {
+            wp_enqueue_style(
+                'newsgame-skin-' . $skin,
+                NEWSGAME_URL . 'public/css/skins/skin-' . $skin . '.css',
+                array( 'newsgame-game' ),
+                NEWSGAME_VERSION
+            );
+        }
         wp_enqueue_script(
             'newsgame-game',
             NEWSGAME_URL . 'public/js/newsgame-game.js',
@@ -152,7 +191,10 @@ class Newsgame_Shortcodes {
         // governa `application/json`, o navegador trata como dado e não como código.
         // Não usar wp_add_inline_script aqui: exigiria 'unsafe-inline' no site
         // hospedeiro. Ver TECH_FLAGS FLAG 007.
-        return '<div id="ng-game-' . $id . '" class="ng-game-wrap">'
+        // A classe da skin é o que dá especificidade ao seletor do arquivo dela.
+        // 'default' também recebe a sua (`ng-skin-default`), por uniformidade e
+        // porque vira gancho de CSS sem custo.
+        return '<div id="ng-game-' . $id . '" class="ng-game-wrap ng-skin-' . esc_attr( $skin ) . '">'
              . '<script type="application/json" id="ng-game-data-' . $id . '">'
              . $json  // JSON_HEX_TAG no wp_json_encode impede fechar </script> de dentro do JSON
              . '</script>'
