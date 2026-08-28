@@ -77,6 +77,7 @@ class Newsgame_Admin_Instances {
             // Seletor nativo de mídia, para a imagem de fundo do dilema.
             // Sem esta chamada `wp.media` é undefined na tela.
             wp_enqueue_media();
+            self::enqueue_form_scripts();
             return;
         }
 
@@ -87,6 +88,113 @@ class Newsgame_Admin_Instances {
             NEWSGAME_VERSION,
             true  // footer
         );
+    }
+
+    /**
+     * Enfileira o JS da tela de formulário de instância — A3, FLAG 007 passo 3.
+     *
+     * Os arquivos entram SEM reproduzir aqui as condições da view. Cada um sai
+     * fora sozinho quando a sua âncora não está no DOM. Repetir as condições
+     * colocaria a mesma regra em dois lugares que rodam em momentos diferentes do
+     * request — `admin_enqueue_scripts` acontece antes de a view existir — e
+     * divergência silenciosa entre as duas cópias é a família do C13. O preço de
+     * enfileirar sempre é uma requisição de arquivo estático a mais numa tela
+     * autenticada.
+     *
+     * Dados dinâmicos vão por wp_localize_script, um objeto por arquivo, e não por
+     * string de JS montada em PHP: o JSON é gerado e escapado pelo WordPress, o
+     * que faz o esc_js() dos blocos inline desaparecer junto com eles.
+     *
+     * ⚠️ WP_Scripts::localize() aplica `(string)` em TODO escalar de topo — 5
+     * chega ao JS como "5", true como "1", false como "". Valores não-escalares
+     * (arrays) passam intactos. Onde o tipo importa, a conversão é explícita nas
+     * duas pontas: aqui e no arquivo .js.
+     */
+    private static function enqueue_form_scripts() {
+        $id   = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
+        $inst = $id ? self::get( $id ) : null;
+
+        // Defaults espelhando os da view. O `??` tem semântica de isset(), então
+        // não emite warning com $inst nulo (tela de criação) e preserva o 2
+        // quando a coluna vem NULL.
+        $num_options   = (int) ( $inst->num_options ?? 2 );
+        $enable_levels = (bool) ( $inst->enable_levels ?? false );
+        $chars         = (array) json_decode( $inst->characters ?? '[]', true );
+
+        // A view roda as suas próprias contagens, depois. Esta existe porque o
+        // enfileiramento precisa do total ANTES de a view existir. Unificar as
+        // duas leituras é trabalho de outro item — o A3 não mexe nas queries da
+        // view.
+        $review_total = 0;
+        if ( $id ) {
+            global $wpdb;
+            $review_total = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}newsgame_dilemas WHERE instance_id = %d",
+                $id
+            ) );
+        }
+
+        $base = NEWSGAME_URL . 'admin/js/';
+
+        /* ── Geração de perguntas e reset ─────────────────────────── */
+        wp_enqueue_script( 'newsgame-admin-generation', $base . 'newsgame-admin-generation.js', array(), NEWSGAME_VERSION, true );
+        wp_localize_script( 'newsgame-admin-generation', 'ngGenCfg', array(
+            'instanceId'        => $id,
+            'nonce'             => wp_create_nonce( Newsgame_Generator::NONCE_GENERATE ),
+            // O reset é da Mesa Editorial (AJAX_CLEAR), e por isso viaja com o
+            // nonce dela, e não com o da geração. Era assim no bloco inline.
+            'reviewNonce'       => wp_create_nonce( Newsgame_Review::NONCE ),
+            'actionStart'       => Newsgame_Generator::AJAX_START,
+            'actionGenerateOne' => Newsgame_Generator::AJAX_GENERATE_ONE,
+            'actionSave'        => Newsgame_Generator::AJAX_SAVE,
+            'actionClear'       => Newsgame_Review::AJAX_CLEAR,
+        ) );
+
+        /* ── Analisar acervo e matriz de eixos ────────────────────── */
+        wp_enqueue_script( 'newsgame-admin-axis', $base . 'newsgame-admin-axis.js', array(), NEWSGAME_VERSION, true );
+        wp_localize_script( 'newsgame-admin-axis', 'ngAxisCfg', array(
+            'instanceId'   => $id,
+            'axisNonce'    => wp_create_nonce( self::NONCE_AXIS ),
+            'analyzeNonce' => wp_create_nonce( self::NONCE_ANALYZE ),
+        ) );
+
+        /* ── Mesa Editorial ──────────────────────────────────────── */
+        wp_enqueue_script( 'newsgame-admin-review', $base . 'newsgame-admin-review.js', array(), NEWSGAME_VERSION, true );
+        wp_localize_script( 'newsgame-admin-review', 'ngReviewCfg', array(
+            'instanceId'       => $id,
+            // Booleano vira "1" ou "" no localize; o .js normaliza com `!!`.
+            'enableLevels'     => $enable_levels,
+            'totalDilemas'     => $review_total,
+            'nonce'            => wp_create_nonce( Newsgame_Review::NONCE ),
+            'assignNonce'      => wp_create_nonce( self::NONCE_ASSIGN ),
+            'actionLoad'       => Newsgame_Review::AJAX_LOAD,
+            'actionApprove'    => Newsgame_Review::AJAX_APPROVE,
+            'actionApproveAll' => Newsgame_Review::AJAX_APPROVE_ALL,
+            'actionDiscard'    => Newsgame_Review::AJAX_DISCARD,
+            'actionRestore'    => Newsgame_Review::AJAX_RESTORE,
+            'actionRegen'      => Newsgame_Review::AJAX_REGEN,
+        ) );
+
+        /* ── Formulário: personagens e botões de salvar ───────────── */
+        wp_enqueue_script(
+            'newsgame-admin-form',
+            $base . 'newsgame-admin-form.js',
+            array(),
+            NEWSGAME_VERSION,
+            true  // footer
+        );
+
+        wp_localize_script( 'newsgame-admin-form', 'ngFormCfg', array(
+            // Array: o localize NÃO converte valores não-escalares, então a
+            // estrutura chega ao JS como array de objetos, não como string.
+            'characters'  => array_values( $chars ),
+            // String de propósito: o JS compara com `radio.value`, que é sempre
+            // string. Com número, o `===` da trava de troca de opções daria
+            // sempre falso e o "Cancelar" do confirm deixaria os dois radios
+            // desmarcados.
+            'numOptions'  => (string) $num_options,
+            'reviewTotal' => $review_total,
+        ) );
     }
 
     public static function render() {

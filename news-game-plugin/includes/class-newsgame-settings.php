@@ -3,13 +3,17 @@ defined( 'ABSPATH' ) || exit;
 
 class Newsgame_Settings {
 
+    /** Hook suffix da tela de configurações — usado para enfileirar só nela */
+    private static $hook_suffix = '';
+
     public static function init() {
-        add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
-        add_action( 'admin_init', array( __CLASS__, 'register_fields' ) );
+        add_action( 'admin_menu',            array( __CLASS__, 'register_menu' ) );
+        add_action( 'admin_init',            array( __CLASS__, 'register_fields' ) );
+        add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
     }
 
     public static function register_menu() {
-        add_menu_page(
+        self::$hook_suffix = add_menu_page(
             'News-Game',
             'News-Game',
             'manage_options',
@@ -26,6 +30,41 @@ class Newsgame_Settings {
             'newsgame',
             array( __CLASS__, 'render_page' )
         );
+    }
+
+    /**
+     * Enfileira o JS da tela de configurações — A3, FLAG 007 passo 3.
+     *
+     * A comparação é com o hook devolvido pelo add_menu_page(), e não com uma
+     * string escrita à mão ('toplevel_page_newsgame'): renomear o slug do menu
+     * passa a quebrar o enfileiramento de forma visível, e não em silêncio.
+     *
+     * Os dados vão por wp_localize_script, e não por JS montado em PHP: o JSON é
+     * gerado e escapado pelo WordPress, o que dispensa o esc_js() que existia nas
+     * quatro linhas de action/nonce do bloco inline.
+     *
+     * ⚠️ WP_Scripts::localize() aplica `(string)` em todo escalar de topo. Aqui os
+     * quatro valores já são string, então não há conversão a compensar no JS.
+     */
+    public static function enqueue_assets( $hook ) {
+        if ( ! self::$hook_suffix || $hook !== self::$hook_suffix ) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'newsgame-admin-settings',
+            NEWSGAME_URL . 'admin/js/newsgame-admin-settings.js',
+            array(),
+            NEWSGAME_VERSION,
+            true  // footer
+        );
+
+        wp_localize_script( 'newsgame-admin-settings', 'ngSettingsCfg', array(
+            'actionSync' => Newsgame_Ingestor::AJAX_ACTION,
+            'nonceSync'  => wp_create_nonce( Newsgame_Ingestor::NONCE_KEY ),
+            'actionPush' => Newsgame_Generator::AJAX_PUSH,
+            'noncePush'  => wp_create_nonce( Newsgame_Generator::NONCE_PUSH ),
+        ) );
     }
 
     public static function register_fields() {
