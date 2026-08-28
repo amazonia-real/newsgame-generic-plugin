@@ -59,13 +59,20 @@ editor na interface WordPress.
 
 ## FLAG 002 — Complexidade Ciclomática do JavaScript
 
-**Status:** ✅ Implementado — A4, 2026-08-21.
-**Cobertura parcial por natureza: ~33% do JS do plugin.** A trava alcança os
-dois arquivos `.js` (~472 linhas). As outras ~959 linhas seguem **inline** em
-blocos `<script>` dentro dos views PHP e **não são lintáveis** — ESLint não lê
-JS dentro de PHP. Só entram na trava com o **A3**, que está fora do escopo do
-lançamento por decisão. Esta flag **não** significa "todo o JS do plugin está
-sob limite de complexidade"; ver "Limite de cobertura" abaixo.
+**Status:** ✅ Implementado — A4, 2026-08-21. **Cobertura completada pelo A3 em
+2026-08-28** (`eff1f3f`).
+
+**Cobertura: todo o JS do plugin — 1.791 linhas.** 1.279 em `admin/js/` (6
+arquivos) e 512 em `public/js/`. Até 27/08 eram ~33%: a trava alcançava dois
+arquivos `.js` (~472 linhas) e as outras ~959 viviam **inline** em blocos
+`<script>` dentro dos views PHP, que não são lintáveis porque ESLint não lê JS
+dentro de PHP. O A3 tirou os cinco blocos de lá.
+
+> **A ressalva de cobertura não foi apagada, foi substituída** — ver "Limite de
+> cobertura" abaixo, que agora descreve o limite que sobrou. Ele é de outra
+> natureza: a trava lê arquivos `.js`, então **código novo que nascer inline num
+> `<script>` de view PHP continua invisível para ela**. O que mudou é que não há
+> mais dívida acumulada atrás disso.
 
 **Contexto:**
 O JavaScript do plugin (`public/js/newsgame-game.js` e o inline 
@@ -112,14 +119,29 @@ mais 2 ternários de cor — a regra cobra `||` com o mesmo peso de um `if`.
 Não foi refatorado porque é o código do gráfico triangular validado em
 runtime em 13/08 (C7), e mexer nele exigiria nova partida completa.
 
-**Limite de cobertura — o que a flag pedia e a trava não alcança:**
-O bloco `<script>` inline de `page-instance-form.php`, citado abaixo em
-"onde monitorar", **não é lintável**: ESLint não lê JS dentro de PHP. São
-5 blocos e ~959 linhas (`page-instance-form.php` 406–618, 620–778,
-842–1252, 1257–1362; `page-settings.php` 108–182) contra ~472 linhas
-cobertas — a trava vale para **33%** do JS do plugin. Os outros 67% entram
-quando o **A3** mover os blocos para arquivos `.js`, e o A3 está fora do
-escopo do lançamento por decisão.
+**Limite de cobertura — reescrito em 2026-08-28, depois do A3:**
+A redação anterior dizia que o bloco `<script>` inline de
+`page-instance-form.php` não era lintável, que eram 5 blocos e ~959 linhas
+contra ~472 cobertas, e que os outros 67% só entrariam com o A3 — que
+estava fora do escopo do lançamento. **Os 5 blocos saíram em 28/08** e a
+cobertura é integral.
+
+O limite que **sobra** é de outra natureza, e é permanente enquanto a trava
+for ESLint: ela lê arquivos `.js`. **JS novo que nascer inline num
+`<script>` de view PHP não é medido.** A diferença em relação a antes é que
+isso deixou de ser dívida acumulada e passou a ser só um cuidado de
+processo — o `npm run lint` "exit 0" não prova que não existe JS inline
+novo, prova que o JS **em arquivo** está sob o limite. Conferir com
+`grep -c "<script" news-game-plugin/admin/views/*.php` (hoje: 0, 0, 0).
+
+**A medição do A3 encontrou duas funções acima de 10 que estavam
+invisíveis** — o que é evidência de que a lacuna de 33% era real e não
+teórica:
+
+| Função | Complexidade | Saída |
+|---|---|---|
+| `buildRow` (`admin/js/newsgame-admin-review.js:141`) | **15** | `eslint-disable-next-line complexity` com justificativa no código, pelo mesmo critério do `buildRadarSVG`: os 15 são 14 ternários e `\|\|` de default montando string de HTML, sem um `if`, `for` ou `case`. Refatoração em 3 helpers fica como **dívida declarada** |
+| Handler do "Analisar Acervo" (`newsgame-admin-axis.js`) | **12** | Resolvido: a cadeia de 5 `\|\|` saiu para `acharCampoAcervo()`. Handler **7**, helper **6**. Sem diretiva |
 
 **Validação (regra do ✅ — ver §6 do roadmap):**
 Quatro testes executados em 2026-08-21, config nunca aceita por leitura:
@@ -138,11 +160,18 @@ Sondas removidas ao fim de cada teste. `eslint . -f json` confirma 3
 arquivos percorridos: os 2 do plugin + a própria config — os JS vendorizados
 do `.venv` do backend estão excluídos.
 
-**Onde monitorar:**
-- `news-game-plugin/public/js/newsgame-game.js` (coberto)
-- `news-game-plugin/admin/js/newsgame-admin-instances.js` (coberto)
-- `news-game-plugin/admin/views/page-instance-form.php` 
-  (bloco `<script>` inline — **não coberto até o A3**)
+**Onde monitorar** — desde o A3, todos cobertos:
+- `news-game-plugin/public/js/newsgame-game.js` (512) — ⚠️ `buildRadarSVG` está em
+  **exatamente 10**, margem zero
+- `news-game-plugin/admin/js/newsgame-admin-review.js` (548) — ⚠️ `buildRow` em
+  **15**, com `disable` justificado
+- `news-game-plugin/admin/js/newsgame-admin-generation.js` (239)
+- `news-game-plugin/admin/js/newsgame-admin-axis.js` (190)
+- `news-game-plugin/admin/js/newsgame-admin-form.js` (181)
+- `news-game-plugin/admin/js/newsgame-admin-settings.js` (96)
+- `news-game-plugin/admin/js/newsgame-admin-instances.js` (25)
+- `news-game-plugin/admin/views/*.php` — **não** por linting: por
+  `grep -c "<script"`, que deve continuar dando **0** nas três views
 
 ---
 
@@ -398,9 +427,21 @@ sobrevivem só em espelhos locais na máquina do Eduardo e são material sensív
 
 ## FLAG 007 — Compatibilidade com CSP estrita (pré-requisito de distribuição)
 
-**Status:** 🟡 Parcial — superfície **pública** fechada em 2026-08-08 (passos 1 e 2);
-os 5 `<script>` inline do admin (passo 3) e o exemplo de CSP no README (passo 4)
-seguem abertos. Diagnóstico original de 2026-07-31.
+**Status:** 🟡 Parcial — superfície **pública** fechada em 2026-08-08 (passos 1 e 2),
+superfície **autenticada** em 2026-08-28 (passo 3, `eff1f3f`). Segue parcial por
+causa do **passo 4** (exemplo de CSP no README), que depende do **A5**.
+Diagnóstico original de 2026-07-31.
+
+> ⚠️ **A precisão que esta flag tem de carregar depois do passo 3, para não virar
+> um ✅ que promete mais do que entrega:** o admin ficou com **zero JS inline de
+> LÓGICA**, não com zero JS inline. O `wp_localize_script` emite, por handle, um
+> `<script id="…-js-extra">` inline com um `var` — é **dado**, não lógica, e
+> continua exigindo `'unsafe-inline'` em `script-src` **na superfície
+> autenticada**. A promessa do passo 1 (superfície **pública** sem JS inline)
+> segue intacta e é outra coisa. **Não somar as duas.** Quem escrever o cabeçalho
+> de exemplo do passo 4 precisa dizer qual das duas superfícies está descrevendo
+> — é a mesma classe de defeito de redação que a ressalva do A5 registra para
+> `style-src`, logo abaixo.
 
 **Validado em runtime em 2026-08-08** — não marcado ✅ por revisão de código:
 - **Passo 1** (`719838c`): jogo carregado do início ao fim, dilemas corretos,
@@ -500,11 +541,34 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    **obrigatório** (o destino deixou de ser string JS e passou a ser atributo
    HTML), e o `\n\n` precisa ser newline real do PHP — `&#10;` não serve,
    porque o `esc_attr` escaparia o `&`.
-3. Os 5 `<script>` inline do admin → arquivos `.js` enfileirados com
-   `wp_enqueue_script`, dados via `wp_localize_script`. Trabalho maior, ganho
-   menor (superfície autenticada). O `enqueue_assets()` do passo 2 é o ponto de
-   entrada; note que ele sai fora quando `action` é `new`/`edit`, exatamente as
-   telas do passo 3 — a guarda vai precisar mudar.
+3. ✅ **Concluído em 2026-08-28** (`eff1f3f`, item A3 do roadmap) — os 5
+   `<script>` inline do admin viraram arquivos `.js` enfileirados com
+   `wp_enqueue_script`, dados via `wp_localize_script`.
+   **`page-instance-form.php` 1529 → 546 linhas; `page-settings.php` 183 → 110.**
+   Zero `<script>` nas três views do admin.
+
+   O que a previsão deste passo acertou e errou:
+   - **Acertou** que o `enqueue_assets()` do passo 2 seria o ponto de entrada.
+   - **A armadilha da guarda** (*"sai fora quando `action` é `new`/`edit`,
+     exatamente as telas do passo 3"*) **não custou nada**: foi paga
+     antecipadamente no H2 de 21/08, quando o `wp_enqueue_media()` precisou da
+     mesma correção.
+   - **A armadilha do `esc_js` → `esc_attr`** do passo 2 **nunca mordeu**: nenhum
+     dado do passo 3 foi para atributo HTML. Todos passaram por
+     `wp_localize_script`, e com isso o `esc_js()` **desapareceu** das 18 linhas
+     de action/nonce em vez de mudar de função — o JSON passou a ser gerado e
+     escapado pelo WordPress.
+   - **Errou o custo relativo:** "trabalho maior, ganho menor (superfície
+     autenticada)" descrevia só o ganho de CSP. O ganho que decidiu a execução
+     foi o da **FLAG 002** — 1.279 linhas de JS entraram na trava de
+     complexidade, e a medição achou duas funções acima do limite que ninguém
+     sabia que existiam.
+   - **Armadilha NOVA, que a previsão não tinha:** `wp_localize_script()` aplica
+     `(string)` em todo escalar de topo (`WP_Scripts::localize()` faz
+     `html_entity_decode( (string) $value )` e dá `continue` no que não é
+     escalar). Arrays passam intactos. Um dos usos não sobreviveria a isso — a
+     trava de troca de alternativas compara com `radio.value`, sempre string —, e
+     por isso `num_options` sai do PHP já convertido.
 4. **Documentar no README** um exemplo de cabeçalho CSP que o veículo pode
    aplicar, e declarar que o plugin funciona sob ele. Isso é argumento de
    adoção: nenhum plugin de quiz WP oferece isso. Já desbloqueado: a superfície
