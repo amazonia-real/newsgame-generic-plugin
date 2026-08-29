@@ -62,8 +62,8 @@ editor na interface WordPress.
 **Status:** ✅ Implementado — A4, 2026-08-21. **Cobertura completada pelo A3 em
 2026-08-28** (`eff1f3f`).
 
-**Cobertura: todo o JS do plugin — 1.791 linhas.** 1.279 em `admin/js/` (6
-arquivos) e 512 em `public/js/`. Até 27/08 eram ~33%: a trava alcançava dois
+**Cobertura: todo o JS do plugin — 1.966 linhas.** 1.279 em `admin/js/` (6
+arquivos) e 687 em `public/js/`. Até 27/08 eram ~33%: a trava alcançava dois
 arquivos `.js` (~472 linhas) e as outras ~959 viviam **inline** em blocos
 `<script>` dentro dos views PHP, que não são lintáveis porque ESLint não lê JS
 dentro de PHP. O A3 tirou os cinco blocos de lá.
@@ -110,6 +110,13 @@ ciclomática. Durante a fase de UX, o JS vai crescer significativamente.
 | `renderVeredicto` / `renderVerdictNarrativa` | 6 |
 | `renderEnd` | 5 |
 | (cauda: 43 funções) | 1–4 |
+
+> ⚠️ *A tabela acima é a auditoria de **2026-08-21** e fica como registro: duas das
+> funções listadas **não existem mais**. `buildNarrativa` e `renderVeredicto` foram
+> removidas em 29/08 (`7d7a64d`) — a primeira por ficar sem chamador com o veredito
+> simplificado, a segunda renomeada para `renderFeedback` na anatomia do JDA. O
+> `buildRadarSVG` caiu de 12 para **exatamente 10** na fase 1 do H2 e segue no teto,
+> com margem zero.*
 
 O limite 10 **não bloqueou nada de saída** — há 2 pontos de folga até a
 segunda pior função. `buildRadarSVG` recebeu `eslint-disable-next-line`
@@ -161,7 +168,7 @@ arquivos percorridos: os 2 do plugin + a própria config — os JS vendorizados
 do `.venv` do backend estão excluídos.
 
 **Onde monitorar** — desde o A3, todos cobertos:
-- `news-game-plugin/public/js/newsgame-game.js` (512) — ⚠️ `buildRadarSVG` está em
+- `news-game-plugin/public/js/newsgame-game.js` (687) — ⚠️ `buildRadarSVG` está em
   **exatamente 10**, margem zero
 - `news-game-plugin/admin/js/newsgame-admin-review.js` (548) — ⚠️ `buildRow` em
   **15**, com `disable` justificado
@@ -487,7 +494,7 @@ imponha, sem exigir `'unsafe-inline'` por causa dele.
 |---|---|---|
 | **Pública** (o que o leitor carrega) | **1** — `wp_add_inline_script` em `includes/class-newsgame-shortcodes.php:90`, que emite `window._ngGame_<id> = {...}` | 🎯 é o único que importa |
 | **Admin** (autenticada) | 5 blocos `<script>` inline: `admin/views/page-instance-form.php:387, 601, 819, 1233` e `page-settings.php:108`; mais 1 `onclick` em `page-instances.php:84` | Baixa — só usuário logado |
-| Estilos | ~70 atributos `style="` | Ignorar — `style-src` não vale o esforço. *Os ~70 são plugin inteiro; na superfície **pública** são 6, em 4 grupos — ver a ressalva do passo 4 e o A5* |
+| Estilos | ~70 atributos `style="` | Ignorar — `style-src` não vale o esforço. *Os ~70 são plugin inteiro; na superfície **pública** são 5 desde 29/08 (eram 6), em 4 grupos — ver a ressalva do passo 4 e o A5* |
 
 **Boa notícia: a página pública está a UMA mudança de ficar limpa.** Isso é
 melhor que o JDA, onde há 4 `onerror` inline no template mais 2 `<script>`
@@ -576,10 +583,17 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
 
    > **RESSALVA, registrada em 2026-08-21 — a frase acima promete mais do que
    > entrega, e é preciso ler a diretiva.** A superfície pública **ainda exige
-   > `style-src 'unsafe-inline'`**, por causa de **6 atributos `style=`, em 4
+   > `style-src 'unsafe-inline'`**, por causa de **5 atributos `style=`, em 4
    > grupos**. Atributo `style` exige `style-src 'unsafe-inline'` pelo mesmo
    > mecanismo que script inline exige `script-src` — não é uma classe
-   > diferente de problema, e **as 6 acionam a diretiva**.
+   > diferente de problema, e **as 5 acionam a diretiva**.
+   >
+   > *Eram 6 até 2026-08-28. O `7d7a64d` (29/08) baixou para 5 por consequência
+   > da extração do `buildProgress()`, que fundiu num só os dois atributos de
+   > largura da barra de progresso — as duas telas montavam o mesmo HTML. O grupo
+   > dinâmico passou de 2 ocorrências para 1. **Nenhum dos 4 grupos foi fechado**,
+   > e as referências de arquivo:linha foram reconferidas:
+   > `newsgame-game.js:57,287,633,634` e `class-newsgame-shortcodes.php:94`.*
    >
    > | Onde | O quê | Removível? |
    > |---|---|---|
@@ -617,7 +631,7 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    > mais do que entrega é o padrão que a §6 do roadmap existe para pegar.
    >
    > **Dado novo sobre o custo de fechar, se algum dia se quiser:** na
-   > superfície **pública** são 6 em 4 grupos, não ~70 — os ~70 da tabela de
+   > superfície **pública** são 5 em 4 grupos, não ~70 — os ~70 da tabela de
    > diagnóstico acima incluem o admin, e essa distinção nunca tinha sido
    > feita. A fase 1 do H2 removeu um sétimo (`style="display:block;margin:0
    > auto;"` do `<svg>` do radar) **sem ter sido planejada para isso**, o que
@@ -633,7 +647,8 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
 - Não perseguir `style-src` — os ~70 `style="` são cosméticos e a CSP de estilo
   tem retorno de segurança marginal.
   *Decisão mantida em 2026-08-21, com dois números corrigidos: na superfície
-  **pública** são **6, em 4 grupos** — não ~70, que incluem o admin. E o
+  **pública** são **5, em 4 grupos** — eram 6 até 28/08 — e não ~70, que incluem
+  o admin. E o
   "cosméticos" merece nuance: um dos grupos é `width:N%` de barra de progresso,
   valor calculado em runtime, que não sai por classe no CSS (sai por CSSOM, que
   a diretiva não alcança). A consequência da decisão é que a promessa de CSP
