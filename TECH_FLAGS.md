@@ -62,8 +62,8 @@ editor na interface WordPress.
 **Status:** ✅ Implementado — A4, 2026-08-21. **Cobertura completada pelo A3 em
 2026-08-28** (`eff1f3f`).
 
-**Cobertura: todo o JS do plugin — 1.966 linhas.** 1.279 em `admin/js/` (6
-arquivos) e 687 em `public/js/`. Até 27/08 eram ~33%: a trava alcançava dois
+**Cobertura: todo o JS do plugin — 1.982 linhas.** 1.279 em `admin/js/` (6
+arquivos) e 703 em `public/js/`. Até 27/08 eram ~33%: a trava alcançava dois
 arquivos `.js` (~472 linhas) e as outras ~959 viviam **inline** em blocos
 `<script>` dentro dos views PHP, que não são lintáveis porque ESLint não lê JS
 dentro de PHP. O A3 tirou os cinco blocos de lá.
@@ -168,7 +168,7 @@ arquivos percorridos: os 2 do plugin + a própria config — os JS vendorizados
 do `.venv` do backend estão excluídos.
 
 **Onde monitorar** — desde o A3, todos cobertos:
-- `news-game-plugin/public/js/newsgame-game.js` (687) — ⚠️ `buildRadarSVG` está em
+- `news-game-plugin/public/js/newsgame-game.js` (703) — ⚠️ `buildRadarSVG` está em
   **exatamente 10**, margem zero
 - `news-game-plugin/admin/js/newsgame-admin-review.js` (548) — ⚠️ `buildRow` em
   **15**, com `disable` justificado
