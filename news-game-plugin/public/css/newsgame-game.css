@@ -49,6 +49,21 @@
   --ng-accent-soft:  rgba(var(--ng-accent-rgb), 0.2);
   --ng-track:        rgba(var(--ng-on-rgb), 0.12);
   --ng-spinner-track:rgba(var(--ng-accent-rgb), 0.2);
+  /*
+   * ⚠️ DOIS TOKENS DESTE BLOCO FICARAM ÓRFÃOS nos refinamentos de 29/08, e
+   * NENHUM dos dois foi removido: mexer no bloco de tokens é decisão própria,
+   * e a §5.5 do GEMINI.md trata a escala de tipografia como item separado.
+   *
+   *  - `--ng-veil` (abaixo): perdeu os dois consumidores quando `.ng-veredicto`
+   *    saiu e `.ng-verdict-block` deixou de ser caixa com véu.
+   *  - `--ng-fs-5`: perdeu o único consumidor, `.ng-opt-consequence`, quando a
+   *    consequência saiu do botão de opção e virou o texto de destaque do
+   *    feedback. É um dos 12 do inventário descrito no topo deste arquivo, e
+   *    agora são 11 com uso.
+   *
+   * NÃO confundir com `--ng-overlay`, que é consumido pelo JS e só PARECE
+   * órfão numa checagem de CSS. Estes dois estão órfãos de verdade.
+   */
   --ng-veil:         rgba(var(--ng-shadow-rgb), 0.28);
   /*
    * Véu sobre a imagem de fundo do dilema. Sem ele o texto fica ilegível sobre
@@ -87,6 +102,40 @@
   --ng-radar-dot-stroke:    rgba(var(--ng-on-rgb), 0.5);
   --ng-radar-label:         rgba(var(--ng-on-rgb), 0.65);
   --ng-radar-center:        rgba(var(--ng-on-rgb), 0.35);
+
+  /* Vidro do card, do feedback e do modal. Derivam dos canais, então seguem
+     a skin — é o que faz o card FLUTUAR sobre a foto em vez de tapá-la. */
+  --ng-card-glass:     rgba(var(--ng-card-rgb), 0.72);
+  --ng-feedback-glass: rgba(var(--ng-on-rgb), 0.30);
+  --ng-modal-glass:    rgba(var(--ng-card-rgb), 0.88);
+  --ng-card-shadow:    0 18px 50px rgba(var(--ng-shadow-rgb), 0.45);
+  --ng-modal-shadow:   0 8px 40px rgba(var(--ng-shadow-rgb), 0.55);
+
+  /* Geometria do card flutuante. A referência do JDA é 480px, e 560px em
+     tablet (jda-base.css:890, jda-mobile.css:38). */
+  --ng-card-max:     480px;
+  /*
+   * Largura do palco no desktop. Os 480px do --ng-card-max estrangulavam as
+   * duas colunas de opções em ~322px cada e não deixavam a foto de fundo
+   * respirar. 660px é o meio da faixa confortável e ainda cabe com folga no
+   * --ng-game-inner, que é 740px.
+   */
+  --ng-card-max-lg:  660px;
+  /* Altura mínima do palco SÓ durante o feedback: sem ela o card curto faz o
+     texto explicativo transbordar; aplicada sempre, o dilema curto ganharia um
+     vão vazio embaixo. Por isso é classe (.is-feedback), não regra geral. */
+  --ng-feedback-min: 22rem;
+
+  /* Tipografia FLUIDA das peças que o resgate da anatomia toca. NÃO é a
+     consolidação dos 12 --ng-fs-* (item separado, §5.5): são tokens novos, os
+     12 seguem intactos, e os extremos do clamp são os próprios tokens — então
+     nenhum valor literal novo entra na escala. */
+  --ng-fs-dilema:  clamp(var(--ng-fs-7), 3.2vw, var(--ng-fs-10));
+  --ng-fs-option:  clamp(var(--ng-fs-6), 2.8vw, var(--ng-fs-9));
+
+  /* Serifada, exclusiva do glifo do botão (i) — o JDA usa Georgia itálica ali
+     (jda-base.css:1004). Token, e não literal, para uma skin poder trocar. */
+  --ng-font-serif: Georgia, "Times New Roman", serif;
 
   /* Raios. O 50% do spinner é geometria de círculo, não tema — fica fora. */
   --ng-radius:       12px;
@@ -136,6 +185,14 @@
 .ng-game-inner {
   width:     100%;
   max-width: 740px;
+  /*
+   * Centralização vertical por margem automática, e NÃO por
+   * `align-items: center` no wrap. Com `center`, conteúdo mais alto que os 85vh
+   * transborda para CIMA e não há como rolar até lá — armadilha clássica do
+   * flex. `margin: auto` centraliza quando há folga e colapsa para 0 quando não
+   * há, que é exatamente o comportamento desejado.
+   */
+  margin-block: auto;
 }
 
 /* Crédito da foto de fundo. Compromisso editorial, não enfeite: quando há foto
@@ -205,17 +262,49 @@
   text-align:      right;
 }
 
+/*
+ * ── Palco: card + opções + feedback sobreposto ─────────
+ * O feedback é `position:absolute` ancorado AQUI, e por isso cobre o card e as
+ * opções de uma vez — mesma anatomia do `.consequencia-toast` do JDA
+ * (jda-base.css:1109), que é `inset:0` dentro do `.glass-card`.
+ */
+.ng-stage {
+  position:  relative;
+  max-width: var(--ng-card-max);
+  margin:    0 auto;
+}
+
+/* Vale só enquanto o feedback está na tela — ver a nota do --ng-feedback-min */
+.ng-stage.is-feedback { min-height: var(--ng-feedback-min); }
+
 /* ── Card de dilema ──────────────────────────────────── */
 .ng-card {
-  background:      var(--ng-card);
+  position:        relative;   /* âncora do botão (i) */
+  background:      var(--ng-card-glass);
   border:          1px solid var(--ng-border);
   border-radius:   var(--ng-radius);
-  padding:         1.75rem 2rem;
+  box-shadow:      var(--ng-card-shadow);
+  padding:         1.5rem 1.5rem 2.25rem;   /* folga embaixo: o (i) mora lá */
   margin-bottom:   1.25rem;
 }
 
+/*
+ * Onde `backdrop-filter` não existe, o fallback é o card opaco de antes: some o
+ * efeito de vidro, não a legibilidade.
+ */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ng-card {
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    backdrop-filter:         blur(18px) saturate(1.4);
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ng-card { background: var(--ng-card); }
+}
+
 .ng-dilema-title {
-  font-size:       var(--ng-fs-10);
+  font-size:       var(--ng-fs-dilema);
   font-weight:     700;
   color:           var(--ng-accent);
   margin:          0 0 1rem;
@@ -224,10 +313,184 @@
 }
 
 .ng-dilema-body {
-  font-size:       var(--ng-fs-8);
-  line-height:     1.75;
+  font-size:       var(--ng-fs-option);
+  line-height:     1.65;
   color:           var(--ng-text);
   margin:          0;
+}
+
+/*
+ * ── Botão (i) — contexto do dilema ─────────────────────
+ * Círculo no canto do card, igual ao `.btn-info` do JDA (jda-base.css:991).
+ * A cor do glifo é `var(--ng-card)`: o JDA cabeia #1B480C ali, que é
+ * exatamente o nosso --ng-card-rgb — então o token reproduz o original E passa
+ * a seguir a skin, em vez de ficar verde numa paleta ciano.
+ */
+.ng-btn-info {
+  position:        absolute;
+  right:           0.75rem;
+  bottom:          0.6rem;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           28px;
+  height:          28px;
+  padding:         0;
+  background:      var(--ng-on-primary);
+  border:          none;
+  border-radius:   50%;   /* geometria de círculo, não tema — igual ao spinner */
+  box-shadow:      0 1px 5px rgba(var(--ng-shadow-rgb), 0.22);
+  color:           var(--ng-card);
+  cursor:          pointer;
+  font-family:     var(--ng-font-serif);
+  font-size:       var(--ng-fs-9);
+  font-style:      italic;
+  font-weight:     900;
+  line-height:     1;
+  transition:      background 0.2s, transform 0.2s;
+}
+
+.ng-btn-info:hover,
+.ng-btn-info[aria-expanded="true"] { transform: scale(1.1); }
+
+/*
+ * ── Botão de tela cheia ────────────────────────────────
+ * Anexado ao wrap pelo JS, fora do inner, e por isso sobrevive à troca de telas.
+ *
+ * z-index 60 é escolhido em relação aos outros dois: ACIMA do feedback
+ * sobreposto (50), para continuar clicável durante a leitura travada, e ABAIXO
+ * do modal de contexto (200), que deve cobri-lo enquanto está aberto.
+ *
+ * A cor do ícone vem do `color` daqui, via `currentColor` no SVG — não há `fill`
+ * fixo no JS. Ver a regra 4 do H2.
+ *
+ * ⚠️ Não confundir com a classe `newsgame-fullscreen` do `body`: ela é anterior
+ * a este botão e significa "esta página contém o jogo", não "está em tela
+ * cheia". O estado real do botão está no `aria-pressed`.
+ */
+.ng-btn-fullscreen {
+  position:        absolute;
+  top:             1rem;
+  right:           1rem;
+  z-index:         60;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           36px;
+  height:          36px;
+  padding:         0;
+  background:      rgba(var(--ng-card-rgb), 0.55);
+  border:          1px solid var(--ng-border);
+  border-radius:   var(--ng-radius-md);
+  color:           var(--ng-text);
+  cursor:          pointer;
+  transition:      background 0.18s, color 0.18s, transform 0.14s;
+}
+
+.ng-btn-fullscreen svg { display: block; }
+
+.ng-btn-fullscreen:hover {
+  background: var(--ng-primary);
+  color:      var(--ng-on-primary);
+  transform:  translateY(-1px);
+}
+
+.ng-btn-fullscreen:focus-visible {
+  outline:        2px solid var(--ng-accent);
+  outline-offset: 2px;
+}
+
+/*
+ * ── Modal de contexto ──────────────────────────────────
+ * `position: fixed` ancora no viewport porque .ng-game-wrap NÃO tem
+ * transform/filter/backdrop-filter. Se algum dia tiver, o fixed passa a ancorar
+ * nele e o modal sai de lugar — é a armadilha que o JDA registrou no
+ * #omissao-modal. Não acrescentar transform ao wrap sem reler isto.
+ */
+.ng-modal {
+  position:        fixed;
+  inset:           0;
+  z-index:         200;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  padding:         1.5rem;
+  opacity:         0;
+  pointer-events:  none;
+  transition:      opacity 0.25s ease;
+}
+
+.ng-modal.is-open { opacity: 1; pointer-events: auto; }
+
+.ng-modal-backdrop {
+  position:                absolute;
+  inset:                   0;
+  background:              var(--ng-overlay);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter:         blur(6px);
+}
+
+.ng-modal-content {
+  position:        relative;
+  z-index:         1;
+  box-sizing:      border-box;
+  width:           100%;
+  max-width:       380px;
+  max-height:      80vh;
+  overflow-y:      auto;
+  padding:         2.25rem 1.5rem 1.5rem;
+  background:      var(--ng-modal-glass);
+  border:          1px solid var(--ng-border);
+  border-radius:   var(--ng-radius);
+  box-shadow:      var(--ng-modal-shadow);
+}
+
+.ng-modal-close {
+  position:    absolute;
+  top:         0.5rem;
+  right:       0.6rem;
+  padding:     0.25rem;
+  background:  transparent;
+  border:      none;
+  color:       var(--ng-muted);
+  cursor:      pointer;
+  font-family: inherit;
+  font-size:   var(--ng-fs-10);
+  line-height: 1;
+  transition:  color 0.18s;
+}
+
+.ng-modal-close:hover { color: var(--ng-text); }
+
+.ng-modal-text {
+  margin:      0.4rem 0 1.25rem;
+  color:       var(--ng-text);
+  font-size:   var(--ng-fs-6);
+  line-height: 1.7;
+}
+
+/* "Aprofundar" em caixa alta, como o .modal-link do JDA (jda-base.css:729).
+   Substitui a URL crua que aparecia na tela de feedback até aqui. */
+.ng-modal-link {
+  display:         inline-block;
+  color:           var(--ng-accent);
+  font-size:       var(--ng-fs-4);
+  font-weight:     700;
+  letter-spacing:  0.08em;
+  text-decoration: none;
+  text-transform:  uppercase;
+  transition:      opacity 0.2s;
+}
+
+.ng-modal-link:hover { opacity: 0.75; }
+
+/* Foco visível: o modal é operável por teclado, e o (i) e o avançar também. */
+.ng-btn-info:focus-visible,
+.ng-modal-close:focus-visible,
+.ng-modal-link:focus-visible,
+.ng-btn-next:focus-visible {
+  outline:        2px solid var(--ng-accent);
+  outline-offset: 2px;
 }
 
 /* ── Botões de opção ─────────────────────────────────── */
@@ -238,10 +501,9 @@
   margin-bottom:         1.5rem;
 }
 
-@media (max-width: 560px) {
-  .ng-options { grid-template-columns: 1fr; }
-  .ng-card    { padding: 1.25rem 1.25rem; }
-}
+/* As media queries deste arquivo ficam TODAS no bloco final, e não encostadas
+   na regra que ajustam. O `@media (max-width: 560px)` que morava aqui foi para
+   lá, junto das outras três faixas. */
 
 /* `font-family: inherit` nos três botões: botão NÃO herda font-family do
    ancestral, então até 21/08 a tipografia dos botões do jogo vinha do agente
@@ -292,27 +554,10 @@
   margin-bottom:   0.4rem;
 }
 
-.ng-opt-consequence {
-  display:         block;
-  font-size:       var(--ng-fs-5);
-  font-style:      italic;
-  color:           var(--ng-muted);
-  margin-top:      0.5rem;
-  line-height:     1.5;
-}
 
-/* ── Veredito ────────────────────────────────────────── */
-.ng-veredicto {
-  background:      var(--ng-veil);
-  border-left:     4px solid var(--ng-accent);
-  border-radius:   0 var(--ng-radius) var(--ng-radius) 0;
-  padding:         1.25rem 1.5rem;
-  margin-bottom:   1.5rem;
-  display:         flex;
-  flex-direction:  column;
-  gap:             0.9rem;
-}
-
+/* ── Rótulo compartilhado ──────────────────────────────
+   Sobreviveu à remoção do .ng-veredicto (29/08): hoje é usado pelo "Contexto"
+   do modal do (i) e pelos rótulos do veredito final. */
 .ng-verd-label {
   display:         block;
   font-size:       var(--ng-fs-1);
@@ -323,22 +568,6 @@
   margin-bottom:   0.3rem;
 }
 
-.ng-verd-text {
-  font-size:       var(--ng-fs-7);
-  line-height:     1.65;
-  color:           var(--ng-text);
-  margin:          0;
-}
-
-.ng-source-link {
-  font-size:       var(--ng-fs-4);
-  color:           var(--ng-accent);
-  opacity:         0.75;
-  word-break:      break-all;
-  text-decoration: none;
-}
-
-.ng-source-link:hover { opacity: 1; }
 
 /* ── Botão próxima ───────────────────────────────────── */
 .ng-btn-next {
@@ -360,6 +589,98 @@
   background:      var(--ng-accent);
   color:           var(--ng-bg);
   transform:       translateY(-1px);
+}
+
+/*
+ * ── Feedback sobreposto ────────────────────────────────
+ * Vidro CLARO sobre o card escuro, como o .consequencia-toast do JDA
+ * (jda-base.css:1109): o dilema e as opções continuam atrás, desfocados, e é
+ * essa continuidade que faz a tela TRANSICIONAR em vez de trocar.
+ */
+.ng-feedback {
+  position:                absolute;
+  inset:                   0;
+  z-index:                 50;
+  display:                 flex;
+  align-items:             center;
+  justify-content:         center;
+  overflow-y:              auto;
+  padding:                 1.25rem;
+  border-radius:           var(--ng-radius);
+  background:              var(--ng-feedback-glass);
+  -webkit-backdrop-filter: blur(25px) saturate(1.8);
+  backdrop-filter:         blur(25px) saturate(1.8);
+  opacity:                 0;
+  transition:              opacity 0.35s ease;
+}
+
+.ng-feedback.is-visible { opacity: 1; }
+
+/* Sem backdrop-filter o vidro claro fica ilegível — cai para o card opaco, e
+   com ele o texto volta à cor de texto normal em vez da invertida. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ng-feedback { background: var(--ng-card); }
+  .ng-feedback .ng-feedback-consequence,
+  .ng-feedback .ng-feedback-hint,
+  .ng-feedback .ng-feedback-text { color: var(--ng-text); }
+}
+
+.ng-feedback-inner { width: 100%; text-align: center; }
+
+.ng-feedback-consequence {
+  margin:         0 0 1rem;
+  color:          var(--ng-bg);
+  /* Sobe para a fluida do dilema em 29/08, junto com o aumento do
+     .ng-feedback-text: sem isso os dois ficariam do mesmo tamanho no desktop e
+     a consequência perderia o destaque sobre a lição. */
+  font-size:      var(--ng-fs-dilema);
+  font-weight:    500;
+  letter-spacing: 0.02em;
+  line-height:    1.55;
+}
+
+/* Bloco contínuo de desfecho + lição, montado por textoDesfecho(). Alinhado à
+   esquerda para leitura corrida — o centralizado do resto do card serve para
+   frase curta, não para dois parágrafos. */
+.ng-feedback-text {
+  margin:      0 0 0.25rem;
+  color:       var(--ng-bg);
+  font-size:   var(--ng-fs-option);
+  line-height: 1.65;
+  text-align:  left;
+}
+
+/* ── Trava de leitura ──────────────────────────────────── */
+.ng-feedback-hint {
+  margin:     0.75rem 0 0.35rem;
+  color:      var(--ng-bg);
+  font-size:  var(--ng-fs-2);
+  font-style: italic;
+  opacity:    0.7;
+  min-height: 1.1em;   /* reserva a linha: sem isso o botão salta ao liberar */
+}
+
+.ng-feedback .ng-btn-next { margin: 0 auto; }
+
+/* Estado travado. O botão fica VISÍVEL e desabilitado — some o "some e volta",
+   que é o que faria o jogador achar que a tela travou. */
+.ng-btn-next:disabled {
+  cursor:  not-allowed;
+  opacity: 0.45;
+}
+
+.ng-btn-next:disabled:hover {
+  background: var(--ng-primary);
+  color:      var(--ng-on-primary);
+  transform:  none;
+}
+
+/* Pulso único ao liberar. O JDA faz isso por atributo de estilo inline
+   (jogo-amazonia.js:1381); aqui é animação de CSS, que não soma ao A5. */
+.ng-btn-next.is-released { animation: ng-pulse 0.24s ease; }
+
+@keyframes ng-pulse {
+  50% { transform: scale(1.05); }
 }
 
 /* ── Telas de início / fim ───────────────────────────── */
@@ -428,29 +749,18 @@
   line-height:     1.3;
 }
 
-.ng-verdict-block {
-  background:      var(--ng-veil);
-  border-left:     4px solid var(--ng-accent);
-  border-radius:   0 var(--ng-radius) var(--ng-radius) 0;
-  padding:         1rem 1.25rem;
-  margin-bottom:   1rem;
-}
-
-.ng-verdict-block-label {
-  display:         block;
-  font-size:       var(--ng-fs-1);
-  font-weight:     700;
-  color:           var(--ng-accent);
-  letter-spacing:  0.12em;
-  text-transform:  uppercase;
-  margin-bottom:   0.4rem;
-}
-
-.ng-verdict-block p {
+/* Síntese do perfil — ProfileSuggestion.descricao, campo obrigatório do
+   contrato do backend que nunca havia sido renderizado. Abre o veredito, antes
+   dos blocos de força e ponto cego. */
+/* Síntese do perfil — desde 29/08 é o ÚNICO texto do veredito, e por isso sobe
+   de --ng-fs-9 para --ng-fs-10: deixou de ser abertura de três blocos. */
+.ng-verdict-summary {
+  max-width:       34em;
+  margin:          0 auto 2rem;
   color:           var(--ng-text);
-  font-size:       var(--ng-fs-7);
-  line-height:     1.65;
-  margin:          0;
+  font-size:       var(--ng-fs-10);
+  line-height:     1.55;
+  text-align:      center;
 }
 
 .ng-verdict-share-text {
@@ -520,3 +830,147 @@
 
 .ng-radar-dot.is-neutral,
 .ng-radar-pct.is-neutral  { fill: var(--ng-radar-neutral); }
+
+/*
+ * ── Responsividade ─────────────────────────────────────────────────────
+ * Faixas alinhadas com a cascata do JDA (jda-mobile.css:17,51,67 e
+ * jda-desktop.css:9): ≤599 celular, 600–1024 toque/tablet, ≥1025 desktop.
+ * Um arquivo só, com media queries, por decisão — o JDA quebra em três
+ * arquivos, nós não.
+ *
+ * O breakpoint de coluna única mudou de 560 para 599, para casar com a faixa
+ * do JDA: entre 561 e 599 as opções passam a empilhar antes do que empilhavam.
+ */
+
+/* ── Toque: celular e tablet ──────────────────────────── */
+@media (max-width: 1024px) {
+  .ng-game-wrap { padding: 1.25rem 0.75rem 2rem; }
+  .ng-options   { gap: 0.6rem; }
+  .ng-progress  { margin-bottom: 1.25rem; }
+}
+
+/*
+ * ── Rompimento de container: tela cheia imersiva ───────
+ * O .ng-game-wrap nasce dentro do container de conteúdo do tema, que costuma
+ * ter 700–800px. Isso confinava o jogo numa coluna estreita e matava a imagem
+ * de fundo, que é o ponto da anatomia resgatada do JDA.
+ *
+ * ⚠️ ESTA REGRA JÁ QUEBROU UMA VEZ, em 29/08, e a FORMA dela é o conserto.
+ *
+ * A primeira versão usava `left: 50%` + `margin-left: -50vw` — a receita
+ * canônica, que depende das DUAS declarações se cancelando: o `left` empurra
+ * meia largura do CONTAINER para a direita e a margem puxa meia VIEWPORT de
+ * volta. No tema testado o jogo apareceu deslocado meia tela para a direita, o
+ * que é o sintoma de o `left` ter sido aplicado e as margens negativas não:
+ * temas de bloco do WordPress declaram `margin-inline: auto` nos filhos diretos
+ * do container de conteúdo, e a regra deles venceu por ordem de carga.
+ *
+ * A forma abaixo NÃO TEM `left` nem `right`: o rompimento vem inteiro das
+ * margens. Se um tema sobrescrever as margens, o jogo fica confinado no
+ * container — que é o estado anterior a este item, e não uma tela quebrada.
+ * **Falha para o lado seguro.** Não reintroduzir `left`/`right` aqui.
+ *
+ * O seletor leva a classe de body (0-2-1) para vencer o `.entry-content > *`
+ * (0-1-0) dos temas sem precisar de `!important`. Consequência aceita: sem a
+ * classe no body — shortcode vindo de construtor de página ou de template — não
+ * há full-bleed, e o jogo renderiza confinado como antes.
+ *
+ * O `position: relative` da regra base continua lá, mas agora só serve ao que
+ * sempre serviu: ancorar o crédito da foto. A técnica não depende mais dele.
+ *
+ * Só a partir de 600px: no celular o container do tema já ocupa a largura toda,
+ * e o ganho seria zero contra o risco de estourar a rolagem lateral.
+ *
+ * Segue valendo: container do tema com `overflow: hidden` recorta o full-bleed,
+ * e não há contorno pelo lado do plugin. E `100vw` inclui a barra de rolagem,
+ * o que a regra de `body` abaixo neutraliza.
+ */
+@media (min-width: 600px) {
+  body.newsgame-fullscreen .ng-game-wrap {
+    width:        100vw;
+    max-width:    100vw;
+    margin-left:  calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    min-height:   100vh;
+  }
+}
+
+/*
+ * Único ponto em que este arquivo estiliza o `body` do tema hospedeiro — e é
+ * escopado pela classe que o próprio plugin adiciona via filtro `body_class`
+ * (Newsgame_Shortcodes::body_class), ou seja, só nas páginas que têm o jogo.
+ *
+ * ⚠️ Duas ressalvas: a classe só aparece quando o shortcode está no
+ * `post_content` — se vier de construtor de página ou de template, ela não
+ * existe e a rolagem lateral volta; e `overflow-x: hidden` no body desativa
+ * `position: sticky` de elementos do tema na mesma página.
+ */
+@media (min-width: 600px) {
+  body.newsgame-fullscreen { overflow-x: hidden; }
+}
+
+/*
+ * ── Título da página do tema ───────────────────────────
+ * Segundo ponto em que este arquivo estiliza markup do tema hospedeiro, e o
+ * escopo é o mesmo: a classe que o plugin adiciona via `body_class`, ou seja, só
+ * nas páginas que contêm o jogo. Numa página cujo conteúdo É o jogo, o título do
+ * post duplica o título que o próprio jogo mostra na tela inicial.
+ *
+ * ⚠️ `display: none` tira o elemento da árvore de acessibilidade também: a
+ * página perde o seu <h1> para leitor de tela. Aceitável aqui porque o jogo
+ * emite o seu próprio cabeçalho, mas é uma escolha, não um detalhe. A
+ * alternativa, se um dia ela for tomada, é esconder visualmente em vez de
+ * remover (clip-path e 1px de caixa).
+ *
+ * A lista é a que foi pedida, menos `h1.entry-title`, que `.entry-title` já
+ * cobre. Sem `!important`: se um tema declarar o título com especificidade
+ * maior, ele reaparece — e o sintoma fica visível, não silencioso.
+ */
+body.newsgame-fullscreen .entry-title,
+body.newsgame-fullscreen .post-title,
+body.newsgame-fullscreen h1.page-title,
+body.newsgame-fullscreen .wp-block-post-title { display: none; }
+
+/* ── Tablet ────────────────────────────────────────────
+   O JDA capa o card em 560px aqui para a linha de texto não esticar numa
+   viewport quase quadrada — iPad em retrato é 810×1080. */
+@media (min-width: 600px) and (max-width: 1024px) {
+  .ng-stage { max-width: 560px; }
+}
+
+/* ── Celular ───────────────────────────────────────────── */
+@media (max-width: 599px) {
+  /* svh e não vh: no celular o vh conta a área atrás da barra de URL */
+  .ng-game-wrap      { min-height: 100svh; }
+  .ng-options        { grid-template-columns: 1fr; }
+  .ng-card           { padding: 1.15rem 1.15rem 2.1rem; }
+  .ng-btn-option     { padding: 0.85rem 1rem; }
+  .ng-feedback       { padding: 1rem 0.9rem; }
+  .ng-modal          { padding: 0.75rem; align-items: flex-end; }
+  .ng-modal-content  { max-height: 72vh; }
+  .ng-verdict-result { padding: 1.5rem 0.75rem; }
+  /* Alvo de toque: o avançar ocupa a largura, em vez de ficar num canto */
+  .ng-feedback .ng-btn-next { width: 100%; padding: 0.9rem 1rem; }
+  /* 28px é pequeno para o dedo — o (i) cresce só aqui */
+  .ng-btn-info       { width: 32px; height: 32px; }
+}
+
+/* ── Desktop ───────────────────────────────────────────── */
+@media (min-width: 1025px) {
+  .ng-game-wrap { padding: 3rem 1rem 3.5rem; }
+  .ng-stage     { max-width: var(--ng-card-max-lg); }
+  .ng-card      { padding: 1.75rem 2rem 2.4rem; }
+}
+
+/* ── Movimento reduzido ────────────────────────────────
+   Cobre só o que este resgate de anatomia introduziu: a transição do feedback
+   e do modal, o pulso do botão liberado e a escala do (i). O resto do arquivo
+   já era assim antes e fica como está. */
+@media (prefers-reduced-motion: reduce) {
+  .ng-feedback,
+  .ng-modal                          { transition: none; }
+  .ng-btn-next.is-released           { animation: none; }
+  .ng-btn-fullscreen:hover           { transform: none; }
+  .ng-btn-info:hover,
+  .ng-btn-info[aria-expanded="true"] { transform: none; }
+}

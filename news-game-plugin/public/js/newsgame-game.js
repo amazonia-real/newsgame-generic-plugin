@@ -36,6 +36,102 @@
     return String(url).replace(/['"()\\\r\n]/g, '');
   }
 
+  /* Trava de leitura do feedback, em segundos. Espelha o LOCK_SEGUNDOS = 8 do
+     JDA (jogo-amazonia.js:1313). Fica aqui, e não em configuração por
+     instância, porque configuração exige coluna, UI e migração — item à parte. */
+  var LOCK_SEGUNDOS = 8;
+
+  /* ── Barra de progresso ────────────────────────────────
+     Extraída porque os dois estados montavam o mesmo HTML duplicado — e com
+     isso os DOIS atributos de estilo de largura viram UM, o que baixa a
+     contagem do A5 de 6 para 5 sem fechar nenhum dos 4 grupos (o A5 é decisão,
+     não tarefa).
+
+     A frase acima não escreve o nome do atributo de propósito: a auditoria do
+     A5 é um `grep`, e citá-lo em comentário inflaria a contagem que ele mede.
+     Mesma regra registrada no comentário do crédito da foto, no shortcode. */
+  function buildProgress(preenchido, atual, total) {
+    var pct = Math.round(preenchido / total * 100);
+    return '<div class="ng-progress">' +
+        '<div class="ng-progress-track">' +
+          '<div class="ng-progress-fill" style="width:' + pct + '%"></div>' +
+        '</div>' +
+        '<span class="ng-progress-label">' + atual + ' / ' + total + '</span>' +
+      '</div>';
+  }
+
+  /* Botão (i). Só existe se houver o que mostrar: botão que abre modal vazio é
+     pior que botão ausente. */
+  function buildInfoBtn(temInfo) {
+    if (!temInfo) { return ''; }
+    return '<button type="button" class="ng-btn-info" aria-expanded="false"' +
+      ' aria-label="Ver contexto do dilema">i</button>';
+  }
+
+  /* Modal de contexto: a síntese do dilema e o link para a matéria de origem.
+     Os dois vinham empilhados na tela de feedback até aqui, e o link aparecia
+     como URL crua na tela. */
+  function buildInfoModal(sintese, url) {
+    var link = url
+      ? '<a class="ng-modal-link" href="' + esc(safeUrl(url)) + '"' +
+        ' target="_blank" rel="noopener noreferrer">Aprofundar ↗</a>'
+      : '';
+    return '<div class="ng-modal" role="dialog" aria-modal="true"' +
+        ' aria-hidden="true" aria-label="Contexto do dilema">' +
+        '<div class="ng-modal-backdrop"></div>' +
+        '<div class="ng-modal-content">' +
+          '<button type="button" class="ng-modal-close" aria-label="Fechar">&times;</button>' +
+          '<span class="ng-verd-label">Contexto</span>' +
+          '<p class="ng-modal-text">' + escNl(sintese) + '</p>' +
+          link +
+        '</div>' +
+      '</div>';
+  }
+
+  /* ── Tela cheia ────────────────────────────────────────
+     API padrão do navegador, com o prefixo do WebKit antigo como reserva.
+     Nenhuma biblioteca. */
+  function fullscreenSuportado() {
+    return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  }
+
+  function elementoEmTelaCheia() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  function entrarTelaCheia(el) {
+    var pedir = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!pedir) { return; }
+    /* requestFullscreen devolve Promise que REJEITA quando o navegador nega —
+       fora de gesto do usuário, ou política de permissão de iframe. Sem o
+       catch, isso vira "unhandled rejection" no console do editor. */
+    var r = pedir.call(el);
+    if (r && r.catch) {
+      r.catch(function (e) { console.warn('[news-game] tela cheia negada:', e && e.message); });
+    }
+  }
+
+  function sairTelaCheia() {
+    var sair = document.exitFullscreen || document.webkitExitFullscreen;
+    if (!sair) { return; }
+    var r = sair.call(document);
+    if (r && r.catch) { r.catch(function () { /* já saiu por Esc/F11 */ }); }
+  }
+
+  /* Ícone em SVG, com `fill="currentColor"` — a cor vem do `color` do botão, no
+     CSS. NÃO usar var() em atributo de apresentação: é a regra 4 do H2, porque
+     atributo é parseado por gramática isolada, fora da cascata, e o Chromium não
+     resolve. `currentColor` é palavra-chave do próprio SVG e não tem esse
+     problema. Os dois desenhos são quatro cantos em L: apontando para fora
+     quando está fora da tela cheia, e para dentro quando está dentro. */
+  function iconeTelaCheia(dentro) {
+    var d = dentro
+      ? 'M10 10H4V8h4V4h2v6z M14 10V4h2v4h4v2h-6z M10 14v6H8v-4H4v-2h6z M14 14h6v2h-4v4h-2v-6z'
+      : 'M4 4h6v2H6v4H4V4z M20 4v6h-2V6h-4V4h6z M4 20h6v-2H6v-4H4v6z M20 20h-6v-2h4v-4h2v6z';
+    return '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"' +
+      ' focusable="false"><path fill="currentColor" d="' + d + '"/></svg>';
+  }
+
   /* ── Gráfico triangular de perfil (adaptado do JDA) ──── */
   /* Classe de sinal do polígono. Zero conta como positivo (`>= 0`), e não há
      zona neutra — é o comportamento que estava no ternário original. */
@@ -132,89 +228,45 @@
     '</svg>';
   }
 
-  /* ── Narrativa local do veredito final (adaptado do JDA) ──
-     Monta os blocos de texto a partir do vetor normalizado, dos
-     polos dos eixos e do perfil vencedor — tudo local, sem IA.
-     Retorna lista de blocos { label, html } (html já escapado). */
-  function buildNarrativa(perfil, vetorNorm, eixos) {
-    var keys = ['eixo1', 'eixo2', 'eixo3'];
-    var ordenados = keys.slice().sort(function (a, b) {
-      return (vetorNorm[b] || 0) - (vetorNorm[a] || 0);
-    });
-    var eixoAlto  = ordenados[0];
-    var eixoBaixo = ordenados[2];
-    var spread    = (vetorNorm[eixoAlto] || 0) - (vetorNorm[eixoBaixo] || 0);
-    var media     = keys.reduce(function (s, k) { return s + (vetorNorm[k] || 0); }, 0) / 3;
+  /* ── Desfecho e lição num bloco contínuo ───────────────
+     Eram duas seções rotuladas empilhadas (a antiga vSection(), que saiu junto
+     por não ter mais nenhum chamador). Viram um parágrafo só, no formato
+     [desfecho] + " Lição: " + [lição]. Nenhuma quebra de linha: as duas versões
+     anteriores usaram \n\n e depois \n, e as duas ainda cortavam a leitura em
+     dois blocos visuais. Agora é um parágrafo só, encadeado por espaço.
 
-    function pct(eixo) {
-      var v = Math.round((vetorNorm[eixo] || 0) * 100);
-      return (v > 0 ? '+' : '') + v + '%';
-    }
-    /* Garante pontuação final ao costurar frases de fontes distintas */
-    function frase(s) {
-      s = String(s || '').trim();
-      if (s && !/[.!?…]$/.test(s)) s += '.';
-      return s;
-    }
-    function nomeEixo(key) {
-      return (eixos[key] && eixos[key].nome) || key;
-    }
-
-    var nomesEixos = keys.map(nomeEixo).join(', ');
-
-    /* Saldo negativo sobrepõe equilíbrio — mesma precedência do JDA */
-    if (media < -0.30) {
-      return [{
-        label: 'Impacto crítico',
-        html: esc(
-          'Suas escolhas geraram um impacto crítico e recessivo em quase todas as ' +
-          'frentes do domínio. Nenhum dos eixos — ' + nomesEixos + ' — saiu ' +
-          'preservado das suas decisões. Vale refletir sobre o custo acumulado desse caminho.'
-        )
-      }];
-    }
-
-    if (spread < 0.15) {
-      return [{
-        label: 'Equilíbrio raro',
-        html: esc(
-          'Suas decisões mostraram um equilíbrio raro entre as forças do domínio: ' +
-          'nenhum dos eixos — ' + nomesEixos + ' — se destacou às custas dos demais. ' +
-          'Sustentar essa balança é difícil, e foi exatamente o que você fez.'
-        )
-      }];
-    }
-
-    var alto  = eixos[eixoAlto]  || {};
-    var baixo = eixos[eixoBaixo] || {};
-
-    return [
-      {
-        label: 'Sua força',
-        html: 'Com base nas suas escolhas, seu eixo mais destacado foi <strong>' +
-          esc(nomeEixo(eixoAlto)) + '</strong> (' + pct(eixoAlto) + '): <em>' +
-          esc(frase(alto.polo_positivo)) + '</em> ' +
-          esc(frase(perfil.forca_dominante))
-      },
-      {
-        label: 'Ponto cego',
-        html: 'Por outro lado, o seu maior ponto cego ou área de sacrifício apareceu em <strong>' +
-          esc(nomeEixo(eixoBaixo)) + '</strong> (' + pct(eixoBaixo) + '): <em>' +
-          esc(frase(baixo.polo_negativo)) + '</em> ' +
-          esc(frase(perfil.ponto_cego))
-      }
-    ];
+     Cada parte entra só se existir: dilema sem lição mostra apenas o desfecho,
+     sem o rótulo "Lição:" pendurado, e vice-versa. */
+  function textoDesfecho(verd) {
+    var partes = [];
+    if (verd.desfecho) { partes.push(String(verd.desfecho).trim()); }
+    if (verd.licao)    { partes.push('Lição: ' + String(verd.licao).trim()); }
+    return partes.join(' ');
   }
 
-  /* ── Monta uma seção do veredito ─────────────────────── */
-  function vSection(label, text) {
-    if (!text) return '';
-    return (
-      '<div>' +
-        '<span class="ng-verd-label">' + esc(label) + '</span>' +
-        '<p class="ng-verd-text">' + escNl(text) + '</p>' +
-      '</div>'
-    );
+  /* ── Card explicativo sobreposto ───────────────────────
+     DOIS elementos: a consequência da escolha em destaque e o bloco contínuo de
+     desfecho + lição.
+
+     A linha "Sua escolha" saiu por decisão de UX de 29/08 — poluía o card, a
+     opção escolhida continua visível atrás do vidro, e o texto da consequência
+     já a identifica. Os badges de impacto nos eixos saíram na mesma linha de
+     raciocínio: o peso da escolha reaparece somado no radar do fim, e no card
+     eles competiam com o texto sem acrescentar decisão ao jogador. */
+  function buildFeedback(opt, verd) {
+    var desfecho = textoDesfecho(verd);
+    return '<div class="ng-feedback">' +
+        '<div class="ng-feedback-inner">' +
+          (opt.consequencia
+            ? '<p class="ng-feedback-consequence">' + escNl(opt.consequencia) + '</p>'
+            : '') +
+          (desfecho
+            ? '<p class="ng-feedback-text">' + escNl(desfecho) + '</p>'
+            : '') +
+          '<p class="ng-feedback-hint"></p>' +
+          '<button type="button" class="ng-btn-next"></button>' +
+        '</div>' +
+      '</div>';
   }
 
   /* ── Instância do jogo ───────────────────────────────── */
@@ -284,8 +336,133 @@
     var vetor    = {};   // { eixo1: N, eixo2: N, eixo3: N }
     var pesoCount = 0;   // quantos dilemas tinham axis_weights
 
+    var lockTimer  = null;   /* intervalo do contador de leitura */
+    var escHandler = null;   /* listener de Esc do modal aberto */
+
+    /*
+     * Toda troca de tela passa por aqui, ANTES do innerHTML. Um intervalo que
+     * sobrevive ao render seguinte fica mexendo em nó já destacado do
+     * documento, e um listener de Esc órfão fecha um modal que não existe mais.
+     */
+    function limparTimers() {
+      if (lockTimer) { clearInterval(lockTimer); lockTimer = null; }
+      if (escHandler) {
+        document.removeEventListener('keydown', escHandler);
+        escHandler = null;
+      }
+    }
+
+    function fecharInfo(modal, btn) {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+      if (btn) { btn.setAttribute('aria-expanded', 'false'); btn.focus(); }
+      if (escHandler) {
+        document.removeEventListener('keydown', escHandler);
+        escHandler = null;
+      }
+    }
+
+    function abrirInfo(modal, btn) {
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+      btn.setAttribute('aria-expanded', 'true');
+      var fechar = modal.querySelector('.ng-modal-close');
+      if (fechar) { fechar.focus(); }
+      escHandler = function (ev) {
+        if (ev.key === 'Escape') { fecharInfo(modal, btn); }
+      };
+      document.addEventListener('keydown', escHandler);
+    }
+
+    /* Liga o (i): botão, × e backdrop. No-op quando o dilema não tem contexto. */
+    function ligarInfo() {
+      var btn   = inner.querySelector('.ng-btn-info');
+      var modal = inner.querySelector('.ng-modal');
+      if (!btn || !modal) { return; }
+      btn.addEventListener('click', function () { abrirInfo(modal, btn); });
+      modal.querySelector('.ng-modal-close').addEventListener('click', function () {
+        fecharInfo(modal, btn);
+      });
+      modal.querySelector('.ng-modal-backdrop').addEventListener('click', function () {
+        fecharInfo(modal, btn);
+      });
+    }
+
+    /* Trava de leitura: o botão nasce VISÍVEL e desabilitado, com regressivo. */
+    function iniciarLock(btn, hint, labelLiberado) {
+      var restante = LOCK_SEGUNDOS;
+      btn.disabled     = true;
+      btn.textContent  = 'Continuar em ' + restante + 's';
+      hint.textContent = 'Leia antes de avançar';
+
+      lockTimer = setInterval(function () {
+        restante--;
+        if (restante > 0) {
+          btn.textContent = 'Continuar em ' + restante + 's';
+          return;
+        }
+        clearInterval(lockTimer);
+        lockTimer        = null;
+        btn.disabled     = false;
+        btn.textContent  = labelLiberado;
+        hint.textContent = '';
+        btn.classList.add('is-released');
+      }, 1000);
+    }
+
+    function acumularPesos(pesos) {
+      if (!pesos) { return; }
+      Object.keys(pesos).forEach(function (eixo) {
+        vetor[eixo] = (vetor[eixo] || 0) + pesos[eixo];
+      });
+      pesoCount++;
+    }
+
+    function avancar() {
+      limparTimers();
+      idx++;
+      if (idx < dilemas.length) { renderDilema(); } else { renderEnd(); }
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* Botão de tela cheia. Anexado ao WRAP, e não ao inner: o inner é reescrito
+       por innerHTML a cada tela, e o botão morreria com o listener a cada
+       avanço. Não é renderizado quando o navegador não suporta tela cheia de
+       elemento — é o caso do Safari no iPhone —, pelo mesmo critério do botão
+       (i): controle que não pode funcionar não vai para a tela. */
+    function montarTelaCheia() {
+      if (!fullscreenSuportado()) { return; }
+
+      var btn = document.createElement('button');
+      btn.type      = 'button';
+      btn.className = 'ng-btn-fullscreen';
+      wrap.appendChild(btn);
+
+      function pintar() {
+        var dentro = elementoEmTelaCheia() === wrap;
+        var rotulo = dentro ? 'Sair da tela cheia' : 'Jogar em tela cheia';
+        btn.innerHTML = iconeTelaCheia(dentro);
+        btn.title     = rotulo;
+        btn.setAttribute('aria-label', rotulo);
+        btn.setAttribute('aria-pressed', dentro ? 'true' : 'false');
+      }
+
+      btn.addEventListener('click', function () {
+        if (elementoEmTelaCheia() === wrap) { sairTelaCheia(); return; }
+        entrarTelaCheia(wrap);
+      });
+
+      /* Quem pinta o ícone é o EVENTO, não o clique: o estado muda sem passar
+         pelo botão quando o jogador usa Esc ou F11. Com duas instâncias na mesma
+         página, cada uma escuta e pinta o seu próprio botão. */
+      document.addEventListener('fullscreenchange', pintar);
+      document.addEventListener('webkitfullscreenchange', pintar);
+      pintar();
+    }
+
     /* ── Tela inicial ── */
     function renderStart() {
+      limparTimers();
       aplicarFundo(null);
       inner.innerHTML =
         '<div class="ng-screen">' +
@@ -299,10 +476,16 @@
 
     /* ── Tela de dilema ── */
     function renderDilema() {
-      var d   = dilemas[idx];
-      var pct = Math.round(idx / dilemas.length * 100);
+      limparTimers();
+      var d = dilemas[idx];
 
       aplicarFundo(d.imagem);
+
+      /* Contexto e fonte saíram da tela de feedback e agora vivem no modal do
+         (i) — se o dilema não tem nenhum dos dois, o botão nem é renderizado. */
+      var verd    = d.veredicto || {};
+      var sintese = verd.sintese || '';
+      var temInfo = !!(sintese || d.source_url);
 
       var optsHtml = optKeys.map(function (key) {
         var opt = d['option_' + key] || {};
@@ -313,96 +496,76 @@
       }).join('');
 
       inner.innerHTML =
-        '<div class="ng-progress">' +
-          '<div class="ng-progress-track">' +
-            '<div class="ng-progress-fill" style="width:' + pct + '%"></div>' +
+        buildProgress(idx, idx + 1, dilemas.length) +
+        '<div class="ng-stage">' +
+          '<div class="ng-card">' +
+            '<h2 class="ng-dilema-title">' + esc(d.title) + '</h2>' +
+            '<p class="ng-dilema-body">' + escNl(d.body) + '</p>' +
+            buildInfoBtn(temInfo) +
           '</div>' +
-          '<span class="ng-progress-label">' + (idx + 1) + ' / ' + dilemas.length + '</span>' +
-        '</div>' +
-        '<div class="ng-card">' +
-          '<h2 class="ng-dilema-title">' + esc(d.title) + '</h2>' +
-          '<p class="ng-dilema-body">' + escNl(d.body) + '</p>' +
-        '</div>' +
-        '<div class="ng-options">' + optsHtml + '</div>';
+          '<div class="ng-options">' + optsHtml + '</div>' +
+          (temInfo ? buildInfoModal(sintese, d.source_url) : '') +
+        '</div>';
 
+      ligarInfo();
       inner.querySelectorAll('.ng-btn-option').forEach(function (btn) {
-        btn.addEventListener('click', function () { renderVeredicto(btn.dataset.pick); });
+        btn.addEventListener('click', function () { renderFeedback(btn.dataset.pick); });
       });
     }
 
-    /* ── Tela de veredito ── */
-    function renderVeredicto(pick) {
+    /* ── Tela de feedback ──────────────────────────────────
+       O dilema e as opções continuam ATRÁS, desfocados pelo vidro, e o card
+       explicativo entra sobreposto. É a transição do JDA, não uma troca de
+       tela — e é por isso que o markup do palco é o mesmo do renderDilema(). */
+    function renderFeedback(pick) {
+      limparTimers();
       var d       = dilemas[idx];
-      var pct     = Math.round((idx + 1) / dilemas.length * 100);
-      var nextLbl = idx + 1 < dilemas.length ? 'Próxima pergunta →' : 'Ver resultado final';
       var verd    = d.veredicto || {};
+      var pesos   = d.axis_weights && d.axis_weights[pick.toUpperCase()];
+      var nextLbl = idx + 1 < dilemas.length ? 'Próxima pergunta →' : 'Ver resultado final';
 
-      // Mesmo dilema, mesmo fundo: reaplicar mantém a imagem no veredito, e
+      // Mesmo dilema, mesmo fundo: reaplicar mantém a imagem no feedback, e
       // evita depender de o render anterior ter deixado o estado certo.
       aplicarFundo(d.imagem);
+      acumularPesos(pesos);
 
-      /* Acumula pesos de eixo da alternativa escolhida */
-      var pesos = d.axis_weights && d.axis_weights[pick.toUpperCase()];
-      if (pesos) {
-        Object.keys(pesos).forEach(function (eixo) {
-          vetor[eixo] = (vetor[eixo] || 0) + pesos[eixo];
-        });
-        pesoCount++;
-      }
-
-      // Renderiza todas as opções: escolhida com consequencia, demais sem
       var optsHtml = optKeys.map(function (key) {
-        var opt      = d['option_' + key] || {};
-        var isChosen = key === pick;
-        var label    = isChosen
-          ? 'Opção ' + key.toUpperCase() + ' — sua escolha'
-          : 'Opção ' + key.toUpperCase();
-        var cls      = isChosen ? 'ng-btn-option is-chosen' : 'ng-btn-option is-other';
+        var opt = d['option_' + key] || {};
+        var cls = key === pick ? 'ng-btn-option is-chosen' : 'ng-btn-option is-other';
         return '<button class="' + cls + '" disabled>' +
-          '<span class="ng-opt-label">' + label + '</span>' +
+          '<span class="ng-opt-label">Opção ' + key.toUpperCase() + '</span>' +
           esc(opt.texto || '') +
-          (isChosen && opt.consequencia
-            ? '<span class="ng-opt-consequence">' + esc(opt.consequencia) + '</span>'
-            : '') +
         '</button>';
       }).join('');
 
       inner.innerHTML =
-        '<div class="ng-progress">' +
-          '<div class="ng-progress-track">' +
-            '<div class="ng-progress-fill" style="width:' + pct + '%"></div>' +
+        buildProgress(idx + 1, idx + 1, dilemas.length) +
+        '<div class="ng-stage is-feedback">' +
+          '<div class="ng-card">' +
+            '<h2 class="ng-dilema-title">' + esc(d.title) + '</h2>' +
+            '<p class="ng-dilema-body">' + escNl(d.body) + '</p>' +
           '</div>' +
-          '<span class="ng-progress-label">' + (idx + 1) + ' / ' + dilemas.length + '</span>' +
-        '</div>' +
-        '<div class="ng-card">' +
-          '<h2 class="ng-dilema-title">' + esc(d.title) + '</h2>' +
-        '</div>' +
-        '<div class="ng-options">' + optsHtml + '</div>' +
-        '<div class="ng-veredicto">' +
-          vSection('O que de fato ocorreu', verd.desfecho) +
-          vSection('Lição', verd.licao) +
-          vSection('Contexto', verd.sintese) +
-          (d.source_url
-            ? '<div><span class="ng-verd-label">Fonte</span>' +
-              '<a class="ng-source-link" href="' + esc(safeUrl(d.source_url)) + '" target="_blank" rel="noopener">' +
-              esc(d.source_url) + '</a></div>'
-            : '') +
-        '</div>' +
-        '<button class="ng-btn-next">' + esc(nextLbl) + '</button>';
+          '<div class="ng-options">' + optsHtml + '</div>' +
+          buildFeedback(d['option_' + pick] || {}, verd) +
+        '</div>';
 
-      inner.querySelector('.ng-btn-next').addEventListener('click', function () {
-        idx++;
-        if (idx < dilemas.length) {
-          renderDilema();
-        } else {
-          renderEnd();
-        }
-        wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var feedback = inner.querySelector('.ng-feedback');
+      var btn      = inner.querySelector('.ng-btn-next');
+      var hint     = inner.querySelector('.ng-feedback-hint');
+
+      /* Dois frames: um para o nó entrar no documento com opacity 0, outro para
+         a classe mudar — sem isso a transição não dispara. Padrão do JDA. */
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { feedback.classList.add('is-visible'); });
       });
+
+      iniciarLock(btn, hint, nextLbl);
+      btn.addEventListener('click', avancar);
     }
 
     /* ── Tela final: decide entre veredito narrativo e tela genérica ── */
     function renderEnd() {
+      limparTimers();
       aplicarFundo(null);
       var temVerdict = data.perfis && data.eixos && pesoCount > 0;
 
@@ -439,23 +602,33 @@
       renderVerdictNarrativa(melhor, vetorNorm);
     }
 
-    /* ── Veredito narrativo — perfil e narrativa calculados localmente ── */
+    /* ── Veredito: radar, nome do perfil e síntese ─────────
+       O perfil continua sendo escolhido localmente por distância euclidiana em
+       renderEnd(); o que saiu daqui foi a narrativa por eixo. */
     function renderVerdictNarrativa(perfil, vetorNorm) {
-      var radar  = (vetorNorm && data.eixos) ? buildRadarSVG(vetorNorm, data.eixos) : '';
-      var blocos = buildNarrativa(perfil, vetorNorm || {}, data.eixos || {});
-
-      var blocosHtml = blocos.map(function (b) {
-        return '<div class="ng-verdict-block">' +
-          '<span class="ng-verdict-block-label">' + esc(b.label) + '</span>' +
-          '<p>' + b.html + '</p>' +
-        '</div>';
-      }).join('');
+      var radar = (vetorNorm && data.eixos) ? buildRadarSVG(vetorNorm, data.eixos) : '';
 
       inner.innerHTML =
         '<div class="ng-verdict-result">' +
           (radar ? '<div class="ng-radar-wrap">' + radar + '</div>' : '') +
           '<h2>' + esc(perfil.nome) + '</h2>' +
-          blocosHtml +
+          /*
+           * Síntese do perfil — desde 29/08 é o ÚNICO texto do veredito.
+           *
+           * Campo obrigatório do contrato (ProfileSuggestion.descricao,
+           * models.py:198), que até 28/08 nunca havia chegado à tela. O ternário
+           * cobre a instância cuja matriz veio de versão anterior e talvez não
+           * tenha a chave — nesse caso o veredito fica com radar e nome.
+           *
+           * ⚠️ Ao remover os blocos de "Sua força" e "Ponto cego" (decisão de
+           * 29/08), quatro campos do contrato passaram a ser gerados e nunca
+           * exibidos: forca_dominante, ponto_cego, polo_positivo e
+           * polo_negativo. A personalização do veredito vive agora só no radar,
+           * porque o `descricao` é do PERFIL e não das escolhas do jogador.
+           */
+          (perfil.descricao
+            ? '<p class="ng-verdict-summary">' + escNl(perfil.descricao) + '</p>'
+            : '') +
           '<p class="ng-verdict-share-text">Compartilhe seu resultado e descubra o perfil dos seus amigos!</p>' +
           '<button class="ng-btn-cta ng-btn-share" style="display:block;margin:0 auto 0.75rem">Compartilhar</button>' +
           '<button class="ng-btn-cta ng-btn-restart" style="display:block;margin:0 auto">Jogar novamente</button>' +
@@ -479,6 +652,7 @@
 
     /* ── Tela genérica de conclusão (fallback) ── */
     function renderEndGenerico() {
+      limparTimers();
       inner.innerHTML =
         '<div class="ng-screen">' +
           '<h2>Jogo concluído!</h2>' +
@@ -494,6 +668,7 @@
       });
     }
 
+    montarTelaCheia();
     renderStart();
   }
 
