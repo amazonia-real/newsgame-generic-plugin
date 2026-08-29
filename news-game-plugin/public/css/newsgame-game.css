@@ -357,9 +357,17 @@
  * ── Botão de tela cheia ────────────────────────────────
  * Anexado ao wrap pelo JS, fora do inner, e por isso sobrevive à troca de telas.
  *
- * z-index 60 é escolhido em relação aos outros dois: ACIMA do feedback
+ * z-index 100 é escolhido em relação aos outros dois: ACIMA do feedback
  * sobreposto (50), para continuar clicável durante a leitura travada, e ABAIXO
- * do modal de contexto (200), que deve cobri-lo enquanto está aberto.
+ * do modal de contexto (200), que deve cobri-lo enquanto está aberto. Subiu de
+ * 60 para 100 em 29/08, para folga contra empilhamento do tema — a relação com
+ * os outros dois é o que importa, e ela se mantém.
+ *
+ * O wrap NÃO declara `overflow` em ponto nenhum (conferido por grep em 29/08: as
+ * ocorrências do arquivo são do crédito da foto, da barra de progresso, do modal
+ * e do feedback), então não há recorte nosso sobre este botão. Se ele
+ * desaparecer, o primeiro suspeito é não ter sido criado — ver o aviso de
+ * console em `montarTelaCheia()`.
  *
  * A cor do ícone vem do `color` daqui, via `currentColor` no SVG — não há `fill`
  * fixo no JS. Ver a regra 4 do H2.
@@ -372,17 +380,32 @@
   position:        absolute;
   top:             1rem;
   right:           1rem;
-  z-index:         60;
+  z-index:         100;
   display:         flex;
   align-items:     center;
   justify-content: center;
   width:           36px;
   height:          36px;
   padding:         0;
-  background:      rgba(var(--ng-card-rgb), 0.55);
-  border:          1px solid var(--ng-border);
+  /*
+   * ALTO CONTRASTE, decidido em 29/08 depois de o botão estar comprovadamente no
+   * DOM (`document.querySelector('.ng-btn-fullscreen')` devolveu o elemento) e
+   * ainda assim invisível: o fundo anterior era `--ng-card-rgb` a 55%, escuro
+   * sobre escuro, e o ícone era `--ng-text`. Agora é vidro CLARO sobre o fundo
+   * escuro do jogo, com borda e sombra para descolar de foto clara também.
+   *
+   * Os valores vêm dos CANAIS, e não literais: na skin `default`
+   * `--ng-on-rgb` é 255,255,255 e `--ng-shadow-rgb` é 0,0,0, então isto é
+   * pixel-idêntico a `rgba(255,255,255,0.25)` / `#fff` / `rgba(0,0,0,0.3)`. Nas
+   * outras quatro skins os dois canais são sobrescritos — off-white quente na
+   * `neutro`, branco frio na `futurista` —, e o botão acompanha, que é
+   * exactamente o que a fase 1 do H2 comprou.
+   */
+  background:      rgba(var(--ng-on-rgb), 0.25);
+  border:          1px solid rgba(var(--ng-on-rgb), 0.5);
   border-radius:   var(--ng-radius-md);
-  color:           var(--ng-text);
+  box-shadow:      0 2px 8px rgba(var(--ng-shadow-rgb), 0.3);
+  color:           var(--ng-on-primary);
   cursor:          pointer;
   transition:      background 0.18s, color 0.18s, transform 0.14s;
 }
@@ -865,18 +888,11 @@
  * temas de bloco do WordPress declaram `margin-inline: auto` nos filhos diretos
  * do container de conteúdo, e a regra deles venceu por ordem de carga.
  *
- * A forma abaixo NÃO TEM `left` nem `right`: o rompimento vem inteiro das
- * margens. Se um tema sobrescrever as margens, o jogo fica confinado no
- * container — que é o estado anterior a este item, e não uma tela quebrada.
- * **Falha para o lado seguro.** Não reintroduzir `left`/`right` aqui.
- *
- * O seletor leva a classe de body (0-2-1) para vencer o `.entry-content > *`
- * (0-1-0) dos temas sem precisar de `!important`. Consequência aceita: sem a
- * classe no body — shortcode vindo de construtor de página ou de template — não
- * há full-bleed, e o jogo renderiza confinado como antes.
- *
- * O `position: relative` da regra base continua lá, mas agora só serve ao que
- * sempre serviu: ancorar o crédito da foto. A técnica não depende mais dele.
+ * A SEGUNDA forma tirou o `left` e deixou o rompimento inteiro nas margens, para
+ * falhar para o lado seguro. Ela falhou seguro como previsto — ficou confinada
+ * em vez de deslocar — mas **continuou confinada**, e com o CSS comprovadamente
+ * no `<head>` a conclusão foi que o tema vence até contra 0-2-0. A TERCEIRA forma
+ * está na regra abaixo, com o histórico completo das três no comentário dela.
  *
  * Só a partir de 600px: no celular o container do tema já ocupa a largura toda,
  * e o ganho seria zero contra o risco de estourar a rolagem lateral.
@@ -886,12 +902,50 @@
  * o que a regra de `body` abaixo neutraliza.
  */
 @media (min-width: 600px) {
-  body.newsgame-fullscreen .ng-game-wrap {
-    width:        100vw;
-    max-width:    100vw;
-    margin-left:  calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
+  /*
+   * ── Rompimento de container, TERCEIRA forma ────────────
+   * Histórico curto, porque cada tentativa ensinou uma coisa:
+   *
+   *  1. `left: 50%` + `margin-left: -50vw` SEM `!important` → o tema matou as
+   *     margens e deixou o `left`, e o jogo saiu meia tela para a direita.
+   *  2. `margin-left: calc(50% - 50vw)` sem `left`, com seletor 0-2-0 → falha
+   *     para o lado seguro (fica confinado em vez de deslocar), mas continuou
+   *     confinado: com o CSS comprovadamente no <head>, a conclusão é que o
+   *     tema vence mesmo contra 0-2-0 — ou seja, usa `!important`.
+   *  3. Esta: as duas declarações que se cancelam, ambas com `!important`. O
+   *     tema não consegue mais matar UMA e deixar a outra, que era o mecanismo
+   *     do modo de falha 1.
+   *
+   * O seletor mantém a classe repetida (0-2-0) mesmo com `!important`: entre
+   * duas declarações `!important`, quem decide volta a ser a especificidade.
+   *
+   * ⚠️ CUSTO ACEITO: `!important` aqui é medida de último recurso contra tema
+   * que também usa `!important`, e tem preço — um site que queira CONFINAR o
+   * jogo de propósito (embutir numa coluna, por exemplo) passa a precisar de
+   * `!important` próprio. Os comentários deste arquivo elogiam "sem
+   * `!important`" em vários pontos; esta regra é a exceção, e é deliberada.
+   *
+   * ⚠️ O QUE ISTO NÃO RESOLVE: ancestral com `overflow: hidden` ou
+   * `overflow-x: clip`. Nesse caso o wrap É 100vw e o ancestral o recorta —
+   * sintoma idêntico, e `!important` não alcança. Como distinguir: inspecionar o
+   * `.ng-game-wrap` e ler a `width` COMPUTADA. Se der a largura da viewport, a
+   * regra está aplicando e o problema é recorte por ancestral; se der a largura
+   * do container do tema, é sobrescrita.
+   *
+   * `position: relative` e `box-sizing: border-box` já vêm da regra base e são
+   * redeclarados aqui de propósito: a fórmula depende dos dois, e um
+   * `!important` do tema em qualquer um deles quebraria o conjunto em silêncio.
+   */
+  .ng-game-wrap.ng-game-wrap {
+    position:     relative !important;
+    width:        100vw !important;
+    max-width:    100vw !important;
+    left:         50% !important;
+    right:        50% !important;
+    margin-left:  -50vw !important;
+    margin-right: -50vw !important;
     min-height:   100vh;
+    box-sizing:   border-box;
   }
 }
 

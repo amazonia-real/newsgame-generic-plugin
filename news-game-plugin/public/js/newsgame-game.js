@@ -431,7 +431,19 @@
        elemento — é o caso do Safari no iPhone —, pelo mesmo critério do botão
        (i): controle que não pode funcionar não vai para a tela. */
     function montarTelaCheia() {
-      if (!fullscreenSuportado()) { return; }
+      if (!fullscreenSuportado()) {
+        /* Condição invisível até 29/08: sem este aviso, "o botão não apareceu" e
+           "o botão não foi criado" são indistinguíveis na tela. Acontece em
+           iframe sem allow="fullscreen", e no Safari do iPhone. */
+        console.info('[news-game] tela cheia indisponível neste contexto — botão não montado');
+        return;
+      }
+      /* Idempotente, para poder ser chamada de qualquer render: monta uma vez
+         só. O botão é anexado ao WRAP e já sobrevive à troca de telas, que
+         reescreve apenas o inner — esta guarda é rede para o dia em que alguém
+         reescrever o wrap, e é o que permite que as cinco telas chamem sem
+         medo. */
+      if (wrap.querySelector('.ng-btn-fullscreen')) { return; }
 
       var btn = document.createElement('button');
       btn.type      = 'button';
@@ -463,6 +475,7 @@
     /* ── Tela inicial ── */
     function renderStart() {
       limparTimers();
+      montarTelaCheia();
       aplicarFundo(null);
       inner.innerHTML =
         '<div class="ng-screen">' +
@@ -477,6 +490,7 @@
     /* ── Tela de dilema ── */
     function renderDilema() {
       limparTimers();
+      montarTelaCheia();
       var d = dilemas[idx];
 
       aplicarFundo(d.imagem);
@@ -519,6 +533,7 @@
        tela — e é por isso que o markup do palco é o mesmo do renderDilema(). */
     function renderFeedback(pick) {
       limparTimers();
+      montarTelaCheia();
       var d       = dilemas[idx];
       var verd    = d.veredicto || {};
       var pesos   = d.axis_weights && d.axis_weights[pick.toUpperCase()];
@@ -566,6 +581,7 @@
     /* ── Tela final: decide entre veredito narrativo e tela genérica ── */
     function renderEnd() {
       limparTimers();
+      montarTelaCheia();
       aplicarFundo(null);
       var temVerdict = data.perfis && data.eixos && pesoCount > 0;
 
@@ -653,6 +669,7 @@
     /* ── Tela genérica de conclusão (fallback) ── */
     function renderEndGenerico() {
       limparTimers();
+      montarTelaCheia();
       inner.innerHTML =
         '<div class="ng-screen">' +
           '<h2>Jogo concluído!</h2>' +
@@ -668,7 +685,6 @@
       });
     }
 
-    montarTelaCheia();
     renderStart();
   }
 
