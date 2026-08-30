@@ -15,12 +15,24 @@ class Newsgame_Admin_Instances {
      * registrada em 2026-08-24, ver §7 do roadmap). Acrescentar entrada aqui é
      * decisão de escopo do projeto, não configuração do editor.
      *
-     * Estas cinco entradas são o suporte de schema deste passo, e nada além
-     * dele: nenhuma tem folha de estilo ainda. O mecanismo que escolhe, carrega
-     * e aplica a skin é o resto do degrau 2, e o roadmap registra que o plano
-     * dele NÃO está escrito e não deve ser inferido daqui.
+     * ⚠️ ACRESCENTAR SKIN EXIGE TRÊS ARQUIVOS, e faltar qualquer um degrada:
+     * esta constante (dado), o mapa `$rotulos_skin` em
+     * `page-instance-form.php` (UI — sem ele o <select> mostra o slug cru) e a
+     * folha `public/css/skins/skin-<slug>.css` (aparência — sem ela o
+     * enfileiramento devolve 404 e o jogo renderiza com a paleta base). A
+     * `pixel` acrescenta um quarto: as artes em `public/images/skins/pixel/`,
+     * referenciadas pela própria folha e por mais nada.
+     *
+     * `default` NÃO tem folha, de propósito: é o próprio arquivo base, e um
+     * `skin-default.css` vazio seria uma requisição por render para não mudar
+     * nada.
+     *
+     * NOTA DE 29/08: o texto que vivia aqui dizia que estas entradas eram "o
+     * suporte de schema deste passo" e que "nenhuma tem folha de estilo ainda".
+     * Estava DEFASADO desde 27/08, quando as quatro folhas e o mecanismo de
+     * enfileiramento entraram. Corrigido de passagem, não em silêncio.
      */
-    const SKINS = array( 'default', 'neutro', 'mono', 'colorido', 'futurista' );
+    const SKINS = array( 'default', 'neutro', 'mono', 'colorido', 'futurista', 'pixel' );
 
     /** Valor de queda quando a skin recebida não está na whitelist acima. */
     const SKIN_DEFAULT = 'default';

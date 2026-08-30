@@ -34,6 +34,23 @@
   --ng-accent-rgb:   126, 200, 80;    /* #7EC850 */
   --ng-on-rgb:       255, 255, 255;   /* branco: texto e superfície clara */
   --ng-shadow-rgb:   0, 0, 0;
+  /*
+   * COR DO CONTEÚDO SOBRE A PRIMÁRIA — canal próprio desde 29/08, e por
+   * padrão o MESMO de --ng-on-rgb, o que o torna pixel-idêntico nas cinco
+   * skins anteriores a ele.
+   *
+   * Existe porque os dois papéis divergem quando a primária é CLARA. Até aqui
+   * toda primária do projeto era escura (verde, marrom, cinza, ciano) e "cor do
+   * texto" servia também de "cor sobre o botão". A skin `pixel` tem primária
+   * amarela #FFCE00: branco em cima dá 1.49:1, contra o mínimo AA de 4.5:1, e
+   * os três botões de primária cheia ficariam ilegíveis. Com canal próprio a
+   * skin declara preto e chega a 14.08:1, sem tocar na cor do corpo do texto.
+   *
+   * É a mesma classe de problema da regra 11 do contrato de skins — um canal
+   * servindo a dois consumidores que querem direções opostas —, e aqui a saída
+   * cabe num canal a mais, em vez de exigir decisão sobre o arquivo base.
+   */
+  --ng-on-primary-rgb: var(--ng-on-rgb);
 
   /* Cores de uso — todas derivadas dos canais acima */
   --ng-bg:           rgb(var(--ng-bg-rgb));
@@ -43,7 +60,7 @@
   --ng-text:         rgba(var(--ng-on-rgb), 0.92);
   --ng-muted:        rgba(var(--ng-on-rgb), 0.55);
   --ng-border:       rgba(var(--ng-accent-rgb), 0.22);
-  --ng-on-primary:   rgb(var(--ng-on-rgb));
+  --ng-on-primary:   rgb(var(--ng-on-primary-rgb));
   --ng-primary-soft: rgba(var(--ng-primary-rgb), 0.18);
   --ng-primary-hover:rgba(var(--ng-primary-rgb), 0.42);
   --ng-accent-soft:  rgba(var(--ng-accent-rgb), 0.2);
@@ -336,7 +353,15 @@
   width:           28px;
   height:          28px;
   padding:         0;
-  background:      var(--ng-on-primary);
+  /*
+   * `rgb(var(--ng-on-rgb))`, e NÃO `--ng-on-primary`: aqui a cor é a
+   * SUPERFÍCIE clara do círculo, não conteúdo sobre a primária. Os dois tokens
+   * eram a mesma cor até 29/08, quando `--ng-on-primary` ganhou canal próprio
+   * para a skin `pixel` ter preto sobre o amarelo. Com `--ng-on-primary` neste
+   * ponto o círculo ficaria PRETO com glifo `--ng-card` escuro em cima —
+   * invisível. A troca é pixel-idêntica nas cinco skins anteriores.
+   */
+  background:      rgb(var(--ng-on-rgb));
   border:          none;
   border-radius:   50%;   /* geometria de círculo, não tema — igual ao spinner */
   box-shadow:      0 1px 5px rgba(var(--ng-shadow-rgb), 0.22);
@@ -397,15 +422,24 @@
    * Os valores vêm dos CANAIS, e não literais: na skin `default`
    * `--ng-on-rgb` é 255,255,255 e `--ng-shadow-rgb` é 0,0,0, então isto é
    * pixel-idêntico a `rgba(255,255,255,0.25)` / `#fff` / `rgba(0,0,0,0.3)`. Nas
-   * outras quatro skins os dois canais são sobrescritos — off-white quente na
+   * outras skins os dois canais são sobrescritos — off-white quente na
    * `neutro`, branco frio na `futurista` —, e o botão acompanha, que é
-   * exactamente o que a fase 1 do H2 comprou.
+   * exatamente o que a fase 1 do H2 comprou. Na `pixel` os dois coincidem com
+   * os do base, e lá o botão fica idêntico ao da `default`.
+   *
+   * ⚠️ O ÍCONE usa `rgb(var(--ng-on-rgb))`, e NÃO `--ng-on-primary`: neste
+   * estado ele está sobre o VIDRO CLARO, não sobre a primária. Os dois tokens
+   * eram a mesma cor até 29/08, quando `--ng-on-primary` ganhou canal próprio.
+   * Medido: com `--ng-on-primary` o ícone cairia para 2.7:1 sobre o vidro da
+   * skin `pixel`, contra 7.7:1 assim — ou seja, refaria em outra skin
+   * exatamente o defeito de invisibilidade que esta regra conserta. O `:hover`
+   * abaixo continua com `--ng-on-primary`, porque lá o fundo É a primária.
    */
   background:      rgba(var(--ng-on-rgb), 0.25);
   border:          1px solid rgba(var(--ng-on-rgb), 0.5);
   border-radius:   var(--ng-radius-md);
   box-shadow:      0 2px 8px rgba(var(--ng-shadow-rgb), 0.3);
-  color:           var(--ng-on-primary);
+  color:           rgb(var(--ng-on-rgb));
   cursor:          pointer;
   transition:      background 0.18s, color 0.18s, transform 0.14s;
 }

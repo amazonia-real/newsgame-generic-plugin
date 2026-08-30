@@ -297,21 +297,61 @@
      * ── Fundo: função ÚNICA de decisão ────────────────────────
      * Três degraus, cada um caindo para o de baixo, e nenhum estado fica sem
      * fundo:
-     *   1. imagem do dilema — dado no banco, escolhido pelo editor
-     *   2. fundo da skin para o momento do jogo (capa/dilema/resultado) — NÃO
-     *      IMPLEMENTADO, é o degrau 2 do H2. O ponto de entrada é aqui, e é por
-     *      isso que esta decisão vive numa função só: o degrau 2 entra neste
-     *      `else` sem tocar em nenhum dos chamadores.
+     *   1. imagem do dilema — dado no banco, escolhido pelo editor. Vai por
+     *      CSSOM, e estilo inline vence qualquer folha: é o que faz este degrau
+     *      ganhar do 2 sem precisar de `!important`.
+     *   2. fundo da skin para o momento do jogo (capa/dilema/resultado) —
+     *      IMPLEMENTADO em 29/08, estreado pela skin `pixel`. O JS NÃO CONHECE
+     *      IMAGEM NENHUMA aqui: ele só marca o wrap com a classe do momento, e
+     *      a folha da skin decide o arquivo. Skin sem fundo declarado não é
+     *      afetada — a classe fica sem regra que a case, e o degrau 3 aparece.
      *   3. `--ng-bg`, a cor sólida que o CSS já aplica no wrap. Não precisa de
-     *      código: basta não haver imagem inline.
+     *      código: basta não haver imagem inline nem regra de skin.
+     *
+     * O DEGRAU 2 NÃO TOCOU NENHUM CHAMADOR, que era a promessa registrada no
+     * contrato de skins (regra 6 do GEMINI.md) e valia a pena manter. Foi
+     * possível porque o momento se LÊ de `idx`, a variável de estado que já
+     * vive neste closure — ver momentoDoFundo(). Um parâmetro novo teria
+     * obrigado os quatro chamadores a declarar o momento, e a divergir do
+     * estado real na primeira distração.
      *
      * A atribuição é `wrap.style.backgroundImage`, propriedade via CSSOM —
      * NÃO é bloqueada por `style-src`. Nunca trocar por `setAttribute('style',
      * …)` nem por `style.cssText`: as duas são bloqueadas, e transformariam
-     * isto em mais um item do A5. Tudo que é estático (`background-size`,
-     * `position`, `repeat`, cor de base, véu) vive no CSS.
+     * isto em mais um item do A5. `classList` também não é alcançada por
+     * `style-src` — classe é markup, não estilo inline. Tudo que é estático
+     * (`background-size`, `position`, `repeat`, cor de base, véu) vive no CSS.
      */
+    var CLASSES_MOMENTO = ['ng-bg-capa', 'ng-bg-dilema', 'ng-bg-fim'];
+
+    /*
+     * Momento do jogo, LIDO do estado em vez de recebido por parâmetro. `idx` é
+     * -1 na capa (é como nasce, acima), 0..n-1 durante os dilemas, e chega a
+     * `dilemas.length` quando avancar() estoura o último e chama renderEnd() —
+     * por isso os três momentos saem daqui sem ambiguidade.
+     *
+     * O FEEDBACK COMPARTILHA O MOMENTO DO DILEMA de propósito: é a mesma tela
+     * com o card sobreposto, não uma tela nova, e trocar o fundo no meio
+     * quebraria a transição herdada do JDA.
+     */
+    function momentoDoFundo() {
+      if (idx < 0) return 'ng-bg-capa';
+      return idx >= dilemas.length ? 'ng-bg-fim' : 'ng-bg-dilema';
+    }
+
+    /* Exatamente uma classe de momento no wrap, sempre. `toggle` com segundo
+       argumento é declarativo e idempotente: reaplicar não acumula estado, o
+       que importa porque aplicarFundo() é chamada de novo no feedback. */
+    function marcarMomento() {
+      var atual = momentoDoFundo();
+      CLASSES_MOMENTO.forEach(function (cls) {
+        wrap.classList.toggle(cls, cls === atual);
+      });
+    }
+
     function aplicarFundo(imagem) {
+      marcarMomento();   /* degrau 2: quem escolhe a arte é a folha da skin */
+
       if (imagem && imagem.url) {
         var veu = 'linear-gradient(var(--ng-overlay), var(--ng-overlay))';
         wrap.style.backgroundImage = veu + ", url('" + cssUrlSafe(imagem.url) + "')";
@@ -322,7 +362,12 @@
         return;
       }
 
-      wrap.style.backgroundImage = '';   // degrau 3: revela --ng-bg
+      /* Limpar o inline REVELA o degrau 2 quando a skin tem fundo para este
+         momento, e o degrau 3 quando não tem. É por isso que não existe um
+         `else` com URL de skin aqui: a cascata do CSS já é o mecanismo, e
+         reimplementá-la em JS obrigaria o JS a conhecer os arquivos de cada
+         skin. O crédito é limpo porque arte de skin não tem fotógrafo. */
+      wrap.style.backgroundImage = '';
       if (creditoEl) {
         creditoEl.textContent = '';
         creditoEl.hidden      = true;

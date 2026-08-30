@@ -1,0 +1,659 @@
+/*
+ * SKIN "PIXEL" — H2, fase 2. É A PRIMEIRA SKIN COM FUNDO E FONTE DE FÁBRICA.
+ *
+ * PROPOSTA ESTÉTICA: videogame de 16 bits. Céus serrilhados, caixas de diálogo
+ * amarelas com texto preto e tipografia de arcade no cromo — a gramática visual
+ * do RPG de console, onde a fala do jogo mora numa caixa opaca de alto
+ * contraste. É a skin para a redação que quer o jogo lido como JOGO, e não como
+ * matéria interativa.
+ *
+ * ⚠️ ESTA SKIN É A EXCEÇÃO DECLARADA À REGRA "skin é camada de tokens".
+ * As outras quatro são paleta e nada mais. Esta tem, além dos canais:
+ *   · três regras de `background-image` (os cenários por momento)
+ *   · um `@font-face`, a fonte auto-hospedada e um token `--ng-font-display`
+ *   · regras de componente nos botões de alternativa e no painel de feedback
+ * A alternativa fiel à doutrina seria tokenizar tudo isso no arquivo BASE
+ * (`--ng-option-bg`, `--ng-feedback-bg`, `--ng-font-display`…) e a skin
+ * sobrescrever só token. Foi CONSIDERADO E NÃO FEITO: seriam ~9 tokens novos de
+ * componente no base para servir a uma skin. A decisão é reversível e o custo
+ * dela está aqui: quem escrever a SEGUNDA skin com fundo e fonte deve tokenizar
+ * em vez de copiar este arquivo.
+ *
+ * ── COR ───────────────────────────────────────────────────────────────
+ * Sete canais `-rgb` e nada mais. Todo token de uso (--ng-text, --ng-border,
+ * --ng-primary-soft, --ng-card-glass, o cromo do radar…) deriva dos canais no
+ * arquivo base e recalcula sozinho. Declarar qualquer um deles aqui seria
+ * re-derivar à mão — o defeito que a fase 1 do H2 gastou três commits para
+ * remover.
+ *
+ * O SÉTIMO CANAL É NOVO NO BASE: `--ng-on-primary-rgb`. Existe por causa desta
+ * skin, e a razão é medida, não estética. `--ng-on-primary` derivava de
+ * `--ng-on-rgb` — o mesmo canal do texto do corpo —, o que funciona enquanto a
+ * primária é ESCURA. A desta skin é amarelo #FFCE00: branco em cima dá
+ * **1.49:1**, contra o mínimo AA de 4.5:1. Com o canal próprio em preto, o
+ * mesmo par dá **14.08:1**.
+ *   ⚠️ NÃO trocar por declarar `--ng-on-primary: #000` aqui: seria token
+ *   derivado dentro de skin, exatamente o que a regra 1 do contrato proíbe.
+ *
+ * NÃO TOCA as cores SEMÂNTICAS do radar (verde/vermelho/cinza): descrevem o
+ * RESULTADO do jogador, não a marca do veículo. O cromo do radar segue a skin,
+ * porque deriva de --ng-on-rgb.
+ *
+ * COMPATIBILIDADE DO --ng-overlay: --ng-shadow-rgb continua PRETO. O overlay é
+ * o véu de 42% que o JS interpola sobre a imagem, e é ele que segura o texto
+ * claro em cima tanto da foto do dilema (degrau 1) quanto dos céus daqui.
+ * Clarear este canal quebraria os dois de uma vez — ver a regra 11 do contrato.
+ *
+ * ── SELETOR ───────────────────────────────────────────────────────────
+ * `.ng-game-wrap.ng-skin-pixel`, e não `.ng-game-wrap` puro. Duas razões:
+ *  1. Duas instâncias de skins diferentes na mesma página convivem — validado
+ *     em runtime em 28/08. Com seletor puro, os dois arquivos carregariam
+ *     global e o último venceria para ambas.
+ *  2. Especificidade 0-2-0 contra 0-1-0 do base: a skin vence INDEPENDENTE da
+ *     ordem de origem, o que a protege de plugin de otimização que reordene ou
+ *     combine CSS.
+ * As regras de componente abaixo herdam essa base e chegam a 0-3-0 / 0-4-0, o
+ * que é o necessário para vencer `.ng-btn-option.is-chosen` (0-2-0) e o bloco
+ * `@supports` do feedback (0-2-0) do arquivo base, sem um único `!important`.
+ *
+ * CONTRASTE MEDIDO (WCAG, mínimo AA 4.5:1): texto/card 12.2:1 · texto/fundo
+ * 14.8:1 · PRETO/primária 14.1:1 · PRETO/acento (hover e escolhida) 16.7:1 ·
+ * rótulo preto a 70%/primária 7.0:1 · texto/painel de feedback 14.6:1 · trava
+ * de leitura/painel 7.7:1 · borda amarela/painel 11.5:1.
+ */
+
+/*
+ * ── Fonte: Press Start 2P, AUTO-HOSPEDADA ─────────────────────────────
+ *
+ * ⚠️ NÃO TROCAR POR GOOGLE FONTS. A regra registrada em `skin-mono.css` é que
+ * fonte EXTERNA está fora de questão em skin: é rede no carregamento do jogo e
+ * é a mesma superfície de confiança que fez a skin externa ser descartada do
+ * H2. Auto-hospedar respeita a regra inteira:
+ *   · zero requisição a terceiro por partida;
+ *   · o CSP do site hospedeiro precisa apenas de `font-src 'self'`, então o
+ *     exemplo de cabeçalho do B2 não cresce nem ganha domínio de terceiro;
+ *   · nenhum IP de leitor vai para o Google — que num veículo jornalístico não
+ *     é detalhe.
+ *
+ * LICENÇA: SIL Open Font License 1.1, que PERMITE a redistribuição e EXIGE que
+ * a licença acompanhe o arquivo. O texto está em `public/fonts/OFL.txt` e não
+ * pode ser removido do pacote do plugin. Copyright 2012 The Press Start 2P
+ * Project Authors (cody@zone38.net), desenho de CodeMan38.
+ *
+ * DOIS SUBSETS, com os `unicode-range` originais do Google Fonts: o navegador
+ * baixa só o que a página usa. Em português o `latin` resolve praticamente
+ * tudo (ã õ ç á é í ó ú â ê ô à estão em U+0000-00FF); o `latin-ext` fica de
+ * reserva para nome próprio estrangeiro e quase nunca é requisitado. Juntos são
+ * 22 KB.
+ *
+ * `font-display: swap`: o texto aparece imediatamente na fonte de reserva e é
+ * repintado quando a pixel chega. O contrário (`block`) daria texto invisível
+ * por até 3s no primeiro acesso — inaceitável num jogo que abre com a capa.
+ */
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../fonts/press-start-2p-v16-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../fonts/press-start-2p-v16-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+.ng-game-wrap.ng-skin-pixel {
+  /* Canais — fonte única de cor. Ver o bloco de tokens do arquivo base. */
+  --ng-bg-rgb:          19, 26, 46;      /* #131A2E — azul de céu noturno */
+  --ng-card-rgb:        30, 42, 71;      /* #1E2A47 — um degrau acima do fundo */
+  --ng-primary-rgb:     255, 206, 0;     /* #FFCE00 — amarelo de caixa de diálogo */
+  --ng-accent-rgb:      255, 229, 102;   /* #FFE566 — amarelo claro */
+  --ng-on-rgb:          255, 255, 255;   /* branco: texto e superfície clara */
+  --ng-on-primary-rgb:  0, 0, 0;         /* PRETO sobre a primária */
+  --ng-shadow-rgb:      0, 0, 0;         /* preto — mantém o véu escuro */
+
+  /* Raio igual ao base, declarado como decisão: a leitura óbvia de "pixel art"
+     seria esquadrar em 0px, e a escolha é a inversa — o card arredondado é o
+     contraponto ao serrilhado do fundo, e é o que mantém a caixa de diálogo
+     lendo como interface por cima do cenário, não como parte dele. */
+  --ng-radius:          12px;
+
+  /*
+   * ── Largura do palco no desktop ──
+   * 660px do base → 860px. Sobrescrito AQUI, e não dentro de uma media query,
+   * porque o base consome este token num lugar só — `.ng-stage` dentro do
+   * `@media (min-width: 1025px)`. Ou seja: o efeito já nasce restrito ao
+   * desktop, sem a skin precisar repetir o breakpoint.
+   *
+   * ⚠️ AMPLIAR O PALCO SOZINHO PIORARIA A LEITURA, e é o que obriga a escala
+   * tipográfica de desktop mais abaixo. Medido em caracteres por linha do corpo
+   * em Courier (avanço ~0.6em), contra a faixa confortável de 45–75:
+   *     palco 660 · corpo 1.05rem → 59 ✅  (hoje)
+   *     palco 860 · corpo 1.05rem → 78 ❌  (só o palco maior)
+   *     palco 860 · corpo 1.20rem → 69 ✅  (palco e fonte juntos)
+   * Quem reverter a fonte de desktop sem reverter esta linha devolve a linha de
+   * 78 caracteres. Os dois andam juntos.
+   *
+   * O `.ng-game-inner` do base (740px) TAMBÉM limita, e é o limitador de fora:
+   * sem subir ele, este token não teria efeito nenhum acima de 740px. Está no
+   * bloco de media queries no fim do arquivo.
+   */
+  --ng-card-max-lg:     860px;
+
+  /*
+   * ── Corpo dos botões de chamada — token PRÓPRIO desta skin ──
+   * `.ng-btn-next` e `.ng-btn-cta` são cromo (Press Start 2P), mas o base os
+   * dimensiona com `--ng-fs-8` e `--ng-fs-9`, que servem TAMBÉM texto em mono
+   * (`.ng-screen p` e o topo do clamp do corpo). Um token para duas famílias
+   * com necessidades opostas não tem valor certo — é a mesma classe de
+   * problema que `--ng-on-primary` tinha antes de ganhar canal próprio.
+   *
+   * A MEDIÇÃO que obriga isto: "Ver resultado final" tem 19 caracteres, e a
+   * quadrada gasta ~1em por glifo. No celular o botão tem ~330px menos 32px de
+   * padding:
+   *     1.05rem (--ng-fs-9, o do CTA hoje) → 319px  ESTOURA
+   *     1.00rem (--ng-fs-8, o do "Continuar") → 304px  ESTOURA
+   *     0.78rem                            → 237px  cabe
+   * ⚠️ Isto CORRIGE UM DEFEITO REAL introduzido em 29/08: o comentário da
+   * escala afirmava que `--ng-fs-4` vestia estes dois botões, e por isso a
+   * calibração de 0.78rem foi escrita na tabela mas nunca chegou a eles.
+   * `--ng-fs-4` veste `.ng-modal-link`. Os botões seguiam em 1rem e 1.05rem.
+   */
+  --ng-fs-btn:          0.78rem;
+
+  /*
+   * ── Corpo da consequência — token PRÓPRIO desta skin ──
+   * A consequência é o título do painel de feedback e passa a ser cromo (Press
+   * Start 2P). O base a dimensiona com `--ng-fs-dilema`, o clamp fluido que
+   * também veste o título do dilema; no desktop isso dá 1.4rem, e a quadrada a
+   * 22px transformaria uma frase de 150 caracteres em cinco linhas.
+   *
+   * Medido a 1.05rem (~16.8px, ~1em por glifo) na largura útil do painel no
+   * desktop — 860px de palco menos 40px de padding: ~48 caracteres por linha,
+   * então 150 caracteres ocupam ~3 linhas. É o que cabe no painel sem forçar a
+   * altura, que é justamente o que esta revisão está consertando.
+   *
+   * Token, e não literal nos seletores, pelo mesmo motivo do `--ng-fs-btn`:
+   * `--ng-fs-dilema` serve as DUAS famílias, e torcê-lo arrastaria o título do
+   * dilema junto.
+   */
+  --ng-fs-conseq:       0.85rem;
+
+  /*
+   * ── DUAS FAMÍLIAS, e é a decisão central desta revisão ──
+   *
+   * Em 29/08 a Press Start 2P vestiu o JOGO INTEIRO, e o teste em runtime
+   * mostrou o que a categoria oficial dela no Google Fonts já dizia — DISPLAY:
+   * ela é monoespaçada QUADRADA (~1em de avanço por glifo, contra ~0.5em de uma
+   * sans-serif) e sem ascendente nem descendente longos. Ótima em rótulo curto,
+   * hostil em parágrafo.
+   *
+   * Agora: DISPLAY no cromo (títulos, rótulos, botões de chamada), MONO no
+   * corpo. É como jogo de console de verdade faz — HUD em pixel, diálogo em
+   * fonte legível.
+   *
+   * A RESERVA DAS DUAS É MONOESPAÇADA de propósito. Se o `.woff2` faltar num
+   * deploy quebrado, o cromo cai em Courier e o jogo continua com sabor de
+   * terminal, em vez de voltar à sans-serif do base e perder a identidade
+   * inteira sem nenhum sinal.
+   */
+  --ng-font:            'Courier New', Courier, monospace;
+  --ng-font-display:    'Press Start 2P', 'Courier New', Courier, monospace;
+
+  /*
+   * ── Nitidez dos cenários: NÃO declarar `image-rendering` aqui ──
+   *
+   * O ciclo inteiro fica registrado porque as três posições foram tomadas com
+   * evidência diferente, e a próxima pessoa vai ter a mesma ideia de novo:
+   *   1. NÃO usar, por previsão (29/08): as artes são 1600×900 e o palco é
+   *      menor, então há downscale, e `pixelated` num downscale gera serrilhado
+   *      irregular. Era raciocínio, não tela.
+   *   2. USAR `crisp-edges` + `pixelated` (29/08): a interpolação do navegador
+   *      "lavava" o serrilhado, e o desfoque incomodava mais. Foi observação em
+   *      runtime, e por isso ganhou da previsão.
+   *   3. NÃO usar, por observação (29/08, atual): com o nearest-neighbor os
+   *      DEGRADÊS DE CÉU destas artes viram blocos estourados — e é degradê que
+   *      ocupa a maior área das três cenas. A previsão do passo 1 estava certa
+   *      sobre o downscale; errou só a razão, que não é o serrilhado das bordas
+   *      e sim o banding das transições suaves.
+   * O saldo: a interpolação nativa é o comportamento desejado nestas artes.
+   * Arte de pixel com áreas chapadas — sem degradê — poderia querer o
+   * contrário, e aí a decisão volta a ser aberta.
+   *
+   * ⚠️ EFEITO COLATERAL QUE DESAPARECEU JUNTO: enquanto a propriedade estava
+   * aqui, ela valia para o ELEMENTO, então a foto jornalística do degrau 1
+   * também renderizava sem suavização quando o dilema tinha imagem própria.
+   * Isso deixa de ser um custo aceito e sai da lista de itens abertos — o
+   * degrau 1 volta a ter a renderização normal do navegador.
+   *
+   * ⚠️ CORREÇÃO DE 29/08, mantida aqui porque continua valendo e o bloco da
+   * escala de tipografia a referencia: houve uma versão deste comentário
+   * afirmando que usar `rem` na escala "faria o navegador voltar a interpolar o
+   * glifo" e "desfaria o que o image-rendering foi buscar". Isso está ERRADO e
+   * confundia duas coisas — `image-rendering` age sobre IMAGEM, nunca sobre
+   * texto. Fonte de pixel de fato fica melhor em tamanho inteiro (as hastes de
+   * 1px caem em pixels inteiros), mas isso é rasterização de fonte e não tem
+   * relação nenhuma com esta propriedade.
+   */
+
+  /*
+   * ── Escala de tipografia ──
+   * DE VOLTA A `rem`, revertendo a decisão de px de 29/08. O motivo da reversão
+   * não é o erro corrigido acima: é que px foi escolhido quando a fonte pixel
+   * vestia TUDO, e o ganho de nitidez valia para todo o texto da tela. Agora
+   * ela veste só o cromo — sete seletores de rótulo, título e botão —, então o
+   * ganho cobre pouca área e o custo de acessibilidade (px não acompanha a
+   * preferência de "tamanho de fonte padrão" do navegador) recairia sobre o
+   * corpo do texto, que é a maior parte. A troca deixou de se pagar.
+   *
+   * OS DOZE VALORES NÃO SÃO O INVENTÁRIO DO BASE: oito são idênticos a ele — o
+   * corpo do texto voltou a ser mono de sistema e não precisa de calibração — e
+   * QUATRO mudam, todos os que vestem cromo em Press Start 2P:
+   *   `--ng-fs-3`  12px  → 0.7rem   · contador "3 / 10"
+   *   `--ng-fs-10` 1.35  → 1.15rem  · título do dilema (topo do clamp fluido)
+   *   `--ng-fs-11` 1.75  → 1.25rem  · nome do perfil no veredito
+   *   `--ng-fs-12` 1.9   → 1.4rem   · título da capa
+   * Os três últimos DESCEM porque a quadrada ocupa ~2x a largura por glifo: a
+   * 1.9rem um nome de perfil de 21 caracteres passaria de 600px e quebraria em
+   * três linhas no celular.
+   *
+   * ⚠️ CORREÇÃO DE 29/08: esta tabela listava um quinto token, `--ng-fs-4`,
+   * como sendo o dos botões "Continuar" e CTA. É FALSO — `--ng-fs-4` veste
+   * `.ng-modal-link`, e os dois botões vêm de `--ng-fs-8` e `--ng-fs-9`. A
+   * consequência não era só de texto: a calibração de 0.78rem existia na tabela
+   * e nunca alcançou os botões, que seguiram em 1rem e 1.05rem — os dois
+   * valores que a própria aritmética dava como não-cabendo no celular. O
+   * conserto é o token `--ng-fs-btn` acima, e não uma linha desta tabela.
+   *
+   * ⚠️ QUATRO TOKENS SERVEM AS DUAS FAMÍLIAS, e é a armadilha desta skin:
+   *   `--ng-fs-7`  · `.ng-btn-option` (mono) + piso do clamp do título (pixel)
+   *   `--ng-fs-8`  · `.ng-screen p` (mono)   + `.ng-btn-next` (pixel)
+   *   `--ng-fs-9`  · topo do clamp do corpo  + `.ng-btn-cta` (pixel)
+   *   `--ng-fs-10` · `.ng-verdict-summary`   + topo do clamp do título (pixel)
+   * Onde as duas famílias querem valores opostos, a saída é `font-size` no
+   * seletor — nunca torcer o token, que arrastaria a outra família com ele.
+   *
+   * Os dois tokens FLUIDOS do base (`--ng-fs-dilema` e `--ng-fs-option`) NÃO
+   * são declarados aqui: são `clamp()` sobre estes mesmos tokens e recalculam
+   * sozinhos. É exatamente o que a fase 1 comprou.
+   */
+  --ng-fs-1:            0.68rem;
+  --ng-fs-2:            0.7rem;
+  --ng-fs-3:            0.7rem;
+  --ng-fs-4:            0.78rem;
+  --ng-fs-5:            0.85rem;
+  --ng-fs-6:            0.9rem;
+  --ng-fs-7:            0.95rem;
+  --ng-fs-8:            1rem;
+  --ng-fs-9:            1.05rem;
+  --ng-fs-10:           1.15rem;
+  --ng-fs-11:           1.25rem;
+  --ng-fs-12:           1.4rem;
+}
+
+/*
+ * ── O cromo, e só ele, em Press Start 2P ───────────────────────────────
+ *
+ * Oito seletores, agrupados de propósito: é a lista fechada do que é "cromo"
+ * nesta skin, e vê-la inteira num lugar é o que impede a fonte de vazar para
+ * parágrafo na próxima edição.
+ *
+ * O OITAVO É `.ng-feedback-consequence`, desde 29/08. Ele é o único que não é
+ * rótulo nem título curto: é a frase de desfecho da escolha, e entrou por
+ * decisão editorial de tratá-la como TÍTULO do painel de feedback. Por isso é
+ * também o único do grupo com tamanho próprio (`--ng-fs-conseq`) — nos outros
+ * sete o token do base já serve.
+ *
+ * DOIS DELES NÃO EXISTEM COM O NOME ÓBVIO, e é bom saber ao editar: o título
+ * da capa e o da tela de conclusão são `.ng-screen h2` (o `<h2>` não tem
+ * classe), e o nome do perfil no veredito é `.ng-verdict-result h2`. Não há
+ * `.ng-title` nem `.ng-veredicto-title` no projeto — a segunda saiu junto com
+ * `.ng-veredicto`, removida em 29/08.
+ *
+ * O `.ng-opt-label` PRECISA estar aqui mesmo estando dentro do botão de
+ * alternativa: o botão herda `--ng-font` (mono) pelo `font-family: inherit` do
+ * base, e o rótulo herdaria dele. Os dois botões de chamada, pelo mesmo
+ * motivo, também precisam ser declarados — `inherit` os traria para o mono.
+ */
+.ng-game-wrap.ng-skin-pixel .ng-dilema-title,
+.ng-game-wrap.ng-skin-pixel .ng-screen h2,
+.ng-game-wrap.ng-skin-pixel .ng-verdict-result h2,
+.ng-game-wrap.ng-skin-pixel .ng-opt-label,
+.ng-game-wrap.ng-skin-pixel .ng-progress-label,
+.ng-game-wrap.ng-skin-pixel .ng-btn-next,
+.ng-game-wrap.ng-skin-pixel .ng-btn-cta,
+.ng-game-wrap.ng-skin-pixel .ng-feedback-consequence {
+  font-family: var(--ng-font-display);
+}
+
+/* Corpo dos dois botões de chamada, desacoplado de `--ng-fs-8`/`--ng-fs-9` —
+   ver a nota do `--ng-fs-btn` no bloco de tokens. É o que os mantém dentro da
+   largura do botão no celular. */
+.ng-game-wrap.ng-skin-pixel .ng-btn-next,
+.ng-game-wrap.ng-skin-pixel .ng-btn-cta {
+  font-size: var(--ng-fs-btn);
+}
+
+/* Glifo quadrado com `line-height: 1.3` do base cola as linhas de um título de
+   duas linhas. O `letter-spacing: 0.01em` do base não faz nada numa
+   monoespaçada e sai. */
+.ng-game-wrap.ng-skin-pixel .ng-dilema-title {
+  line-height:    1.5;
+  letter-spacing: 0;
+}
+
+/*
+ * ── Caixas de alternativa: amarelo sólido, texto preto ─────────────────
+ *
+ * É a caixa de diálogo do RPG de console: fundo opaco na primária, texto preto,
+ * moldura grossa. No base a alternativa é `--ng-primary-soft` (primária a 18%)
+ * com texto claro — vidro, não caixa. Opaco é o ponto: sobre estes céus, texto
+ * preto num amarelo a 18% não sobreviveria. Sólido mede 14.08:1.
+ *
+ * BORDA DE 3px NA COR DO TEXTO (preto), e não na primária como no base: com o
+ * fundo já amarelo, borda amarela não existiria. A moldura preta é o que separa
+ * duas caixas vizinhas do grid, o que dá a leitura retrô — e o que torna o
+ * cenário de crepúsculo viável no dilema, porque ela separa o amarelo da caixa
+ * do laranja do céu. Custo: +2px de altura por caixa, que o grid absorve.
+ *
+ * NÃO há `line-height` aqui. Havia 1.8, calibrado para a Press Start 2P quando
+ * ela vestia o corpo; com o texto de volta ao mono, o 1.55 do base já está na
+ * faixa confortável e a regra saiu. Menos regra na skin é mais perto da
+ * doutrina.
+ *
+ * A ESPECIFICIDADE AQUI É OBRIGATÓRIA, não estilo: `.ng-btn-option.is-chosen`
+ * no base é 0-2-0. Uma regra de skin em 0-3-0 vence a regra base da alternativa
+ * mas PERDERIA para a `.is-chosen` — e a opção escolhida pelo jogador voltaria
+ * a verde no meio da skin amarela. Daí o bloco `.is-chosen` explícito, em
+ * 0-4-0.
+ */
+.ng-game-wrap.ng-skin-pixel .ng-btn-option {
+  background:   rgb(var(--ng-primary-rgb));
+  border:       3px solid rgb(var(--ng-on-primary-rgb));
+  color:        var(--ng-on-primary);
+}
+
+/* "OPÇÃO A" — no base é `--ng-accent`, amarelo claro, que sobre a caixa amarela
+   seria INVISÍVEL. Preto a 70% mantém o rótulo como informação secundária sem
+   virar corpo de texto, e mede 7.02:1. O `letter-spacing` do base (0.1em) vai a
+   zero: a quadrada já é espaçada, e 0.1em a esgarça. */
+.ng-game-wrap.ng-skin-pixel .ng-opt-label {
+  color:          rgba(var(--ng-on-primary-rgb), 0.7);
+  letter-spacing: 0;
+}
+
+/* Hover: clareia para o acento, mantendo a moldura preta. Preto sobre #FFE566
+   mede 16.65:1. O `translateY(-2px)` do base continua valendo — não é cor. */
+.ng-game-wrap.ng-skin-pixel .ng-btn-option:hover:not(:disabled) {
+  background:   rgb(var(--ng-accent-rgb));
+  border-color: rgb(var(--ng-on-primary-rgb));
+}
+
+/* A escolhida, na tela de feedback. Mesmo clareamento do hover: os dois nunca
+   coexistem, porque no feedback as alternativas estão `disabled`. */
+.ng-game-wrap.ng-skin-pixel .ng-btn-option.is-chosen {
+  background:   rgb(var(--ng-accent-rgb));
+  border-color: rgb(var(--ng-on-primary-rgb));
+}
+
+/*
+ * As NÃO escolhidas, no feedback. O base atenua com `opacity: 0.38`, calibrado
+ * para vidro translúcido; sobre amarelo sólido, 0.38 lava a caixa até o preto
+ * perder a forma (2.2:1 medido). 0.55 preserva a intenção — a alternativa
+ * recusada é informação secundária e deve recuar — e devolve 3.0:1, patamar
+ * aceito para controle `disabled`, que a WCAG não cobra em contraste.
+ */
+.ng-game-wrap.ng-skin-pixel .ng-btn-option.is-other {
+  opacity: 0.55;
+}
+
+/*
+ * ── Painel de feedback: escuro e uniforme, moldura amarela ─────────────
+ *
+ * O BASE FAZ O CONTRÁRIO, e de propósito: `--ng-feedback-glass` é branco a 30%
+ * com `backdrop-filter: blur(25px) saturate(1.8)` — vidro CLARO —, e por isso
+ * os três textos dentro dele são `color: var(--ng-bg)`, ou seja ESCUROS. É a
+ * inversão que reproduz o `.consequencia-toast` do JDA.
+ *
+ * Nesta skin isso não sobreviveu à tela: sobre os céus serrilhados, o vidro
+ * claro com `saturate` produz uma mancha que muda de tom ao longo do painel e
+ * corta na borda do palco. Aqui o painel passa a ser ESCURO e quase opaco —
+ * 94% do canal de fundo —, o que dá superfície uniforme e devolve a leitura de
+ * "caixa de diálogo", com moldura de 3px na primária.
+ *
+ * ⚠️ INVERTER O FUNDO OBRIGA A INVERTER O TEXTO, e não é questão de gosto:
+ * `--ng-bg` sobre este painel mede **1.01:1** — texto literalmente invisível.
+ * Daí o segundo bloco. É a mesma troca que o `@supports not (backdrop-filter)`
+ * do base já faz quando cai para o card opaco; a diferença é que lá a condição
+ * é o motor não suportar o filtro, e aqui é a skin.
+ *
+ * `box-sizing: border-box` NÃO É DETALHE: o painel é `position: absolute` com
+ * `inset: 0`, e o plugin não declara `box-sizing` globalmente — só no wrap, no
+ * modal e no full-bleed. Sem esta linha, os 3px de borda somam 6px à caixa já
+ * dimensionada pelo `inset` e o painel estoura o palco nos quatro lados.
+ *
+ * `backdrop-filter` NÃO é tocado: com 94% de opacidade ele não tem mais o que
+ * mostrar, e sobrescrevê-lo seria superfície de mudança sem efeito. O
+ * `blur(25px)` do base continua declarado e simplesmente não aparece.
+ */
+.ng-game-wrap.ng-skin-pixel .ng-feedback {
+  box-sizing: border-box;
+  background: rgba(var(--ng-bg-rgb), 0.94);
+  border:     3px solid rgb(var(--ng-primary-rgb));
+
+  /*
+   * ── Altura livre: a caixa cresce com o texto, sem barra de rolagem ──
+   *
+   * O base fixa o painel em `inset: 0` com `overflow-y: auto`, ou seja altura
+   * IGUAL à do palco e rolagem interna quando o texto não cabe. Com a
+   * consequência em Press Start 2P — maior por glifo — isso passou a acionar a
+   * barra no desktop, e barra de rolagem dentro de uma caixa de diálogo de RPG
+   * é o oposto do que a skin promete.
+   *
+   * `inset: 0 0 auto 0` solta APENAS o `bottom`. Topo, esquerda e direita
+   * continuam colados no palco, então o painel mantém posição e largura — e
+   * `position: absolute` continua, o que preserva a SOBREPOSIÇÃO: o dilema e as
+   * alternativas seguem atrás. Trocar para `position: relative` resolveria o
+   * overflow e quebraria isso, empilhando o painel abaixo das alternativas em
+   * vez de sobre elas — e a sobreposição é a transição herdada do JDA, não
+   * enfeite.
+   *
+   * `min-height: 100%` mantém o painel cobrindo o palco inteiro quando o texto
+   * é curto, que é o caso comum; `height: auto` deixa passar disso quando é
+   * longo. O `align-items: center` do base continua centralizando na folga.
+   *
+   * ⚠️ CONSEQUÊNCIA ACEITA: com texto longo o painel passa a se estender ABAIXO
+   * do palco, porque um elemento absoluto não empurra o contêiner que o
+   * ancora. Ele avança sobre o padding inferior do wrap — que existe e é de
+   * 3.5rem no desktop. Fazer o palco crescer junto exigiria o painel entrar no
+   * fluxo, o que é exatamente o que o parágrafo acima descarta. A barra de
+   * rolagem foi trocada por transbordo controlado, de propósito.
+   */
+  inset:      0 0 auto 0;
+  height:     auto;
+  min-height: 100%;
+  overflow-y: visible;
+}
+
+/* A consequência como TÍTULO do painel: tamanho próprio, e entrelinha de 1.7
+   contra 1.55 do base — glifo quadrado sem descendente cola na linha seguinte,
+   e aqui são até três linhas. A cor vem do bloco abaixo, junto com os outros
+   dois textos. */
+.ng-game-wrap.ng-skin-pixel .ng-feedback-consequence {
+  font-size:   var(--ng-fs-conseq);
+  line-height: 1.7;
+}
+
+/* Os três textos do painel, invertidos junto com o fundo. Medidos sobre ele:
+   14.57:1 nos dois primeiros; a trava de leitura fica em 7.69:1, porque o base
+   ainda lhe aplica `opacity: 0.7`. */
+.ng-game-wrap.ng-skin-pixel .ng-feedback-consequence,
+.ng-game-wrap.ng-skin-pixel .ng-feedback-text,
+.ng-game-wrap.ng-skin-pixel .ng-feedback-hint {
+  color: var(--ng-text);
+}
+
+/*
+ * O botão "Continuar" NÃO tem regra aqui, e isso é o resultado esperado: o base
+ * já o pinta com `background: var(--ng-primary)` e `color: var(--ng-on-primary)`
+ * — amarelo sólido com texto preto, 14.08:1 —, porque os dois são tokens que
+ * seguem a skin. Foi o canal `--ng-on-primary-rgb` que tornou isso verdadeiro
+ * sem uma linha de CSS de componente. Não acrescentar regra redundante.
+ */
+
+/*
+ * ── Fundos de fábrica — o DEGRAU 2 da cascata ──────────────────────────
+ *
+ * Uma cena por momento do jogo. O JS não conhece nenhum destes arquivos: ele só
+ * marca o wrap com a classe do momento (`aplicarFundo()` → `momentoDoFundo()`),
+ * e QUEM decide a imagem é este arquivo. É o que mantém a skin sendo dado e o
+ * JS sendo mecanismo — acrescentar fundo a outra skin não pede uma linha de
+ * JavaScript.
+ *
+ * O DEGRAU 1 CONTINUA VENCENDO, e sem precisar de `!important`: quando o dilema
+ * tem imagem própria, o JS a escreve em `wrap.style.backgroundImage`, e estilo
+ * inline vence qualquer folha. Quando não tem, o inline fica vazio e estas
+ * regras aparecem.
+ *
+ * ⚠️ POR QUE AS URLs VIVEM NESTE ARQUIVO, e não como tokens consumidos por uma
+ * regra no base: `url()` relativa DENTRO de custom property tem base de
+ * resolução divergente entre engines (a folha que declara vs. o documento). Um
+ * token declarado aqui e consumido lá pode resolver contra o HTML da página e
+ * devolver 404 num navegador e funcionar noutro — e o sintoma seria "a skin não
+ * tem fundo", só para parte do público. Com o `url()` na mesma folha que o
+ * consome, a base é inequívoca. Vale igual para o `src` do `@font-face`.
+ * NÃO "corrigir" isto para token sem testar nos dois motores.
+ *
+ * ── ARCO DE LUZ, desde 29/08 ──
+ * As três cenas existem em duas paletas, e a partida agora ATRAVESSA as duas:
+ *   CAPA      · borda urbana, NOITE      — céu aberto, o horizonte mais
+ *                                          luminoso das três; convida a começar
+ *   DILEMA    · floresta, CREPÚSCULO     — a virada de temperatura no meio da
+ *                                          partida, que é o que dá dinamismo
+ *                                          entre as telas
+ *   RESULTADO · igarapé, NOITE           — o reflexo é a imagem da reflexão
+ *                                          sobre as próprias escolhas, e o
+ *                                          centro escuro deixa o radar respirar
+ *
+ * O CREPÚSCULO SÓ FICOU VIÁVEL AGORA. Quando as três eram frias, o motivo
+ * escrito aqui era que o amarelo #FFCE00 e um céu laranja são o mesmo campo de
+ * matiz, e as caixas de alternativa perderiam separação da paisagem. O que
+ * mudou foi a MOLDURA PRETA de 3px das caixas: ela separa o amarelo do laranja
+ * por luminância, não por matiz. Se alguém remover a moldura, este mapeamento
+ * volta a ser um problema — os dois estão amarrados.
+ *
+ * ⚠️ ALTERNAR A CENA A CADA DILEMA — a outra leitura de "rotação" — NÃO é
+ * possível só com CSS, e não foi feito. O JS marca três classes de MOMENTO, não
+ * o índice da pergunta, e não há `data-*` com o índice no DOM para um seletor
+ * alcançar. Exigiria expor o índice em `marcarMomento()`. Fica como item
+ * aberto, não como omissão.
+ *
+ * As três frias seguem versionadas em `public/images/skins/pixel/` e a troca é
+ * editar o `url()`.
+ */
+.ng-game-wrap.ng-skin-pixel.ng-bg-capa {
+  background-image:
+    linear-gradient(var(--ng-overlay), var(--ng-overlay)),
+    url('../../images/skins/pixel/borda-urbana-noite.png');
+}
+
+.ng-game-wrap.ng-skin-pixel.ng-bg-dilema {
+  background-image:
+    linear-gradient(var(--ng-overlay), var(--ng-overlay)),
+    url('../../images/skins/pixel/floresta-crepusculo.png');
+}
+
+.ng-game-wrap.ng-skin-pixel.ng-bg-fim {
+  background-image:
+    linear-gradient(var(--ng-overlay), var(--ng-overlay)),
+    url('../../images/skins/pixel/igarape-noite.png');
+}
+
+
+/*
+ * ══ FAIXAS DE LARGURA ══════════════════════════════════════════════════
+ *
+ * Todas as media queries da skin vivem AQUI, no fim do arquivo, e não
+ * encostadas na regra que ajustam — é a mesma convenção do arquivo base.
+ *
+ * ⚠️ O CELULAR NÃO TEM BLOCO, e isso é a garantia pedida de que ele "permaneça
+ * compacto": o estado BASE desta skin JÁ É o compacto, e só as faixas maiores
+ * sobem. Assim é estruturalmente impossível uma calibração de desktop vazar
+ * para o celular — não existe regra de desktop para reverter lá. Se algum dia
+ * o celular precisar de ajuste próprio, ele entra como `max-width: 599px`,
+ * alinhado ao breakpoint do base.
+ *
+ * ⚠️ OS BREAKPOINTS SÃO OS DO BASE: 600–1024 e ≥1025. O pedido desta revisão
+ * dizia `min-width: 1024px`, e usar isso criaria um estado híbrido de 1px de
+ * largura — em 1024px exato o base ainda aplica a faixa TABLET (`.ng-stage`
+ * 560px, padding de tablet no wrap e no card), e uma regra de skin em 1024
+ * venceria só o que ela declarasse, deixando o resto em tablet. Alinhar aos
+ * breakpoints do base é o que mantém as duas folhas descrevendo a mesma
+ * viewport. Consequência a saber: 1024px exato — iPad em paisagem — recebe a
+ * escala de TABLET abaixo, que também subiu. Mover a fronteira é decisão no
+ * arquivo BASE, porque afeta as cinco skins.
+ */
+
+/* ── Tablet ─────────────────────────────────────────────
+   O base capa o palco em 560px aqui, com razão escrita: numa viewport quase
+   quadrada (iPad em retrato é 810×1080) a linha de texto não deve esticar. Os
+   620px respeitam a razão em vez de contrariá-la — medido, o corpo em mono
+   passa de 49 para 55 caracteres por linha, e a faixa confortável é 45–75. */
+@media (min-width: 600px) and (max-width: 1024px) {
+  .ng-game-wrap.ng-skin-pixel .ng-stage { max-width: 620px; }
+
+  .ng-game-wrap.ng-skin-pixel {
+    --ng-fs-7:   1.05rem;   /* alternativas */
+    --ng-fs-9:   1.1rem;    /* topo do clamp do corpo */
+    --ng-fs-10:  1.3rem;    /* título do dilema */
+    --ng-fs-11:  1.35rem;   /* nome do perfil */
+    --ng-fs-12:  1.55rem;   /* título da capa */
+    --ng-fs-btn:    0.85rem;
+    --ng-fs-conseq: 0.95rem;
+  }
+}
+
+/*
+ * ── Desktop ────────────────────────────────────────────
+ * O `.ng-game-inner` é o limitador de FORA: 740px no base. Sem esta linha o
+ * `--ng-card-max-lg: 860px` do bloco de tokens não teria efeito nenhum, porque
+ * o palco não pode passar do contêiner que o segura. Os dois são uma mudança
+ * só, partida em dois lugares porque um é token e o outro é literal do base.
+ *
+ * Subir o inner também alarga a barra de progresso, que é irmã do palco dentro
+ * dele — e é o desejado: barra e palco alinhados na mesma largura.
+ *
+ * A tipografia sobe JUNTO com a largura, e não por gosto: a medição está no
+ * comentário do `--ng-card-max-lg`. Palco de 860px com o corpo em 1.05rem daria
+ * 78 caracteres por linha, acima da faixa confortável.
+ */
+@media (min-width: 1025px) {
+  .ng-game-wrap.ng-skin-pixel .ng-game-inner { max-width: 860px; }
+
+  .ng-game-wrap.ng-skin-pixel {
+    --ng-fs-7:   1.15rem;   /* alternativas — ~34 chars/coluna, 90 chars em 2.6 linhas */
+    --ng-fs-9:   1.2rem;    /* topo do clamp do corpo — 69 chars/linha */
+    --ng-fs-10:  1.4rem;    /* título do dilema */
+    --ng-fs-11:  1.5rem;    /* nome do perfil */
+    --ng-fs-12:  1.75rem;   /* título da capa */
+    --ng-fs-btn:    0.95rem; /* "Ver resultado final" ~289px, folgado no palco largo */
+    --ng-fs-conseq: 1.05rem; /* ~48 chars/linha no painel de 860px */
+  }
+
+  /* Corpo mais alto pede entrelinha maior. 1.6 nos dois, contra 1.65 e 1.55 do
+     base — que estavam calibrados para a escala pequena. */
+  .ng-game-wrap.ng-skin-pixel .ng-dilema-body,
+  .ng-game-wrap.ng-skin-pixel .ng-btn-option {
+    line-height: 1.6;
+  }
+}

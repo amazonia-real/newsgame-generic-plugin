@@ -183,10 +183,12 @@ class Newsgame_Shortcodes {
      * a skin VENÇA é a especificidade do seletor dela (0-2-0 contra 0-1-0), não
      * esta ordem — ver o cabeçalho dos arquivos de skin.
      *
-     * Sem file_exists() de propósito: o slug vem de whitelist fechada e os
-     * quatro arquivos são versionados com o plugin. Num deploy quebrado, o 404
-     * aparece no devtools e o jogo renderiza com a paleta base; um skip
-     * silencioso renderizaria igual e não apareceria em lugar nenhum.
+     * Sem file_exists() de propósito: o slug vem de whitelist fechada e as
+     * cinco folhas são versionadas com o plugin — o mesmo vale para as artes da
+     * skin `pixel`, que a folha dela referencia por caminho relativo. Num
+     * deploy quebrado, o 404 aparece no devtools e o jogo renderiza com a
+     * paleta base; um skip silencioso renderizaria igual e não apareceria em
+     * lugar nenhum.
      */
     private static function enqueue_skin( $skin ) {
         if ( Newsgame_Admin_Instances::SKIN_DEFAULT === $skin ) {

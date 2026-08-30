@@ -35,6 +35,7 @@ $rotulos_skin  = array(
     'mono'      => 'Mono — preto e branco editorial',
     'colorido'  => 'Colorido — vibrante e lúdico',
     'futurista' => 'Futurista — digital, ciano',
+    'pixel'     => 'Pixel — videogame 16 bits, amarelo',
 );
 $status        = $is_edit ? $inst->status       : 'draft';
 $chars         = $is_edit ? (array) json_decode( $inst->characters ?? '[]', true ) : array();
@@ -339,9 +340,13 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           <p class="description">
             Paleta de cores e cantos do jogo publicado. <strong>Padrão</strong> usa
             apenas a folha base, sem arquivo extra.<br>
-            As skins mudam <strong>somente cor, raio e tipografia</strong> — nenhuma
-            traz fotos de fábrica. A imagem de fundo continua sendo escolhida
-            dilema a dilema na Mesa Editorial, e vale em qualquer skin.<br>
+            As skins mudam <strong>cor, raio e tipografia</strong>. A
+            <strong>Pixel</strong> é a única que também traz <strong>cenários de
+            fábrica</strong> em pixel art — um para a capa, um para os dilemas e
+            um para o resultado.<br>
+            A imagem escolhida dilema a dilema na Mesa Editorial
+            <strong>continua vencendo</strong> em qualquer skin: na Pixel, o
+            cenário aparece só nos dilemas que não têm imagem própria.<br>
             O gráfico do veredito mantém verde/vermelho em todas as skins: essas
             cores significam resultado do jogador, não identidade do veículo.
           </p>
