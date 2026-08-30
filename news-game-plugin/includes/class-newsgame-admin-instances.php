@@ -671,10 +671,11 @@ class Newsgame_Admin_Instances {
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array( 'msg' => 'Permissão insuficiente.' ) );
         }
-        // Um clique processa todos os dilemas da instância de uma vez — chamada
-        // única e caríssima. Teto baixo.
+        // Um clique processa o lote de uma vez — chamada única e caríssima no
+        // modo "reatribuir". Teto baixo, e compartilhado pelos dois modos: o
+        // barato também consome cota, só menos.
         if ( Newsgame_Settings::rate_limited( 'assign_weights', 10 ) ) {
-            wp_send_json_error( array( 'msg' => 'Muitas reatribuições em sequência. Aguarde um minuto — cada reatribuição consome cota da chave Gemini.' ) );
+            wp_send_json_error( array( 'msg' => 'Muitas atribuições em sequência. Aguarde um minuto — cada chamada consome cota da chave Gemini.' ) );
         }
 
         $instance_id = (int) ( $_POST['instance_id'] ?? 0 );
@@ -693,18 +694,62 @@ class Newsgame_Admin_Instances {
             wp_send_json_error( array( 'msg' => 'Nenhum dilema encontrado para esta instância.' ) );
         }
 
-        // force = true: este botão é o "Reatribuir" e reprocessa tudo, inclusive quem
-        // já tem peso. Comportamento deliberado, preservado da versão anterior — garante
-        // consistência sem controle de estado entre chamadas.
-        $res = self::assign_weights_for( $instance_id, $ids, true );
+        /*
+         * MODO DA OPERAÇÃO — dois botões, uma action.
+         *
+         *   force = false  "⚖ Pesar os que faltam": assign_weights_for() filtra
+         *                  `axis_weights IS NULL` e processa só quem precisa.
+         *                  É o caso comum — um dilema teve o texto editado, o
+         *                  peso zerou, e repor não deve custar a instância toda.
+         *   force = true   "reatribuir todos": reprocessa inclusive quem já tem
+         *                  peso. Comportamento anterior, preservado, e ele tem
+         *                  um uso INSUBSTITUÍVEL: quando o `axis_matrix` é
+         *                  regerado, TODOS os pesos precisam ser refeitos —
+         *                  `axis_weights` usa chaves posicionais e não guarda o
+         *                  nome do eixo, então a matriz nova deixa os pesos
+         *                  antigos descrevendo eixos que não os produziram, sem
+         *                  nenhum sintoma. É o C11.
+         *
+         * Action única, e não uma nova: criar outra duplicaria nonce, guard e
+         * throttle para trocar um booleano.
+         *
+         * ⚠️ DEFAULT FALSE, deliberado: POST malformado, ou chamador futuro que
+         * não conheça o parâmetro, cai na operação BARATA. O contrário gastaria
+         * a cota inteira da instância por omissão.
+         */
+        $force = ! empty( $_POST['force'] ) && '0' !== (string) $_POST['force'];
+
+        $res = self::assign_weights_for( $instance_id, $ids, $force );
 
         if ( $res['error'] ) {
             wp_send_json_error( array( 'msg' => ucfirst( $res['error'] ) ) );
         }
 
+        /*
+         * ESTADO lido do banco DEPOIS da operação, nunca inferido do retorno.
+         * É a lição do C5, e aqui ela é obrigatória: com $force = false,
+         * `updated: 0` é AMBÍGUO — pode ser "não havia nada sem peso" (caminho
+         * idempotente, sucesso) e pode ser "havia e não foi gravado". Só o
+         * count resolve, e é ele que alimenta o mesmo aviso da tela de edição.
+         */
+        $restam = self::count_unweighted_approved( $instance_id );
+
+        if ( $force ) {
+            $msg = "Pesos reatribuídos para {$res['updated']} dilema(s).";
+        } elseif ( $res['updated'] ) {
+            $msg = "Pesos atribuídos para {$res['updated']} dilema(s) que estavam sem.";
+        } else {
+            $msg = 'Nenhum dilema estava sem peso — nada a fazer.';
+        }
+
+        if ( $restam > 0 ) {
+            $msg .= " Ainda restam {$restam} aprovada(s) sem peso.";
+        }
+
         wp_send_json_success( array(
-            'msg'     => "Pesos atribuídos para {$res['updated']} dilema(s).",
+            'msg'     => $msg,
             'updated' => $res['updated'],
+            'restam'  => $restam,
         ) );
     }
 

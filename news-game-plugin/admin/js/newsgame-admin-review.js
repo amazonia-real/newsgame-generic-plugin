@@ -129,14 +129,59 @@
     }
   });
 
+  /* ── Botões de ação da linha, por aba ──────────────────────
+     Extraído de buildRow() em 29/08, quando a aba `approved` ganhou o botão de
+     salvar. É um dos três helpers previstos na dívida de complexidade de 28/08
+     (`buildRowActions`, `buildRowMeta`, `buildEditTable`), e sem a extração o
+     `buildRow` subiria de 15 para 16 — o `eslint-disable` de lá suprime o erro,
+     mas piorar por baixo dele seria usar a supressão como desculpa.
+
+     ⚠️ AS TRÊS ABAS SÃO TRATADAS SEPARADAMENTE, e isso não é zelo: até 29/08
+     `approved` e `discarded` caíam no mesmo `else`. O botão de salvar chama a
+     MESMA action do aprovar — que grava os campos e escreve
+     `review_status = 'approved'` —, então mostrá-lo numa linha descartada
+     APROVARIA um dilema que o editor tinha descartado. Por isso `discarded`
+     continua com um botão só, e o `return` final é dele.
+
+     ⚠️ POR QUE ESTE BOTÃO PRECISOU EXISTIR: `edited_fields()`, no PHP, é
+     chamada em um único lugar — `ajax_approve()`. Sem um botão que dispare
+     aquela action, TODO o formulário de uma linha aprovada era editável e
+     nenhuma alteração tinha caminho para o banco: imagem, título, enunciado,
+     opções, desfecho, lição, síntese e URL. E "Devolver para Revisão" não
+     salvava tampouco — `doRestore()` não manda os campos, então a linha voltava
+     a pendente e era recarregada do banco, descartando a edição em silêncio. */
+  function buildRowActions(tab) {
+    if (tab === 'pending') {
+      return '<button type="button" class="ng-btn-approve button button-primary">✓ Aprovar</button> ' +
+        '<button type="button" class="ng-btn-discard button">✕ Descartar</button> ' +
+        '<button type="button" class="ng-btn-regen button">🔄 Pedir Substituta</button>';
+    }
+
+    if (tab === 'approved') {
+      return '<button type="button" class="ng-btn-save button button-primary">💾 Salvar alterações</button> ' +
+        '<button type="button" class="ng-btn-restore button">↩ Devolver para Revisão</button>';
+    }
+
+    return '<button type="button" class="ng-btn-restore button">↩ Devolver para Revisão</button>';
+  }
+
   /* ── Constrói HTML de uma linha accordion ─────────────────
-     Complexidade 15, medida com o ESLint antes de mover — acima do limite 10.
-     Diretiva e não refatoração, pelo mesmo critério que o A4 aplicou ao
-     buildRadarSVG: os 15 são 14 ternários e `||` de default montando string de
-     HTML, sem um `if`, `for` ou `case` no corpo. Quebrar em helpers no mesmo
-     passo em que a função muda de arquivo tornaria impossível saber, se a tela
-     quebrar, qual das duas mudanças quebrou — e esta é justamente a massa de JS
-     que nunca foi validada em runtime. Fica como dívida declarada. */
+     Complexidade 14, medida com o ESLint — acima do limite 10. Eram 15 até
+     29/08, quando `buildRowActions()` saiu daqui (o `if/else` de abas valia 1
+     ponto). Diretiva e não refatoração completa, pelo mesmo critério que o A4
+     aplicou ao buildRadarSVG: os 14 restantes são ternários e `||` de default
+     montando string de HTML, sem um `if`, `for` ou `case` no corpo.
+
+     Sobram DOIS dos três helpers previstos — `buildRowMeta` e `buildEditTable`
+     —, e é o que falta para a função cair abaixo de 10 e a diretiva sair.
+
+     ⚠️ A DIRETIVA PRECISA FICAR NA LINHA IMEDIATAMENTE ANTERIOR ao `function`.
+     Ao extrair `buildRowActions()` o helper foi inserido, na primeira tentativa,
+     ENTRE o `eslint-disable-next-line` e o `buildRow` — a diretiva passou a
+     apontar para o comentário do helper, virou órfã e deixou o `buildRow`
+     descoberto. O `npm run lint` denuncia isso como *"Unused eslint-disable
+     directive"*, que foi como o erro apareceu. Quem inserir função nova por
+     aqui: insira ACIMA deste bloco de comentário, nunca abaixo dele. */
   // eslint-disable-next-line complexity
   function buildRow(q, num, tab) {
     var hasC     = q.opt_c_texto != null; /* null e undefined → false; string vazia → true (mantém texto já salvo) */
@@ -145,15 +190,7 @@
       '<tr><th>Opção C — Consequência</th><td><textarea name="opt_c_cons" rows="2" class="widefat" data-limit="100">' + esc(q.opt_c_cons) + '</textarea></td></tr>'
     ) : '';
 
-    var actions;
-    if (tab === 'pending') {
-      actions =
-        '<button type="button" class="ng-btn-approve button button-primary">✓ Aprovar</button> ' +
-        '<button type="button" class="ng-btn-discard button">✕ Descartar</button> ' +
-        '<button type="button" class="ng-btn-regen button">🔄 Pedir Substituta</button>';
-    } else {
-      actions = '<button type="button" class="ng-btn-restore button">↩ Devolver para Revisão</button>';
-    }
+    var actions = buildRowActions(tab);
 
     var nivel    = q.level || 1;
     var tipo     = q.character_slug || 'geral';
@@ -311,6 +348,7 @@
 
     if (head) { toggleRow(row, head); return; }
     if (e.target.closest('.ng-btn-approve')) { doApprove(row); return; }
+    if (e.target.closest('.ng-btn-save'))    { doSave(row);    return; }
     if (e.target.closest('.ng-btn-discard')) { doDiscard(row); return; }
     if (e.target.closest('.ng-btn-restore')) { doRestore(row); return; }
     if (e.target.closest('.ng-btn-regen'))   { doRegen(row);   return; }
@@ -371,6 +409,49 @@
   }
 
   /* ── Descartar ──────────────────────────────────────────── */
+  /* Salva os campos editados de uma linha JÁ APROVADA, sem mudar o status.
+     Era o caminho que faltava: até 29/08 a única forma de gravar uma edição era
+     aprovar uma pendente.
+
+     USA A MESMA ACTION DO APROVAR, e não um handler novo, porque
+     `ajax_approve()` já faz exatamente isto — grava `edited_fields()` e escreve
+     `review_status = 'approved'`, que numa linha já aprovada é o estado que ela
+     tem. Nenhuma linha de PHP mudou.
+
+     DUAS DIFERENÇAS em relação ao doApprove():
+       · a linha NÃO sai com fade. Ela continua aprovada, e desaparecer da aba
+         de aprovadas seria mentir sobre o que aconteceu;
+       · a aba é RECARREGADA. Isso não é enfeite: o cabeçalho da linha exibe o
+         título e o selo ⚖, e quando o enunciado muda o servidor zera
+         `axis_weights`. Sem recarregar, os dois ficariam desatualizados na tela
+         enquanto o banco já mudou — a classe de defeito que o Bloco C persegue.
+         O preço é o accordion fechar depois de salvar.
+
+     ⚠️ DUPLICAÇÃO CONSCIENTE com doApprove(): as duas montam o mesmo payload e
+     diferem só no `msg` e no que fazem depois. Unificar num helper de três
+     linhas é trivial — e tocaria o doApprove(), que é o caminho mais exercitado
+     da Mesa, no MESMO passo que introduz um botão novo. Se a tela quebrasse,
+     não se saberia qual das duas mudanças quebrou. É o precedente registrado no
+     A3, e a unificação fica como passo à parte. */
+  function doSave(row) {
+    msg(row, 'Salvando…', false);
+    var data = Object.assign({
+      action:      cfg.actionApprove,
+      nonce:       nonce,
+      instance_id: instId,
+      question_id: row.dataset.id,
+    }, rowFields(row));
+
+    ajaxCall(data, function (r) {
+      if (r.success) {
+        msg(row, '✓ Alterações salvas!', false);
+        setTimeout(function () { loadTab(curTab, curPage[curTab]); }, 700);
+      } else {
+        msg(row, '✗ ' + ((r.data && r.data.msg) || 'Erro.'), true);
+      }
+    });
+  }
+
   function doDiscard(row) {
     msg(row, 'Descartando…', false);
     ajaxCall({
@@ -506,32 +587,110 @@
     });
   }
 
-  /* ── Atribuir Pesos via IA ──────────────────────────────── */
-  var assignBtn = document.getElementById('ng-btn-assign-weights');
-  var assignMsg = document.getElementById('ng-assign-msg');
+  /* ── Atribuir Pesos via IA — dois modos, uma action ───────
+     `force = false` pesa só quem está sem peso; `true` reprocessa tudo. A
+     decisão de qual é qual está no PHP; aqui só o gatilho e a confirmação.
+
+     O RÓTULO ORIGINAL É CAPTURADO do próprio botão, e não escrito literal:
+     o do modo barato carrega o contador de pendências vindo do PHP, e um
+     literal o apagaria ao restaurar. */
+  var assignBtn   = document.getElementById('ng-btn-assign-weights');
+  var reassignBtn = document.getElementById('ng-btn-reassign-weights');
+  var assignMsg   = document.getElementById('ng-assign-msg');
+
+  /* ── Indicadores de pendência de peso ──────────────────────
+     Fecha o C6, aberto no roadmap desde 13/08: "o notice de pendência não sai da
+     tela após atribuir pesos com sucesso; só com F5".
+
+     O DADO JÁ VINHA NA RESPOSTA e era ignorado. `handle_assign_weights()` relê
+     o banco depois da operação com `count_unweighted_approved()` e devolve
+     `restam` — foi o que a lição do C5 obrigou a fazer no servidor. Aqui esse
+     número só passou a ser usado.
+
+     TRÊS PONTOS mostravam o estado velho, todos vindos do PHP no render:
+       · o notice do topo da tela;
+       · o contador `(N)` do botão de pesar;
+       · o selo ⚖ no cabeçalho de cada linha da Mesa — este não é tratado aqui,
+         e sim pelo `loadTab()` no fim do pedirPesos(), porque ele vive dentro do
+         HTML que o buildRow() monta.
+
+     `style.display` e não o atributo `hidden`: `.notice` do WordPress declara
+     `display` como regra de autor, que venceria o `[hidden]` da folha do
+     navegador. Consistente com o resto deste view, que já usa `style=` — e sem
+     efeito no A5, que é sobre a superfície pública.
+
+     TOLERA AUSÊNCIA dos três elementos de propósito: quando a tela carrega sem
+     pendência, o notice e o contador não são renderizados. Chamar isto nesse
+     caso é no-op, não erro.
+
+     ⚠️ COBRE SÓ A DIREÇÃO DESCENDENTE (pendência que zera). Quando o
+     `💾 Salvar alterações` zera o peso de um dilema e CRIA uma pendência, o
+     notice não aparece sozinho — `ajax_approve()` não devolve o count, e fazê-lo
+     devolver significa mexer no handler mais exercitado da Mesa. Fica anotado,
+     e o F5 resolve nesse sentido. */
+  function pintarPendencia(restam) {
+    var notice = document.getElementById('ng-notice-unweighted');
+    var count  = document.getElementById('ng-notice-unweighted-count');
+    var badge  = document.getElementById('ng-assign-pending');
+    var visivel = restam > 0 ? '' : 'none';
+
+    if (notice) notice.style.display = visivel;
+    if (count)  count.textContent    = String(restam);
+    if (badge) {
+      badge.style.display = visivel;
+      badge.textContent   = '(' + restam + ')';
+    }
+  }
+
+  function pedirPesos(btn, force, aviso) {
+    if (!confirm(aviso)) return;
+
+    var rotulo   = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = '⏳ Atribuindo pesos…';
+    if (assignMsg) assignMsg.innerHTML = '';
+
+    ajaxCall({
+      action:      'newsgame_assign_weights',
+      nonce:       assignNonce,
+      instance_id: instId,
+      force:       force ? '1' : '0',
+    }, function (r) {
+      btn.disabled = false;
+      btn.innerHTML = rotulo;
+      if (assignMsg) {
+        if (r.success) {
+          assignMsg.innerHTML = '<span style="color:#2d7a2d;">✅ ' + esc(r.data.msg) + '</span>';
+        } else {
+          assignMsg.innerHTML = '<span style="color:#c00;">❌ ' + esc((r.data && r.data.msg) || 'Erro desconhecido.') + '</span>';
+        }
+      }
+
+      /* Só no sucesso: num erro o `restam` não vem, e assumir zero apagaria o
+         aviso de uma pendência que continua lá — que é pior que o C6. */
+      if (r.success && r.data && typeof r.data.restam !== 'undefined') {
+        pintarPendencia(Number(r.data.restam));
+        /* Recarrega a aba para os selos ⚖ das linhas refletirem o banco. Mesmo
+           recurso do doSave(), e pelo mesmo motivo. */
+        loadTab(curTab, curPage[curTab]);
+      }
+    });
+  }
+
   if (assignBtn) {
     assignBtn.addEventListener('click', function () {
-      if (!confirm('Isso chamará o Gemini para atribuir pesos de eixo a todos os ' + totalDilemas + ' dilemas desta instância. Pode levar até 60 segundos. Continuar?')) return;
+      pedirPesos(assignBtn, false,
+        'Isso chamará o Gemini para pesar APENAS os dilemas que estão sem peso.'
+        + ' Uma chamada, e quem já tem peso não é alterado. Continuar?');
+    });
+  }
 
-      assignBtn.disabled    = true;
-      assignBtn.textContent = '⏳ Atribuindo pesos…';
-      if (assignMsg) assignMsg.innerHTML = '';
-
-      ajaxCall({
-        action:      'newsgame_assign_weights',
-        nonce:       assignNonce,
-        instance_id: instId,
-      }, function (r) {
-        assignBtn.disabled    = false;
-        assignBtn.textContent = '⚖ Atribuir Pesos';
-        if (assignMsg) {
-          if (r.success) {
-            assignMsg.innerHTML = '<span style="color:#2d7a2d;">✅ ' + esc(r.data.msg) + '</span>';
-          } else {
-            assignMsg.innerHTML = '<span style="color:#c00;">❌ ' + esc((r.data && r.data.msg) || 'Erro desconhecido.') + '</span>';
-          }
-        }
-      });
+  if (reassignBtn) {
+    reassignBtn.addEventListener('click', function () {
+      pedirPesos(reassignBtn, true,
+        'Isso RECALCULA os pesos de todos os ' + totalDilemas + ' dilemas desta'
+        + ' instância, sobrescrevendo os que já existem. Pode levar até 60'
+        + ' segundos e consome cota de todos. Continuar?');
     });
   }
 

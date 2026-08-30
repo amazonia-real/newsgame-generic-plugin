@@ -169,13 +169,19 @@ $page_title = $is_edit
   // — nem ele, nem o editor. Sem is-dismissible de propósito: reaparece a cada
   // carga da tela até a pendência sumir.
   $sem_peso = $id ? Newsgame_Admin_Instances::count_unweighted_approved( $id ) : 0;
+  //
+  // Os `id` abaixo existem para o JS poder atualizar isto SEM F5 depois de
+  // pesar — é o C6, aberto desde 13/08. O bloco continua condicional: quando não
+  // há pendência no carregamento, o notice simplesmente não existe, e o JS
+  // (`pintarPendencia`) trata a ausência.
   if ( $sem_peso > 0 ) : ?>
-    <div class="notice notice-error">
+    <div class="notice notice-error" id="ng-notice-unweighted">
       <p>
-        <strong>⚖ <?php echo (int) $sem_peso; ?> pergunta(s) aprovada(s) sem pesos de eixo.</strong>
+        <strong>⚖ <span id="ng-notice-unweighted-count"><?php echo (int) $sem_peso; ?></span> pergunta(s) aprovada(s) sem pesos de eixo.</strong>
         Sem pesos o jogo entrega um veredito genérico no fim da partida, sem o
         gráfico de perfil — e nada avisa o jogador.
-        Use <strong>&ldquo;⚖ Atribuir Pesos&rdquo;</strong> na Mesa Editorial para resolver.
+        Use <strong>&ldquo;⚖ Pesar os que faltam&rdquo;</strong> na Mesa Editorial, abaixo
+        &mdash; ele processa só estas, sem recalcular as que já têm peso.
         <?php if ( isset( $_GET['error'] ) && 'unweighted_approved' === $_GET['error'] ) : ?>
           <br><em>A publicação foi bloqueada por isso — o status voltou para &ldquo;Em Revisão&rdquo;.</em>
         <?php endif; ?>
@@ -518,10 +524,30 @@ if ( $id && $review_total > 0 ) :
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <?php if ( $axis_matrix ) : ?>
+      <?php
+      /*
+       * DOIS CONTROLES, UMA ACTION. O barato é botão e o caro é link, de
+       * propósito: repor o peso de um dilema editado é rotina, e reatribuir a
+       * instância inteira gasta a cota de todos os dilemas. Dar a mesma
+       * proeminência aos dois convidaria ao gesto caro.
+       *
+       * O CONTADOR DO BOTÃO É `$sem_peso` (aprovados sem peso), o MESMO número
+       * do aviso no topo da tela — é ele que bloqueia a publicação, e é por ele
+       * que o editor chega aqui.
+       *   ⚠️ Ressalva: a operação pesa TODOS os dilemas sem peso, inclusive os
+       *   pendentes, então o número efetivamente processado pode ser maior que o
+       *   do rótulo. Está no `title`, e a mensagem de retorno informa o real.
+       */
+      ?>
       <button type="button" id="ng-btn-assign-weights" class="button"
               style="white-space:nowrap"
-              title="Chama o Gemini para atribuir pesos de eixo a todos os dilemas">
-        ⚖ Atribuir Pesos<?php if ( $weighted_count > 0 ) : ?> <span style="font-size:11px;color:#555;">(<?php echo $weighted_count; ?>/<?php echo $review_total; ?>)</span><?php endif; ?>
+              title="Chama o Gemini apenas para os dilemas que estão sem peso — inclusive os pendentes. Não altera quem já tem peso.">
+        ⚖ Pesar os que faltam<?php if ( $sem_peso > 0 ) : ?> <span id="ng-assign-pending" style="font-size:11px;color:#555;">(<?php echo (int) $sem_peso; ?>)</span><?php endif; ?>
+      </button>
+      <button type="button" id="ng-btn-reassign-weights" class="button-link"
+              style="font-size:12px;white-space:nowrap"
+              title="Recalcula os pesos de TODOS os dilemas, sobrescrevendo os existentes. Necessário quando a matriz de eixos foi regerada.">
+        reatribuir todos<?php if ( $weighted_count > 0 ) : ?> (<?php echo $weighted_count; ?>/<?php echo $review_total; ?>)<?php endif; ?>
       </button>
       <span id="ng-assign-msg" style="font-size:12px;"></span>
       <?php endif; ?>
