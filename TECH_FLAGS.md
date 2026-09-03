@@ -745,6 +745,86 @@ de restaurar).
 
 ---
 
+## FLAG 009 — Contraste: dois tokens de alpha baixo que não alcançam o mínimo AA
+
+**Status:** 🔵 Registrado em 2026-09-03, **não corrigido**. Achado durante a remedição
+de contraste da troca de arte da skin `pixel` (as três cenas de dia).
+
+**Por que isto é FLAG e não item de bloco:** são **dois valores no arquivo base**
+(`public/css/newsgame-game.css`), consumidos pelas **seis** skins. Não é defeito de uma
+skin nem regressão de uma troca de asset — é propriedade da camada de tokens, e some
+de vista se ficar anotado dentro do relato de uma skin.
+
+### O que foi medido
+
+Metodologia: percentil 5 (pior 5%) da região central da imagem de fundo — onde o
+conteúdo do jogo assenta com `background-size: cover` + `background-position: center` —,
+blend em espaço sRGB e luminância relativa WCAG. Mesma sonda usada em 2026-09-02 e
+2026-09-03, descartada depois de cada uso.
+
+**1. `--ng-muted` — `rgba(var(--ng-on-rgb), 0.55)` (`newsgame-game.css:61`)**
+
+Veste `.ng-screen p` (subtítulo da capa, 16px) e `.ng-progress-label`
+(**11,2px** na skin `pixel`). Os dois ficam **fora** de qualquer caixa: a barra de
+progresso é irmã de `.ng-stage` (`newsgame-game.js:557-558`), não filha. Ou seja,
+assentam direto sobre a imagem de fundo com o véu.
+
+| Série de fundo | véu 0,42 | mínimo AA (texto normal) |
+|---|---|---|
+| noite/crepúsculo — **em produção de 29/08 a 03/09** | 3,39 – 4,01 | 4,5 ❌ |
+| `dia-*` — **em produção desde 03/09** | 3,15 – 3,31 | 4,5 ❌ |
+| série `fundo-*` (descartada em 03/09) | 2,33 – 2,37 | 4,5 ❌ |
+
+**A falha é PRÉ-EXISTENTE e independe da arte.** Já não passava com as noturnas. A
+troca de 03/09 piora o número (de ~3,7 para ~3,2 de média), não cria o problema.
+
+Elevar o véu **não é a saída**: para levar `--ng-muted` a 4,5 nos três fundos de dia
+seria preciso 0,68 — medido: 0,62 dá 4,61 / 4,48 / 4,46, e **falha por 0,02 e 0,04**
+em dois dos três. E 0,68 escurece o dia até desfazer a razão da troca.
+
+**2. `--ng-progress-track` — `rgba(var(--ng-on-rgb), 0.12)` (`newsgame-game.css:67`)**
+
+Trilha vazia da barra de progresso. Elemento não-textual, portanto SC 1.4.11, mínimo
+**3:1**.
+
+| Véu | contraste da trilha |
+|---|---|
+| 0,42 | 1,32 – 1,34 ❌ |
+| 0,52 | 1,38 – 1,39 ❌ |
+| 0,58 | 1,40 – 1,42 ❌ |
+| 0,62 | 1,40 – 1,43 ❌ |
+| 0,68 | 1,38 – 1,43 ❌ |
+
+⚠️ **É MATEMATICAMENTE INALCANÇÁVEL por véu.** Branco a 12% de opacidade sobre
+qualquer fundo não chega a 3:1 — o teto medido é 1,43, e ele não cresce com o véu
+porque escurecer o fundo escurece a trilha na mesma proporção. Nenhum valor de
+`--ng-overlay` resolve, hoje ou nunca. As noturnas em produção mediam 1,35 – 1,39: mesma
+falha, mesma ordem.
+
+O **preenchimento** da barra (`.ng-progress-fill`, `--ng-accent`) mede 5,00 – 5,41 e
+passa. Quem indica o estado, portanto, está legível; o que falha é a calha.
+
+### Recomendação — revisar o alpha dos dois tokens no arquivo BASE
+
+Corrigir na origem, e não compensar por escurecimento de fundo. Duas linhas:
+
+- `--ng-muted`: 0,55 → um valor que cumpra 4,5:1 sobre `--ng-bg` **e** sobre fundo com
+  imagem. Não medido ainda qual é.
+- `--ng-track`: 0,12 → um valor que cumpra 3:1. Alternativa possível: dar borda de 1px
+  à trilha em vez de subir o preenchimento dela, que preserva a leitura de "calha vazia".
+
+⚠️ **Afeta as SEIS skins e muda pixel na `default`.** É decisão, não tarefa, e por isso
+não foi tomada aqui. Também não é caso de sobrescrever na skin: os dois são tokens
+DERIVADOS, e declarar token derivado dentro de skin é o que a regra 1 do contrato de
+skins proíbe — quem tentar isso re-deriva à mão o defeito que a fase 1 do H2 gastou
+três commits para remover.
+
+**Ver também:** **A5** (a outra dívida de superfície do jogador que é decisão e não
+tarefa) e o cabeçalho de `skin-pixel.css`, onde ficam os contrastes medidos por
+componente daquela skin.
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.

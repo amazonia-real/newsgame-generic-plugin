@@ -534,23 +534,37 @@
  * consome, a base é inequívoca. Vale igual para o `src` do `@font-face`.
  * NÃO "corrigir" isto para token sem testar nos dois motores.
  *
- * ── ARCO DE LUZ, desde 29/08 ──
- * As três cenas existem em duas paletas, e a partida agora ATRAVESSA as duas:
- *   CAPA      · borda urbana, NOITE      — céu aberto, o horizonte mais
- *                                          luminoso das três; convida a começar
- *   DILEMA    · floresta, CREPÚSCULO     — a virada de temperatura no meio da
- *                                          partida, que é o que dá dinamismo
- *                                          entre as telas
- *   RESULTADO · igarapé, NOITE           — o reflexo é a imagem da reflexão
- *                                          sobre as próprias escolhas, e o
- *                                          centro escuro deixa o radar respirar
+ * ── LUZ DE DIA, desde 03/09 ──
+ * As três cenas são de DIA, e a partida inteira acontece na mesma luz:
+ *   CAPA      · borda urbana, DIA  — skyline atravessando a largura, sol alto
+ *   DILEMA    · floresta, DIA      — árvores em toda a largura, raios de luz
+ *   RESULTADO · igarapé, DIA       — espelho d'água com os reflexos das árvores
  *
- * O CREPÚSCULO SÓ FICOU VIÁVEL AGORA. Quando as três eram frias, o motivo
- * escrito aqui era que o amarelo #FFCE00 e um céu laranja são o mesmo campo de
- * matiz, e as caixas de alternativa perderiam separação da paisagem. O que
- * mudou foi a MOLDURA PRETA de 3px das caixas: ela separa o amarelo do laranja
- * por luminância, não por matiz. Se alguém remover a moldura, este mapeamento
- * volta a ser um problema — os dois estão amarrados.
+ * ── O QUE HAVIA ANTES, e por que o registro fica ──
+ * De 29/08 a 03/09 estas três regras apontavam para arte NOTURNA, num "arco de
+ * luz" deliberado: capa em borda urbana à noite, dilema em floresta no
+ * CREPÚSCULO (a virada de temperatura no meio da partida) e resultado em
+ * igarapé à noite. A troca de 03/09 foi decisão editorial — a série noturna não
+ * satisfez —, não conserto de defeito.
+ *
+ * ⚠️ DUAS CONSEQUÊNCIAS DA TROCA, para não serem redescobertas:
+ *
+ *  1. O VÉU NÃO MUDOU, e isso foi MEDIDO, não presumido. `--ng-overlay` segue
+ *     em 0,42. Contraste remedido em 03/09 sobre a série de dia (percentil 5 da
+ *     região central, WCAG): acento/fundo 5,00–5,41 · texto .92/fundo
+ *     5,64–6,08 · texto/card 9,99–11,53 · ícone de tela cheia 3,58–3,77. Todos
+ *     acima dos limiares que a série noturna cumpria (que media, no mesmo véu,
+ *     5,62–7,27 no acento). Uma aprovação anterior de 0,62 existiu, mas foi
+ *     calculada sobre uma série de dia DESCARTADA, que media 3,19–3,27 no
+ *     acento — não vale para estes arquivos. NÃO subir o véu sem remedir.
+ *
+ *  2. O ACOPLAMENTO CREPÚSCULO ↔ MOLDURA PRETA saiu de cena junto com o
+ *     crepúsculo. O motivo registrado em 29/08 era que o amarelo #FFCE00 e um
+ *     céu laranja ocupam o mesmo campo de matiz, e a moldura de 3px das caixas
+ *     de alternativa separava os dois por luminância. Com céu azul o problema
+ *     de matiz não se apresenta. A moldura CONTINUA declarada, por ser parte da
+ *     proposta estética da skin — mas deixou de ser o que sustenta este
+ *     mapeamento. Quem voltar a pôr crepúsculo aqui reabre a dependência.
  *
  * ⚠️ ALTERNAR A CENA A CADA DILEMA — a outra leitura de "rotação" — NÃO é
  * possível só com CSS, e não foi feito. O JS marca três classes de MOMENTO, não
@@ -558,25 +572,26 @@
  * alcançar. Exigiria expor o índice em `marcarMomento()`. Fica como item
  * aberto, não como omissão.
  *
- * As três frias seguem versionadas em `public/images/skins/pixel/` e a troca é
- * editar o `url()`.
+ * As SEIS cenas de reserva — as três noturnas que saíram de produção em 03/09 e
+ * as três que já eram reserva — seguem versionadas em
+ * `public/images/skins/pixel/`, e a troca é editar o `url()`. Nada foi apagado.
  */
 .ng-game-wrap.ng-skin-pixel.ng-bg-capa {
   background-image:
     linear-gradient(var(--ng-overlay), var(--ng-overlay)),
-    url('../../images/skins/pixel/borda-urbana-noite.png');
+    url('../../images/skins/pixel/borda-urbana-dia.png');
 }
 
 .ng-game-wrap.ng-skin-pixel.ng-bg-dilema {
   background-image:
     linear-gradient(var(--ng-overlay), var(--ng-overlay)),
-    url('../../images/skins/pixel/floresta-crepusculo.png');
+    url('../../images/skins/pixel/floresta-dia.png');
 }
 
 .ng-game-wrap.ng-skin-pixel.ng-bg-fim {
   background-image:
     linear-gradient(var(--ng-overlay), var(--ng-overlay)),
-    url('../../images/skins/pixel/igarape-noite.png');
+    url('../../images/skins/pixel/igarape-dia.png');
 }
 
 
