@@ -39,6 +39,17 @@ class GenerateRequest(BaseModel):
     nivel_padrao: str = Field(default='pedagogico')  # 'ludico' | 'pedagogico' | 'complexo'
     fontes_usadas: List[str]   = Field(default_factory=list)
     axis_matrix:   dict | None = Field(default=None)
+    # Terceiro degrau da cascata de chave (header > body > env), no mesmo formato
+    # dos outros Request models. Fase 0 do H1: as rotas de geração passam a
+    # aceitar chave por requisição em vez de ler só o .env.
+    #
+    # ⚠️ NUNCA POPULAR ESTE CAMPO A PARTIR DO PAYLOAD DO BROWSER. O plugin monta
+    # o payload de geração no servidor e o devolve ao JS
+    # (class-newsgame-generator.php:76-88), que o reenvia ao proxy; aquele
+    # payload é, por decisão do A1/FLAG 003, livre de segredo — "backend_url e
+    # api_key NÃO saem do servidor". Para estas rotas o proxy manda a chave em
+    # HEADER, adicionado server-side. Ver o passo 3 da fase 0.
+    gemini_api_key: str = Field(default="")
 
 
 # ── Modelos Pydantic para structured output do Gemini ─────
@@ -172,6 +183,10 @@ class RegenerateRequest(BaseModel):
     num_options: Literal[2, 3] = 2
     enable_levels: bool = False
     fontes_usadas: List[str] = Field(default_factory=list)
+    # Cascata de chave — ver a nota em GenerateRequest. Aqui o payload é montado
+    # inteiramente no servidor (class-newsgame-review.php:266-275), sem passar
+    # pelo browser, mas o proxy manda a chave em header pelo mesmo padrão.
+    gemini_api_key: str = Field(default="")
 
 
 # ── Modelos para /analyze-domain ──────────────────────────────────────────
