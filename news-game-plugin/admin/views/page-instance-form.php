@@ -37,6 +37,41 @@ $rotulos_skin  = array(
     'futurista' => 'Futurista — digital, ciano',
     'pixel'     => 'Pixel — videogame 16 bits, amarelo',
 );
+/*
+ * Resumo de uma linha por skin, para o painel de conferência ao lado da grade.
+ * Mesma casa dos rótulos, e pela mesma razão: é texto de UI.
+ *
+ * Cada frase diz O QUE MUDA, não como é bonito — é o que o editor precisa para
+ * decidir. Os raios entre parênteses são os valores reais declarados em
+ * `public/css/skins/skin-<slug>.css`; se uma folha mudar de raio, este texto fica
+ * velho. É desatualização VISÍVEL (o número está na tela), e não silenciosa, o que
+ * a torna preferível a derivar o valor do CSS em PHP.
+ */
+$resumos_skin  = array(
+    'default'   => 'Verde terra sobre fundo escuro, raios 12/8/3. Não carrega folha extra: é a própria base do plugin.',
+    'neutro'    => 'Terra queimada e cinzas quentes, raios 8/6/2. Muda só cor e raio — canto mais fechado lê como impresso.',
+    'mono'      => 'Preto e branco de fundo escuro, ênfase por peso e não por cor, tipografia serifada. Muda cor, raio e tipografia.',
+    'colorido'  => 'Índigo com magenta e amarelo, raios 16/12/4. Muda só cor e raio — a mais lúdica das seis.',
+    'futurista' => 'Azul-preto e ciano, raios 2/2/0 (quase retos). Muda só cor e raio.',
+    'pixel'     => 'Amarelo de caixa de diálogo, fonte de arcade no cromo e três cenários de fábrica em pixel art — capa, dilemas e resultado. É a única com imagem própria.',
+);
+/*
+ * Miniaturas resolvidas UMA VEZ, antes da grade, porque o mesmo resultado alimenta
+ * duas coisas: o cartão de cada skin e o aviso agregado embaixo. Resolver duas
+ * vezes daria duas leituras de disco por skin e, pior, duas respostas que podem
+ * divergir entre si.
+ *
+ * Miniatura ausente é ESTADO VÁLIDO: o componente subiu com as seis vazias, por
+ * decisão. O aviso conta, não bloqueia.
+ */
+$skin_thumbs    = array();
+$skin_sem_thumb = array();
+foreach ( Newsgame_Admin_Instances::SKINS as $slug_skin ) {
+    $skin_thumbs[ $slug_skin ] = Newsgame_Admin_Instances::skin_thumb_url( $slug_skin );
+    if ( ! $skin_thumbs[ $slug_skin ] ) {
+        $skin_sem_thumb[] = $slug_skin;
+    }
+}
 $status        = $is_edit ? $inst->status       : 'draft';
 $chars         = $is_edit ? (array) json_decode( $inst->characters ?? '[]', true ) : array();
 $axis_matrix   = $is_edit ? ( $inst->axis_matrix ?? '' ) : '';
@@ -332,24 +367,121 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
         </td>
       </tr>
       <tr>
-        <th scope="row">
-          <label for="ng-skin">Aparência (Skin)</label>
-        </th>
+        <th scope="row">Aparência (Skin)</th>
         <td>
-          <select id="ng-skin" name="skin" style="min-width:260px">
-            <?php foreach ( Newsgame_Admin_Instances::SKINS as $slug ) : ?>
-              <option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $skin, $slug ); ?>>
-                <?php echo esc_html( $rotulos_skin[ $slug ] ?? $slug ); ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
+          <?php
+          /*
+           * SELETOR VISUAL — fieldset com RADIO NATIVO, um por skin.
+           *
+           * Substitui um <select> de seis opções. O ganho não é enfeite: skin é
+           * escolha visual, e um nome de lista ("Futurista — digital, ciano") pede
+           * que o editor imagine o resultado, publique e volte para conferir.
+           *
+           * ⚠️ RADIO NATIVO, E O REQUISITO CENTRAL ESTÁ AQUI: num grupo de radios o
+           * navegador SEMPRE envia o valor marcado, e a marcação é impressa pelo PHP
+           * a partir da skin do banco. Salvar o formulário sem tocar no seletor manda
+           * de volta a skin que já estava gravada — nunca 'default'. É a mesma
+           * propriedade que o <select> tinha, e é o que o `isset( $_POST['skin'] )`
+           * do handle_save() protege desde 27/08 (família do C11: sobrescrita
+           * silenciosa).
+           *
+           * ⚠️ NÃO ESCONDER O INPUT (display:none, opacity:0, largura zero) para
+           * fazer o cartão inteiro parecer o controle. É o atalho comum em seletor de
+           * cards e custa a navegação por setas, o anel de foco e o estado anunciado
+           * ao leitor de tela — tudo que vem de graça do elemento nativo. O <label>
+           * envolve o cartão, então clicar na miniatura já marca a skin sem isso.
+           */
+          ?>
+          <fieldset id="ng-skin-picker" class="ng-skin-picker">
+            <legend class="screen-reader-text">
+              Aparência (Skin) — escolha uma das <?php echo count( Newsgame_Admin_Instances::SKINS ); ?> skins de fábrica
+            </legend>
+
+            <div class="ng-skin-grid">
+              <?php
+              foreach ( Newsgame_Admin_Instances::SKINS as $slug ) :
+                  $rotulo = $rotulos_skin[ $slug ] ?? $slug;
+                  $thumb  = $skin_thumbs[ $slug ];
+              ?>
+                <label class="ng-skin-card" for="ng-skin-<?php echo esc_attr( $slug ); ?>">
+                  <span class="ng-skin-thumb">
+                    <?php if ( $thumb ) : ?>
+                      <?php
+                      /*
+                       * alt="" de propósito: a miniatura é REDUNDANTE com o nome da
+                       * skin, que está no rótulo logo abaixo e é o que carrega a
+                       * informação para quem não vê a imagem. Descrever a arte aqui
+                       * faria o leitor de tela anunciar a mesma skin duas vezes.
+                       */
+                      ?>
+                      <img src="<?php echo esc_url( $thumb ); ?>" alt=""
+                           width="240" height="135" loading="lazy" decoding="async">
+                    <?php else : ?>
+                      <?php
+                      /*
+                       * PLACEHOLDER — a skin continua selecionável sem miniatura. O
+                       * componente subiu assim, com as seis vazias, por decisão, e a
+                       * arte entra depois soltando arquivo em `admin/images/skins/`.
+                       * aria-hidden porque é decoração: quem diz em TEXTO o que falta
+                       * é o aviso agregado abaixo da grade.
+                       */
+                      ?>
+                      <span class="ng-skin-thumb-vazio" aria-hidden="true">
+                        <b>&#9638;</b>
+                        sem miniatura
+                      </span>
+                    <?php endif; ?>
+                  </span>
+                  <span class="ng-skin-rotulo">
+                    <input type="radio" class="ng-skin-radio"
+                           id="ng-skin-<?php echo esc_attr( $slug ); ?>"
+                           name="skin" value="<?php echo esc_attr( $slug ); ?>"
+                           <?php checked( $skin, $slug ); ?>
+                           data-ng-rotulo="<?php echo esc_attr( $rotulo ); ?>"
+                           data-ng-resumo="<?php echo esc_attr( $resumos_skin[ $slug ] ?? '' ); ?>">
+                    <span class="ng-skin-nome"><?php echo esc_html( $rotulo ); ?></span>
+                  </span>
+                </label>
+              <?php endforeach; ?>
+            </div>
+
+            <?php if ( $skin_sem_thumb ) : ?>
+              <p class="ng-skin-falta">
+                &#9888; <strong><?php echo count( $skin_sem_thumb ); ?> de <?php echo count( Newsgame_Admin_Instances::SKINS ); ?></strong>
+                sem miniatura em disco (<?php echo esc_html( implode( ', ', $skin_sem_thumb ) ); ?>).
+                A escolha funciona igual — a miniatura é conferência visual, não requisito.
+                Para preencher, solte <code>skin-&lt;slug&gt;.webp</code> (480&times;270) em
+                <code>admin/images/skins/</code>: aparece sozinha, sem mudança de código.
+              </p>
+            <?php endif; ?>
+          </fieldset>
+
+          <?php
+          /*
+           * PAINEL DE CONFERÊNCIA — o que a skin marcada faz, em texto, antes de
+           * salvar. Renderizado pelo PHP com a skin do banco e mantido em dia pelo
+           * `admin/js/newsgame-admin-skins.js`. Sem JS ele fica estático mostrando a
+           * skin gravada, que é informação correta — degrada, não mente.
+           *
+           * aria-live="polite" porque o conteúdo muda sem recarregar a tela: sem
+           * isso, quem troca de skin com as setas do teclado não recebe nada além do
+           * nome do próprio radio.
+           */
+          ?>
+          <div class="ng-skin-confere" id="ng-skin-confere" aria-live="polite">
+            <p class="ng-skin-confere-linha">
+              Selecionada: <strong id="ng-skin-confere-label"><?php echo esc_html( $rotulos_skin[ $skin ] ?? $skin ); ?></strong>
+            </p>
+            <p class="ng-skin-confere-resumo" id="ng-skin-confere-resumo"><?php echo esc_html( $resumos_skin[ $skin ] ?? '' ); ?></p>
+          </div>
+
           <p class="description">
             Paleta de cores e cantos do jogo publicado. <strong>Padrão</strong> usa
             apenas a folha base, sem arquivo extra.<br>
-            As skins mudam <strong>cor, raio e tipografia</strong>. A
-            <strong>Pixel</strong> é a única que também traz <strong>cenários de
-            fábrica</strong> em pixel art — um para a capa, um para os dilemas e
-            um para o resultado.<br>
+            <strong>Cinco das seis skins mudam só cor, raio e tipografia</strong> —
+            não trocam texto, layout nem imagem do jogo. A <strong>Pixel</strong> é a
+            única que também traz <strong>cenários de fábrica</strong> em pixel art —
+            um para a capa, um para os dilemas e um para o resultado.<br>
             A imagem escolhida dilema a dilema na Mesa Editorial
             <strong>continua vencendo</strong> em qualquer skin: na Pixel, o
             cenário aparece só nos dilemas que não têm imagem própria.<br>

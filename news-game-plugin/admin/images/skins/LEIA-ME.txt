@@ -1,0 +1,49 @@
+MINIATURAS DO SELETOR DE SKINS (admin)
+======================================
+
+Este diretório guarda as miniaturas que aparecem nos cartões do seletor de
+aparência, na tela de edição de instância. Ele nasceu VAZIO de propósito: o
+componente foi entregue com os seis placeholders funcionando, e a arte entra
+depois — soltando arquivo aqui, SEM MUDANÇA DE CÓDIGO.
+
+NOME DO ARQUIVO
+---------------
+    skin-<slug>.webp
+
+O <slug> é o mesmo da whitelist `Newsgame_Admin_Instances::SKINS`. Hoje:
+
+    skin-default.webp
+    skin-neutro.webp
+    skin-mono.webp
+    skin-colorido.webp
+    skin-futurista.webp
+    skin-pixel.webp
+
+Qualquer outro nome é ignorado em silêncio, e o cartão daquela skin continua
+mostrando o placeholder tracejado — que é estado válido, não erro. A skin segue
+selecionável sem miniatura.
+
+FORMATO E TAMANHO
+-----------------
+    WebP, 480 x 270 px (16:9, o dobro dos 240x135 exibidos)
+
+O WebP é FIXO para as seis. A resolução do arquivo é por EXTENSÃO, na ordem
+declarada em `Newsgame_Admin_Instances::SKIN_THUMB_EXTS` — hoje `webp` e depois
+`png`. Ou seja: trocar UMA skin para PNG é soltar o `.png` e apagar o `.webp`
+daquela skin, sem tocar em código.
+
+A EXCEÇÃO PREVISTA É A `pixel`, e ela é um teste de aceite, não uma decisão
+tomada: pixel art tem transição de 1px entre cores chapadas, e é exatamente o
+tipo de borda que a compressão com perda do WebP costuma sujar. Se a miniatura
+da `pixel` mostrar serrilhado sujo ou halo em volta dos blocos, só ELA vira
+`skin-pixel.png`. As outras cinco são fotografia/degradê e não têm esse risco.
+
+Enquanto não houver miniatura real, o teste do serrilhado não pode ser feito —
+o que existe é o caminho pronto para ele.
+
+COMO CONFERIR
+-------------
+    admin.php?page=newsgame-instances&action=edit&id=<ID>
+
+O aviso abaixo da grade conta quantas das seis estão sem miniatura em disco e
+lista os slugs.

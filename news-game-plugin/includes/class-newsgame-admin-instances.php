@@ -37,6 +37,29 @@ class Newsgame_Admin_Instances {
     /** Valor de queda quando a skin recebida não está na whitelist acima. */
     const SKIN_DEFAULT = 'default';
 
+    /**
+     * Miniaturas do seletor visual de skins — diretório e ordem de extensões.
+     *
+     * O diretório é RELATIVO a NEWSGAME_DIR/NEWSGAME_URL, e é do admin: a arte
+     * aparece só na tela de edição de instância, nunca na superfície do jogador.
+     *
+     * ⚠️ A ORDEM DE `SKIN_THUMB_EXTS` É A REGRA DE RESOLUÇÃO, e é ela que faz a
+     * troca de formato de UMA skin ser um arquivo solto no disco em vez de uma
+     * mudança de código. O formato de fábrica é WebP para as seis (arte de 16:9
+     * comprime bem e o arquivo fica pequeno).
+     *
+     * A exceção PREVISTA — e não tomada — é a `pixel`: pixel art tem transição de
+     * 1px entre cores chapadas, que é justamente a borda que a compressão com
+     * perda do WebP suja. É um TESTE DE ACEITE: se a miniatura da `pixel` mostrar
+     * serrilhado sujo ou halo em volta dos blocos, só ela vira `skin-pixel.png`,
+     * e este `foreach` já resolve. Enquanto não houver miniatura real o teste não
+     * pode ser feito; o que existe aqui é o caminho pronto para ele.
+     *
+     * As outras cinco são fotografia e degradê, sem esse risco.
+     */
+    const SKIN_THUMB_DIR  = 'admin/images/skins/';
+    const SKIN_THUMB_EXTS = array( 'webp', 'png' );
+
     /** Hook suffix devolvido por add_submenu_page — usado para enfileirar o JS só nesta tela */
     private static $hook_suffix = '';
 
@@ -89,6 +112,7 @@ class Newsgame_Admin_Instances {
             // Seletor nativo de mídia, para a imagem de fundo do dilema.
             // Sem esta chamada `wp.media` é undefined na tela.
             wp_enqueue_media();
+            self::enqueue_form_styles();
             self::enqueue_form_scripts();
             return;
         }
@@ -99,6 +123,39 @@ class Newsgame_Admin_Instances {
             array(),
             NEWSGAME_VERSION,
             true  // footer
+        );
+    }
+
+    /**
+     * Enfileira o CSS da tela de formulário de instância.
+     *
+     * ⚠️ PRIMEIRO `wp_enqueue_style` DO ADMIN EM TODO O PLUGIN. Até aqui a área
+     * administrativa não tinha pipeline de CSS nenhum — o mesmo buraco que o A2
+     * encontrou no JS, e pela mesma razão: todo estilo do painel nasceu dentro do
+     * `<style>` inline do topo de `page-instance-form.php`, que é a única view
+     * com bloco de estilo.
+     *
+     * O INLINE DE `page-instance-form.php` NÃO FOI MIGRADO, por decisão: a tela
+     * passa a ter duas casas de CSS ao mesmo tempo. Ver TECH_FLAGS FLAG 010, que
+     * registra o custo e a regra que fica — CSS novo do admin nasce em arquivo
+     * enfileirado, um por bloco, e o inline não recebe acréscimo.
+     *
+     * Método separado do `enqueue_form_scripts()` em vez de uma linha dentro
+     * dele: o nome do método é o que diz a um leitor futuro que existe pipeline
+     * de estilo, e não só de script, nesta tela.
+     *
+     * O handle `newsgame-admin-skins` é o MESMO do arquivo de JS do componente, e
+     * isso é legal e deliberado: o WordPress mantém dois registros separados
+     * (`WP_Styles` e `WP_Scripts`), então não há colisão — o próprio core repete
+     * handle entre os dois (`thickbox`). Conferido nas duas filas com o hook suffix
+     * real da tela. Não "corrigir" renomeando um dos dois.
+     */
+    private static function enqueue_form_styles() {
+        wp_enqueue_style(
+            'newsgame-admin-skins',
+            NEWSGAME_URL . 'admin/css/newsgame-admin-skins.css',
+            array(),
+            NEWSGAME_VERSION
         );
     }
 
@@ -191,6 +248,24 @@ class Newsgame_Admin_Instances {
         wp_enqueue_script(
             'newsgame-admin-form',
             $base . 'newsgame-admin-form.js',
+            array(),
+            NEWSGAME_VERSION,
+            true  // footer
+        );
+
+        /* ── Seletor visual de skins ──────────────────────────────── */
+        /*
+         * SEM wp_localize_script, e é o único arquivo desta tela nessa situação: o
+         * rótulo e o resumo de cada skin viajam em `data-ng-rotulo` /
+         * `data-ng-resumo` no próprio input da view. Os dois são texto de UI e
+         * moram no mapa da view por convenção do projeto ("slug é dado, rótulo é
+         * UI"); trazê-los para cá criaria uma terceira cópia dos textos dentro
+         * desta classe, porque `admin_enqueue_scripts` roda ANTES de a view
+         * existir. O arquivo sai fora sozinho pela guarda de âncora no DOM.
+         */
+        wp_enqueue_script(
+            'newsgame-admin-skins',
+            $base . 'newsgame-admin-skins.js',
             array(),
             NEWSGAME_VERSION,
             true  // footer
@@ -407,6 +482,41 @@ class Newsgame_Admin_Instances {
         $skin = is_scalar( $value ) ? sanitize_key( (string) $value ) : '';
 
         return in_array( $skin, self::SKINS, true ) ? $skin : self::SKIN_DEFAULT;
+    }
+
+    /**
+     * URL da miniatura de uma skin, ou string vazia quando não há arquivo.
+     *
+     * Resolve por EXTENSÃO, na ordem de `SKIN_THUMB_EXTS`: o primeiro arquivo que
+     * existir em disco ganha. É o que permite trocar o formato de uma skin
+     * soltando arquivo, sem tocar em código — ver a nota da constante.
+     *
+     * String vazia é RETORNO ESPERADO, e não erro: a view desenha o placeholder
+     * tracejado e a skin continua selecionável. Foi assim que o componente subiu,
+     * com as seis sem miniatura.
+     *
+     * `sanitize_skin()` antes de compor o caminho, sempre: é a regra escrita na
+     * doc daquele método, e aqui ela é o que impede que um valor vindo de fora
+     * (linha gravada por SQL à mão, whitelist encurtada) se torne caminho de
+     * arquivo. Slug fora da whitelist cai para 'default', o que devolve a
+     * miniatura da `default` — mesma degradação silenciosa que o resto da classe
+     * aplica à skin inválida, e por isso não recebe aviso próprio.
+     *
+     * Custo: um `file_exists()` por extensão e por skin a cada render do
+     * formulário — no máximo 12 stats numa tela autenticada, sem cache a
+     * invalidar. Não vale a complexidade de memorizar.
+     */
+    public static function skin_thumb_url( $slug ) {
+        $slug = self::sanitize_skin( $slug );
+
+        foreach ( self::SKIN_THUMB_EXTS as $ext ) {
+            $rel = self::SKIN_THUMB_DIR . 'skin-' . $slug . '.' . $ext;
+            if ( file_exists( NEWSGAME_DIR . $rel ) ) {
+                return NEWSGAME_URL . $rel;
+            }
+        }
+
+        return '';
     }
 
     /* ── AJAX: salva matriz de eixos ───────────────────────────── */

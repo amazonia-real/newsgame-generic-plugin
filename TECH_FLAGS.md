@@ -825,6 +825,84 @@ componente daquela skin.
 
 ---
 
+## FLAG 010 — Duas casas de CSS na mesma tela do admin
+
+**Status:** 🔵 Registrado em 2026-09-04, **aceito por ora, não corrigido**. Nasceu com o
+seletor visual de skins, que trouxe o primeiro pipeline de CSS do admin.
+
+### O estado, medido
+
+| Casa | Onde | Tamanho | Quem veste |
+|---|---|---|---|
+| **Enfileirada** | `admin/css/newsgame-admin-skins.css`, por `Newsgame_Admin_Instances::enqueue_form_styles()` | 110 linhas | só o seletor de skins (`.ng-skin-*`) |
+| **Inline** | `<style>` no topo de `admin/views/page-instance-form.php:85-190` | 106 linhas | form-table, builder de personagens, barra sticky e a **Mesa Editorial inteira** |
+
+As duas vestem a **mesma tela**. `page-settings.php` e `page-instances.php` não têm bloco
+de estilo — conferido por `grep`, e é o que mantém o item restrito a uma tela.
+
+⚠️ **O `wp_enqueue_style` de `enqueue_form_styles()` é o PRIMEIRO do admin em todo o
+plugin.** O buraco era exatamente o mesmo que o A2 encontrou no JS em 08/08 (nenhum
+`admin_enqueue_scripts` existia), e pela mesma razão histórica: todo estilo do painel
+nasceu dentro da view.
+
+### Por que o inline não foi migrado no mesmo passo
+
+1. **Precedente do A3, aplicado literalmente.** Mover 106 linhas de CSS no mesmo commit
+   que introduz um componente novo tornaria impossível saber, se a tela quebrasse, qual
+   das duas mudanças quebrou. É o argumento que deixou o `buildRow` sem refatoração
+   enquanto ele mudava de arquivo em 28/08, e o que deixou `doSave()` duplicando payload
+   em 29/08.
+2. **As 106 linhas não têm cobertura própria.** Elas vestem a Mesa Editorial, que é a
+   maior massa de UI do admin — abas, accordion, tabela de edição, paginação. O teste de
+   uma migração dessas é comparação visual da tela inteira, e é trabalho de passo
+   próprio, não de passageiro.
+3. **CSP não é motivo aqui, e é importante dizer por quê.** O inline exige
+   `'unsafe-inline'` em `style-src` — mas na superfície **AUTENTICADA**, que é outra
+   coisa da promessa do A1. Migrar as 106 linhas **não** desbloqueia o **B2** nem mexe no
+   **A5**: os dois falam da superfície **pública**. Mesma classe de defeito de redação
+   que o A5 registra para `style-src` e que a nota de precisão do A3 registra para o
+   `<script id="…-js-extra">` do `wp_localize_script` — **dizer qual das duas superfícies
+   está sendo descrita**.
+
+### O custo, escrito antes de doer
+
+- **Regra de CSS do admin passa a ter dois lugares possíveis.** Quem procurar `.ng-tab`,
+  `.ng-qrow` ou `.ng-char-row` no arquivo novo não acha; quem procurar `.ng-skin-card` no
+  inline também não.
+- ⚠️ **A CASCATA FAVORECE O INLINE, ao contrário do que a intuição diz.** O arquivo
+  enfileirado sai no `<head>`; o `<style>` da view sai no `<body>`, depois. Em empate de
+  especificidade, **o inline vence** — inclusive contra uma regra escrita depois no
+  arquivo novo. Se um seletor for declarado nas duas casas, quem manda é a view.
+- **Ordem de chegada difere.** O CSS do seletor chega no `<head>`, junto com o resto do
+  admin; o do bloco antigo chega com o corpo. É a mesma forma do FOUC que o `8428210`
+  consertou na superfície do jogador, e aqui **não** foi tratada como defeito: a tela é
+  autenticada, não é o produto, e o estado sem CSS dela nunca foi confundido com o final.
+
+### A regra que fica
+
+**CSS novo do admin nasce em arquivo enfileirado em `admin/css/`, um por bloco** — mesmo
+critério dos cinco arquivos de JS do A3 (`newsgame-admin-skins.css` é do seletor de skins
+e de nada mais; um `newsgame-admin.css` guarda-tudo carregaria regra de componente em
+telas sem o componente).
+
+**O inline não recebe acréscimo.** Quem precisar de regra nova para a Mesa Editorial cria
+`admin/css/newsgame-admin-review.css` e enfileira com o mesmo método, em vez de somar
+linha ao bloco de 106.
+
+### Como sair, quando for a hora
+
+Um passo por bloco, **sem nenhuma outra mudança junto**: `newsgame-admin-form.css`
+(form-table, personagens, sticky) e `newsgame-admin-review.css` (Mesa Editorial). O
+critério de pronto é comparação visual das duas telas com as três abas abertas, e a
+armadilha a olhar é a inversão de cascata descrita acima — regra que dependia de vencer
+por estar no `<body>` passa a perder ao virar arquivo no `<head>`.
+
+**Ver também:** **A3** / **FLAG 007** (o mesmo movimento, feito para o JS: 1.254 linhas em
+cinco arquivos, e a nota de precisão sobre as duas superfícies) e **A5** (a dívida de
+`style-src`, que é da superfície pública e **não** deste item).
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.
