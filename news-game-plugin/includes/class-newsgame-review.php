@@ -274,14 +274,25 @@ class Newsgame_Review {
             'enable_levels'   => (bool) ( $instance->enable_levels ?? false ),
         );
 
+        /*
+         * A chave do Gemini em header — fase 0 do H1, mesmo padrão do
+         * `/generate-one`. Antes deste passo o "Pedir Substituta" usava a chave
+         * do `.env` do backend, e não a que o editor configurou no painel.
+         *
+         * Aqui o `$payload` é montado inteiramente no servidor (:266-275) e não
+         * passa pelo browser, então o corpo também serviria. Fica no header por
+         * consistência com a outra rota e para que só exista uma forma de o
+         * plugin mandar chave.
+         */
         $response = wp_remote_post(
             rtrim( $backend_url, '/' ) . '/regenerate',
             array(
                 'timeout'   => 120,
                 'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
                 'headers'   => array(
-                    'Content-Type' => 'application/json',
-                    'X-Api-Key'    => $api_key,
+                    'Content-Type'     => 'application/json',
+                    'X-Api-Key'        => $api_key,
+                    'X-Gemini-Api-Key' => Newsgame_Settings::gemini_key(),
                 ),
                 'body' => wp_json_encode( $payload ),
             )

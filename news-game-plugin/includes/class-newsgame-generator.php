@@ -120,14 +120,37 @@ class Newsgame_Generator {
             wp_send_json( array( 'detail' => 'Payload JSON inválido.' ), 400 );
         }
 
+        /*
+         * A CHAVE DO GEMINI VAI EM HEADER, E SÓ EM HEADER — fase 0 do H1.
+         *
+         * Antes deste passo o proxy não mandava chave nenhuma, e o backend caía
+         * no `GEMINI_API_KEY` do `.env` dele. Ou seja: a chave configurada em
+         * News-Game › Configurações **não governava a geração de dilemas**, que
+         * é o miolo do produto. Medido em 2026-09-04: com `.env` inválido e
+         * painel válido, esta rota devolvia 422 "não foi possível gerar um
+         * dilema válido"; com o header, gerou normalmente.
+         *
+         * ⚠️ NÃO PÔR A CHAVE NO CORPO AQUI. O `$payload` desta requisição vem
+         * do browser (`php://input`, linha 118) e é repassado verbatim —
+         * escrever segredo nele exigiria decodificar e recodificar, e poria a
+         * chave num campo que o cliente controla. O header é acrescentado
+         * server-side, neste ponto, e não trafega para o browser em momento
+         * nenhum. O backend aceita as duas formas (header > body > env); esta
+         * rota usa a primeira, de propósito.
+         *
+         * ⚠️ E NÃO ACRESCENTAR A CHAVE AO PAYLOAD DE `ajax_start()` (:76-88),
+         * que é justamente o que sai daqui para o JS. Ver o comentário do campo
+         * `gemini_api_key` em `backend-python/app/models.py`.
+         */
         $response = wp_remote_post(
             rtrim( $backend_url, '/' ) . '/generate-one',
             array(
                 'timeout'   => 120,
                 'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
                 'headers'   => array(
-                    'Content-Type' => 'application/json',
-                    'X-Api-Key'    => (string) get_option( 'newsgame_backend_api_key', '' ),
+                    'Content-Type'     => 'application/json',
+                    'X-Api-Key'        => (string) get_option( 'newsgame_backend_api_key', '' ),
+                    'X-Gemini-Api-Key' => Newsgame_Settings::gemini_key(),
                 ),
                 'body' => wp_json_encode( $payload, JSON_UNESCAPED_UNICODE ),
             )
