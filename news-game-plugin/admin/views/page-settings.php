@@ -32,7 +32,7 @@
                  class="regular-text" autocomplete="off">
           <p class="description">
             Obtida em <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
-            Armazenada criptografada no banco WordPress — nunca em arquivo.
+            Armazenada nas configurações do WordPress, sem criptografia. Restrito a administradores com permissão de gerenciar opções.
           </p>
         </td>
       </tr>

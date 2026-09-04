@@ -903,6 +903,115 @@ cinco arquivos, e a nota de precisão sobre as duas superfícies) e **A5** (a d�
 
 ---
 
+## FLAG 011 — Ausência de criptografia na chave de API armazenada
+
+**Status:** 🔴 Aberto — **decisão de arquitetura, não implementado**. Registrado em
+2026-09-04, no diagnóstico do H1.
+
+**Problema:**
+As duas chaves que o plugin persiste ficam em `wp_options` em **texto claro**, com
+`autoload = auto` — ou seja, carregadas na memória de todo request do WordPress, não
+só das telas que precisam delas. Medido em runtime em 2026-09-04, no banco local:
+
+| `option_name` | tamanho do valor | autoload |
+|---|---|---|
+| `newsgame_gemini_api_key` | 53 chars | **auto** |
+| `newsgame_backend_api_key` | 43 chars | **auto** |
+
+**Não existe nenhuma primitiva de criptografia no plugin.** Verificado por `grep` de
+dez termos em todos os `.php` — `openssl_encrypt`, `openssl_decrypt`,
+`sodium_crypto`, `wp_salt`, `AUTH_KEY`, `base64_encode`, `base64_decode`,
+`hash_hmac`, `encrypt`, `decrypt`: **zero ocorrências**. As options são gravadas por
+`register_setting` com `sanitize_callback => 'sanitize_text_field'`, que sanitiza e
+não cifra.
+
+⚠️ **A tela de configurações AFIRMAVA O CONTRÁRIO até esta sessão.** O texto de
+`page-settings.php` dizia *"Armazenada criptografada no banco WordPress — nunca em
+arquivo."* — falso nas duas metades. Corrigido em 2026-09-04 para "Armazenada nas
+configurações do WordPress, sem criptografia. Restrito a administradores com
+permissão de gerenciar opções." **A correção é de texto: o comportamento não mudou**,
+e é por isso que esta FLAG existe.
+
+Duas superfícies de exposição, medidas e distintas da questão do repouso:
+- **O valor sai no HTML da própria tela.** `page-settings.php:31` imprime
+  `value="<?php echo esc_attr( get_option( 'newsgame_gemini_api_key', '' ) ); ?>"`. O
+  input é `type="password"`, o que esconde da vista e **não** do `Ctrl+U`. Exige
+  `manage_options` para chegar lá.
+- **O backend guarda a chave em arquivo.** `backend-python/.env` contém
+  `GEMINI_API_KEY` e `API_SECRET_TOKEN` em texto claro no disco (conferidos por nome;
+  valores não lidos). `config.py:35` declara `{"env_file": ".env"}`.
+
+**Onde está:**
+- `news-game-plugin/includes/class-newsgame-settings.php:71-83` — registro das options
+- `news-game-plugin/admin/views/page-settings.php` — a tela (e o `value` da linha 31)
+- `backend-python/.env` — a cópia em arquivo, no lado do backend
+
+**Decisão pendente — três saídas, nenhuma escolhida.** Mesma estrutura do **C14**:
+1. **Criptografar em repouso** derivando chave de `wp_salt()`/`AUTH_KEY`. Custo real:
+   `AUTH_KEY` vive no `wp-config.php`, então isto move o segredo em vez de eliminá-lo,
+   e rotacionar salt (prática recomendada de segurança do WP) passa a **invalidar a
+   chave gravada** — precisa de caminho de recuperação, senão a próxima rotação quebra
+   a geração em silêncio.
+2. **Cofre externo** (variável de ambiente do host, secrets manager). Tira o segredo do
+   banco, e tira do alcance do editor — o que muda o modelo de operação do plugin:
+   hoje o editor configura sozinho pelo painel, sem tocar em servidor.
+3. **Aceitar e documentar formalmente.** É o estado de hoje, com a diferença de estar
+   escrito: chave em texto claro, acessível a quem tem `manage_options` ou acesso ao
+   banco. Para um plugin open source instalado por redações pequenas, pode ser a
+   escolha certa — mas precisa estar no guia de portabilidade (**B1**), não só aqui.
+
+**Ver também:** **FLAG 003**, que fecha uma questão **diferente** e não esta — lá o
+tema é o segredo não chegar ao **browser do jogador** (superfície pública, proxy PHP +
+`X-Api-Key`), e essa promessa segue de pé. Esta FLAG é sobre **repouso** e sobre a
+superfície **autenticada**. Não somar as duas.
+
+---
+
+## FLAG 012 — SDK do Gemini descontinuado (`google-generativeai` → `google-genai`)
+
+**Status:** 🔴 Aberto — **não é urgente por quebra; é dívida com prazo de validade.**
+Registrado em 2026-09-04, no diagnóstico do H1.
+
+**Problema:**
+`langchain-google-genai 2.0.1` depende de `google-generativeai 0.8.6`, cujo suporte
+**terminou**. Confirmado em runtime em 2026-09-04, por `import` direto no `.venv` do
+backend — o aviso é emitido pelo próprio pacote:
+
+```
+FutureWarning:
+All support for the `google.generativeai` package has ended. It will no longer be
+receiving updates or bug fixes. Please switch to the `google.genai` package as soon
+as possible.
+  langchain_google_genai/chat_models.py:52
+```
+
+Versões medidas no ambiente (`pip show`): `langchain-google-genai 2.0.1`
+(`Requires: google-generativeai, langchain-core, pydantic`) e `google-generativeai
+0.8.6`. O pacote novo, `google-genai`, **não está instalado**.
+
+Nada quebra hoje: a biblioteca funciona, e o aviso é `FutureWarning`. O que vence é o
+prazo — pacote sem correção de bug inclui **sem correção de segurança**, e a data de
+corte não está sob controle do projeto.
+
+**Onde está:**
+- `backend-python/requirements.txt:6` — `langchain-google-genai==2.0.1`
+- Alcança, por consequência, os dois pontos de instanciação: `main.py:222` e
+  `generator.py:426`
+
+**Nota — é migração de superfície de API, não drop-in.** Trocar o pino não basta: o
+`google.genai` reorganiza cliente, configuração e tipos, e o `langchain-google-genai`
+precisa estar numa versão que já o use. Antes de fechar esta FLAG é obrigatório
+**revalidar a FLAG 001** (validação Pydantic + auto-reparo em 2 tentativas) contra o
+SDK novo: o auto-reparo depende do formato do texto devolvido e de o `.content` vir
+como string, e nenhuma das duas coisas é garantida por contrato entre SDKs.
+
+⚠️ **Isto muda a conta do H1.** A migração é necessária **mesmo que o projeto decida
+ficar só no Gemini** — não é custo da abstração de provedor, é custo de manutenção que
+já está no caixa. Ver o bloco de correção de 2026-09-04 na §4 (D1) do
+`ROADMAP_OPEN_SOURCE.md`.
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.
