@@ -18,14 +18,18 @@ from app.rag import get_collection, mmr_search
 logger = logging.getLogger(__name__)
 
 
-def generate_one(req: RegenerateRequest) -> DilemaNg | None:
+def generate_one(req: RegenerateRequest, api_key: str) -> DilemaNg | None:
     """
     Gera 1 dilema substituto baseado no mesmo personagem e nível do original descartado.
     Retorna DilemaNg ou None se falhar após todas as tentativas.
+
+    `api_key` chega JÁ RESOLVIDO pela rota (header > body > env). Este módulo
+    reusa o `_get_llm()` do generator e por isso NÃO herdou a correção da fase 0
+    de graça: a chave precisa atravessar explicitamente.
     """
     cfg            = get_settings()
     db             = get_collection(req.site_id)
-    llm            = _get_llm()
+    llm            = _get_llm(api_key)
 
     modo_geral = not bool(req.characters)
     n_nome     = _nivel_nome(req.nivel, modo_geral, req.personagem_tipo)

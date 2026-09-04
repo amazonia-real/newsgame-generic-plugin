@@ -17,7 +17,6 @@ from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
 from app.config import get_settings
 from app.models import (
     IngestRequest,
@@ -66,26 +65,37 @@ def ingest(req: IngestRequest) -> dict:
 
 
 @app.post("/regenerate", dependencies=[Depends(_verify_token)])
-def regenerate_one(req: RegenerateRequest) -> dict:
+def regenerate_one(
+    req: RegenerateRequest,
+    x_gemini_api_key: str = Header(default=""),
+) -> dict:
     """
     Gera 1 pergunta substituta de forma síncrona.
     Retorna o dilema serializado ou 422 se não conseguir gerar.
     """
-    dilema = regenerator.generate_one(req)
+    api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
+    dilema = regenerator.generate_one(req, api_key)
     if dilema is None:
         raise HTTPException(status_code=422, detail="Não foi possível gerar uma pergunta substituta válida.")
     return dilema.model_dump()
 
 
 @app.post("/generate-one", dependencies=[Depends(_verify_token)])
-def generate_one(req: GenerateRequest) -> dict:
+def generate_one(
+    req: GenerateRequest,
+    x_gemini_api_key: str = Header(default=""),
+) -> dict:
     """
     Gera 1 dilema de forma síncrona. O JS do painel chama este endpoint
     em loop (uma vez por dilema) para evitar timeout de conexão.
     req.slot_index (0-based) controla distribuição personagem/nível.
     """
+    # Resolução FORA do try: um 401 de chave ausente não deve ser confundido
+    # com falha de geração. O `except HTTPException: raise` abaixo já o
+    # repassaria, mas resolver antes deixa a ordem explícita.
+    api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
     try:
-        dilema = generator.generate_one_dilema(req)
+        dilema = generator.generate_one_dilema(req, api_key)
         if dilema is None:
             raise HTTPException(status_code=422, detail="Não foi possível gerar um dilema válido para este slot.")
         result = dilema.model_dump()
@@ -103,14 +113,20 @@ def generate_one(req: GenerateRequest) -> dict:
 
 
 @app.post("/generate", dependencies=[Depends(_verify_token)])
-def generate(req: GenerateRequest) -> StreamingResponse:
+def generate(
+    req: GenerateRequest,
+    x_gemini_api_key: str = Header(default=""),
+) -> StreamingResponse:
     """
     Gera dilemas via RAG + Gemini e retorna como SSE stream.
     Cada evento: data: {"type": "dilema", "current": N, "total": M, "dilema": {...}}
     Evento final: data: {"type": "done", "total_generated": N}
     """
+    # Resolvida ANTES de a resposta começar: com o stream já aberto não há como
+    # devolver 401 — os headers HTTP já foram enviados.
+    api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
     return StreamingResponse(
-        generator.generate_stream(req),
+        generator.generate_stream(req, api_key),
         media_type="text/event-stream",
         headers={
             "Cache-Control":   "no-cache",
@@ -216,15 +232,15 @@ def _resolve_gemini_key(header_key: str, body_key: str) -> str:
     )
 
 
-def _make_llm(api_key: str) -> ChatGoogleGenerativeAI:
-    """Instancia o LLM Gemini com temperatura baixa para geração estrutural."""
-    cfg = get_settings()
-    return ChatGoogleGenerativeAI(
-        model=cfg.llm_model,
-        temperature=cfg.llm_temperature,
-        google_api_key=api_key,
-        max_retries=2,
-    )
+# O construtor do cliente saiu daqui na fase 0 do H1 e virou
+# `generator._get_llm(api_key)` — ver a nota longa lá. Havia dois construtores
+# com políticas diferentes: este, sem cache, e o singleton do generator, que
+# ignorava a chave da requisição. Agora é um só, com cache por chave.
+#
+# ⚠️ CONSEQUÊNCIA QUE VALE REGISTRAR: com este bloco, `main.py` deixou de
+# importar `langchain_google_genai`. O acoplamento com o SDK do provedor passou
+# a estar num arquivo só (`generator.py`), que é exatamente o que o H1 completo
+# vai precisar substituir.
 
 
 def _extract_json(text: str) -> dict:
@@ -274,7 +290,7 @@ def analyze_domain(
     ]
 
     # PASSO 3 — Chamar Gemini
-    llm = _make_llm(api_key)
+    llm = generator._get_llm(api_key)
     logger.debug("[analyze-domain] Chamando Gemini (tentativa 1)...")
     raw_text = llm.invoke(messages).content
 
@@ -383,7 +399,7 @@ def assign_weights(
     ]
 
     # PASSO 3 — Chamar Gemini
-    llm = _make_llm(api_key)
+    llm = generator._get_llm(api_key)
     logger.debug("[assign-weights] Chamando Gemini (tentativa 1)...")
     raw_text = llm.invoke(messages).content
 
@@ -504,7 +520,7 @@ def generate_verdict(
     ]
 
     # PASSO 4 — Chamar Gemini
-    llm = _make_llm(api_key)
+    llm = generator._get_llm(api_key)
     logger.debug("[generate-verdict] Chamando Gemini (tentativa 1)...")
     raw_text = llm.invoke(messages).content
 

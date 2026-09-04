@@ -13,6 +13,7 @@ import logging
 import math
 import re
 import time
+from functools import lru_cache
 from typing import Generator
 
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -415,21 +416,54 @@ def _aplicar_fallback_correta(dilema: DilemaNg, nivel_nome: str) -> None:
         dilema.alternativa_correta = "B"
 
 
-# LLM singleton reutilizado entre chamadas da mesma instância do servidor
-_llm: ChatGoogleGenerativeAI | None = None
-
-
-def _get_llm() -> ChatGoogleGenerativeAI:
-    global _llm
-    if _llm is None:
-        cfg = get_settings()
-        _llm = ChatGoogleGenerativeAI(
-            model=cfg.llm_model,
-            temperature=cfg.llm_temperature,
-            google_api_key=cfg.gemini_api_key,
-            max_retries=2,
-        )
-    return _llm
+# ── Cliente do LLM — ponto único de construção do backend ──────────
+#
+# Fase 0 do H1: era um singleton global (`_llm`) que lia `cfg.gemini_api_key`
+# e servia a MESMA chave a todas as chamadas. Isso é incompatível com chave por
+# requisição — a primeira chamada fixava a chave do `.env` e o header de todas
+# as seguintes era ignorado, em silêncio.
+#
+# Agora a chave é PARÂMETRO e o cache é POR CHAVE. Este é o único construtor de
+# cliente do backend: `main.py` importa esta função (antes tinha um
+# `_make_llm()` próprio, sem cache) e `regenerator.py` também. Um caminho só.
+#
+# ── POR QUE CACHE, E NÃO CONSTRUIR POR CHAMADA ─────────────────────
+# Medido em 2026-09-04, com chave falsa (falha de autenticação, custo zero):
+#   · construir o cliente custa  ~1,3 ms  — irrelevante
+#   · MAS o TRANSPORTE é reaproveitado dentro do mesmo cliente: chamada em
+#     cliente reusado = mediana 152,7 ms; em cliente novo = 218,9 ms.
+#     São ~66 ms por chamada, com a forma de handshake TLS (seis amostras de
+#     cliente novo entre 217 e 225 ms — não é jitter).
+# Sem cache, o laço de `/generate-one` (até 15 slots) pagaria ~1 s extra por
+# lote, e as três rotas de cascata — que hoje constroem por chamada — seguiriam
+# pagando handshake em toda análise e toda pesagem. O cache corrige as duas.
+#
+# ── AS TRÊS RESSALVAS DO `lru_cache`, declaradas ───────────────────
+#  1. a chave de API entra na chave de cache e fica no processo. Já ficava:
+#     o cliente antigo guardava a chave dentro de si desde sempre.
+#  2. entrada obsoleta após rotação de chave NÃO expira. É inofensiva —
+#     simplesmente deixa de ser usada, e a chave nova cria a sua.
+#  3. duas requisições concorrentes com a mesma chave nova podem construir
+#     dois clientes. Inofensivo: um vence o slot, os dois funcionam.
+#
+# ⚠️ A CHAVE DE CACHE É SÓ `api_key`. `llm_model` e `llm_temperature` são
+# lidos de dentro e NÃO fazem parte dela — hoje isso é seguro porque
+# `get_settings()` é cacheado e não muda em runtime. Se algum dia o modelo
+# passar a variar por requisição (é o caminho natural do H1 completo), ele
+# TEM de entrar na assinatura, senão o cache serve o modelo errado.
+#
+# `maxsize=4` porque no uso real é uma entrada; o teto existe para o caso de
+# várias instâncias WordPress com chaves distintas apontando para o mesmo
+# backend.
+@lru_cache(maxsize=4)
+def _get_llm(api_key: str) -> ChatGoogleGenerativeAI:
+    cfg = get_settings()
+    return ChatGoogleGenerativeAI(
+        model=cfg.llm_model,
+        temperature=cfg.llm_temperature,
+        google_api_key=api_key,
+        max_retries=2,
+    )
 
 
 # ── Distribuição de lotes ─────────────────────────────────
@@ -597,15 +631,18 @@ _NIVEL_MAP: dict[str, tuple[int, str]] = {
 }
 
 
-def generate_one_dilema(req: GenerateRequest) -> DilemaNg | None:
+def generate_one_dilema(req: GenerateRequest, api_key: str) -> DilemaNg | None:
     """
     Gera exatamente 1 dilema de forma síncrona.
     O nível narrativo é determinado 100% por req.nivel_padrao (escolha do painel WP).
     req.slot_index é usado apenas para rotação de personagens nas queries RAG.
+
+    `api_key` chega JÁ RESOLVIDO pela rota (header > body > env). A resolução
+    não pode acontecer aqui: o header não existe dentro do Request model.
     """
     cfg = get_settings()
     db  = get_collection(req.site_id)
-    llm = _get_llm()
+    llm = _get_llm(api_key)
 
     # Nível obedece cegamente ao campo enviado pelo WordPress
     nivel, nivel_nome = _NIVEL_MAP.get(req.nivel_padrao, (1, "PEDAGÓGICO"))
@@ -702,17 +739,19 @@ def generate_one_dilema(req: GenerateRequest) -> DilemaNg | None:
 
 # ── Stream SSE ────────────────────────────────────────────
 
-def generate_stream(req: GenerateRequest) -> Generator[str, None, None]:
+def generate_stream(req: GenerateRequest, api_key: str) -> Generator[str, None, None]:
     """
     Gerador SSE — emite eventos à medida que dilemas são gerados.
     1 chamada LLM por dilema; itera N vezes por lote.
 
     Formato de cada evento:
       data: {"type": "dilema", "current": N, "total": M, "dilema": {...}}\\n\\n
+
+    `api_key` chega JÁ RESOLVIDO pela rota — ver a nota em generate_one_dilema().
     """
     cfg            = get_settings()
     db             = get_collection(req.site_id)
-    llm            = _get_llm()
+    llm            = _get_llm(api_key)
     batches        = _build_batches(req)
     total_plan     = sum(b["quantidade"] for b in batches)
     generated      = 0
