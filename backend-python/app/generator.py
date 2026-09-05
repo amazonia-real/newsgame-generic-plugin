@@ -446,14 +446,25 @@ def _aplicar_fallback_correta(dilema: DilemaNg, nivel_nome: str) -> None:
 # nasceu dentro de main.py e serviu a um consumidor só; o 5b o tornou
 # compartilhado, e cópia em dois lugares é a família do C13.
 #
-# ⚠️ DETECÇÃO POR SUBSTRING, FRÁGIL DE PROPÓSITO E DECLARADA: o SDK do Gemini
-# levanta UMA classe genérica (ChatGoogleGenerativeAIError) para tudo, com a
-# causa apenas no texto. `openai` e `anthropic` levantam classes DEDICADAS com
-# `status_code` — quando o segundo provedor entrar, isto muda de forma, e o
-# Gemini continuará sendo o caso que exige o remendo de texto.
+# ⚠️ ESTES MARCADORES SÃO A RESERVA, NÃO O CAMINHO PRINCIPAL — desde
+# 2026-09-04. O caminho principal é o código HTTP (ver `_status_http()` abaixo);
+# a substring só entra quando o provedor NÃO expõe status, que hoje é o caso de
+# um só: o Gemini.
 #
-# Sem "401"/"403" na lista: são números curtos demais e apareceriam por
-# coincidência em mensagens que não são de autenticação.
+# A previsão escrita aqui na fase 0 foi medida e confirmada com o DeepSeek:
+#   · DeepSeek, chave inválida  -> OpenAIAuthenticationError, status_code=401,
+#     "Authentication Fails, Your api key: ****xxxx is invalid"
+#   · DeepSeek, sem saldo       -> openai.APIStatusError, status_code=402,
+#     "Insufficient Balance"
+# NENHUMA das duas casava com os marcadores de texto — a ordem das palavras do
+# DeepSeek ("api key: … is invalid") não é a do Gemini ("api key not valid"), e
+# "Insufficient Balance" não tem nada de "prepayment"/"credits are depleted".
+# Por isso a classificação passou a ser por status: 401 e 402 são HTTP padrão e
+# valem para qualquer provedor, enquanto o texto é idiossincrasia de cada um.
+#
+# Sem "401"/"403" na lista de substrings: são números curtos demais e
+# apareceriam por coincidência em mensagens que não são de autenticação. Quem
+# tem status usa o status; quem não tem, usa as frases.
 MARCADORES_CHAVE = (
     "api key not valid",
     "api_key_invalid",
@@ -468,6 +479,40 @@ MARCADORES_CHAVE = (
 # Crédito esgotado. Já era tratado como fatal no laço de geração (bare `raise`),
 # mas o `raise` cru virava 500 "Erro interno" na rota — agora vira 502 com causa.
 MARCADORES_CREDITO = ("prepayment", "credits are depleted", "billing")
+
+
+# Códigos HTTP que significam "retentar não resolve". São padrão e não dependem
+# de provedor: 401 credencial recusada, 403 credencial sem permissão, 402
+# pagamento exigido (saldo/crédito).
+STATUS_CHAVE = (401, 403)
+STATUS_CREDITO = (402,)
+
+
+def _status_http(exc: Exception) -> int | None:
+    """
+    Código HTTP quando o SDK do provedor o expõe NO PRÓPRIO objeto de exceção.
+
+    Devolve None para provedores que não expõem — hoje só o Gemini, e é o que
+    manda a classificação cair nos marcadores de texto.
+
+    ⚠️ NÃO PERCORRE `__cause__`, DE PROPÓSITO. O SDK do Gemini embrulha um
+    `InvalidArgument` do gRPC cujo `.code()` é **400** — e 400 não distingue
+    "chave inválida" de "payload malformado". Descer no encadeamento traria um
+    número inútil e tiraria o Gemini do caminho de texto, que é o único que
+    funciona para ele. Medido em 2026-09-04.
+
+    ⚠️ `.code` NÃO é consultado: nas exceções da família OpenAI ele é string
+    ("invalid_request_error") e no gRPC é método. Só `status_code`/`http_status`
+    inteiros, mais o `response.status_code` que o httpx aninha.
+    """
+    for attr in ("status_code", "http_status"):
+        valor = getattr(exc, attr, None)
+        if isinstance(valor, int):
+            return valor
+
+    resposta = getattr(exc, "response", None)
+    valor = getattr(resposta, "status_code", None)
+    return valor if isinstance(valor, int) else None
 
 
 class ErroDeProvedor(Exception):
@@ -489,21 +534,42 @@ class ErroDeProvedor(Exception):
 
 
 def erro_de_chave(exc: Exception) -> bool:
-    """True quando a mensagem do provedor indica chave rejeitada."""
+    """
+    True quando o provedor recusou a CREDENCIAL.
+
+    Status primeiro (401/403), texto como reserva. Quando o provedor informa
+    status, ele DECIDE: um 429 não vira erro de chave só porque a mensagem
+    menciona "api key".
+    """
+    status = _status_http(exc)
+    if status is not None:
+        return status in STATUS_CHAVE
+
     texto = str(exc).lower()
     return any(m in texto for m in MARCADORES_CHAVE)
 
 
 def erro_fatal_de_provedor(exc: Exception) -> bool:
     """
-    True quando retentar é inútil: chave recusada ou crédito esgotado.
+    True quando retentar é inútil: credencial recusada ou crédito esgotado.
+
+    Status primeiro (401/403/402), texto como reserva.
 
     NÃO inclui rate limit (429/quota), que continua no caminho de sleep+retry,
     nem erro de rede transitório — este último segue caindo no `break` que
     devolve None e faz a rota responder 422, porque num lote de 15 slots pular
     um slot é melhor que abortar o lote inteiro. Escopo estreito de propósito:
-    a fase 0 trata "o provedor recusou", e não constrói taxonomia de erro.
+    trata "o provedor recusou", e não constrói taxonomia de erro.
+
+    ⚠️ Consequência de o status ter precedência: num provedor que informa
+    status, uma mensagem que mencione "billing" com status 500 deixa de ser
+    fatal. É o preço de não decidir por substring quando existe informação
+    melhor — e resolve o falso positivo do marcador "billing", largo demais.
     """
+    status = _status_http(exc)
+    if status is not None:
+        return status in STATUS_CHAVE + STATUS_CREDITO
+
     texto = str(exc).lower()
     return erro_de_chave(exc) or any(m in texto for m in MARCADORES_CREDITO)
 
@@ -516,12 +582,15 @@ def detail_de_provedor(exc: Exception) -> str:
             "News-Game › Configurações — ou, se o backend usa a própria, a "
             "variável GEMINI_API_KEY do servidor."
         )
+
+    status = _status_http(exc)
     texto = str(exc).lower()
-    if any(m in texto for m in MARCADORES_CREDITO):
+    if status in STATUS_CREDITO or (status is None and any(m in texto for m in MARCADORES_CREDITO)):
         return (
             "O provedor de IA recusou a chamada por falta de crédito na conta "
             "da chave de API. Nenhuma retentativa resolve isso."
         )
+
     # Quota estourada, timeout e indisponibilidade caem aqui: mensagem truncada,
     # não traceback, porque o editor precisa de pista.
     return (
