@@ -4,7 +4,6 @@ import logging
 import json
 import secrets
 import math
-import os
 import re
 from dotenv import load_dotenv
 
@@ -215,12 +214,33 @@ _SCHEMA_DOMAIN_ANALYSIS_EXAMPLE = """{
 
 
 def _resolve_gemini_key(header_key: str, body_key: str) -> str:
-    """Resolve chave de API Gemini por prioridade: header > body > variável de ambiente."""
+    """
+    Resolve a chave de API por prioridade: header > body > Settings (.env).
+
+    Único gate de "existe chave disponível" do backend — as seis rotas que usam
+    LLM passam por aqui antes de construir cliente. Desde a fase 0 do H1,
+    `gemini_api_key` é opcional em config.py, então é este 401 que substitui a
+    falha no boot.
+    """
     if header_key:
         return header_key
     if body_key:
         return body_key
-    env_key = os.getenv("GEMINI_API_KEY", "")
+
+    # LÊ DO SETTINGS, e não de os.getenv() — a troca é da fase 0 do H1.
+    #
+    # O `.env` só chegava a os.environ por causa do `load_dotenv()` da linha 14,
+    # que existe para OUTRA finalidade: exportar ANONYMIZED_TELEMETRY para o
+    # ChromaDB (M5, commit 268030f). Ou seja, o terceiro degrau desta cascata
+    # dependia de um efeito colateral instalado por outro motivo — remover
+    # aquele load_dotenv quebraria este degrau em silêncio, enquanto o resto do
+    # backend seguiria lendo a chave por Settings. Split-brain entre dois
+    # caminhos que deveriam ler a mesma coisa.
+    #
+    # pydantic-settings lê variável de ambiente REAL e o arquivo .env, com a
+    # real tendo precedência — cobre estritamente mais que os.getenv(), que só
+    # vê o que já está no ambiente do processo.
+    env_key = get_settings().gemini_api_key
     if env_key:
         return env_key
     raise HTTPException(

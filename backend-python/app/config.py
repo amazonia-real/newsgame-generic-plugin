@@ -5,7 +5,20 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    gemini_api_key: str
+    # OPCIONAL desde a fase 0 do H1 (2026-09-04). Era campo sem default, e o
+    # servidor não subia sem ele — inconsistente com a chave poder chegar por
+    # requisição. Quem valida "existe alguma chave disponível" é
+    # `_resolve_gemini_key()` (main.py), que levanta 401 quando os três degraus
+    # da cascata — header, body, este campo — estão todos vazios.
+    #
+    # ⚠️ `api_secret_token`, mais abaixo, CONTINUA OBRIGATÓRIO. A guarda do
+    # C3/FLAG 003 (o servidor recusa subir sem token de autenticação) não foi
+    # afrouxada por esta mudança — `main.py:43` chama get_settings() no import
+    # justamente para falhar cedo, e continua falhando por causa dele.
+    #
+    # Consequência prática: um deploy que use APENAS chave por requisição
+    # (vinda do painel WordPress) não precisa mais de GEMINI_API_KEY no .env.
+    gemini_api_key: str = ""
     chroma_db_dir: str = "/data/chroma_db"
     embed_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     llm_model: str = "gemini-2.5-flash"

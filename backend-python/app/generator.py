@@ -457,6 +457,25 @@ def _aplicar_fallback_correta(dilema: DilemaNg, nivel_nome: str) -> None:
 # backend.
 @lru_cache(maxsize=4)
 def _get_llm(api_key: str) -> ChatGoogleGenerativeAI:
+    # ⚠️ GUARDA CONTRA CHAVE VAZIA — só alcançável por BUG DE CHAMADOR, e o
+    # passo 4 da fase 0 é o que a tornou possível: com `gemini_api_key`
+    # opcional em config.py, existe agora instalação sem chave nenhuma no .env.
+    #
+    # As seis rotas resolvem antes de chegar aqui, e `_resolve_gemini_key()`
+    # levanta 401 quando os três degraus estão vazios. Então quem chegar aqui
+    # com "" é chamador NOVO que esqueceu de resolver.
+    #
+    # Sem esta guarda o sintoma seria "400 API key not valid" devolvido pelo
+    # Google depois de uma ida e volta de rede — mensagem que aponta para a
+    # chave, e não para a resolução que faltou. Mesma família de defeito que o
+    # C13/C14/C15: falhar apontando para o lugar errado. Exceção não é
+    # armazenada pelo lru_cache, então isto não envenena o cache.
+    if not api_key:
+        raise ValueError(
+            "_get_llm() recebeu chave vazia: a rota chamadora não passou por "
+            "_resolve_gemini_key(). Ver fase 0 do H1."
+        )
+
     cfg = get_settings()
     return ChatGoogleGenerativeAI(
         model=cfg.llm_model,
