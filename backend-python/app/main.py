@@ -67,12 +67,15 @@ def ingest(req: IngestRequest) -> dict:
 def regenerate_one(
     req: RegenerateRequest,
     x_gemini_api_key: str = Header(default=""),
+    x_deepseek_api_key: str = Header(default=""),
+    x_llm_provider: str = Header(default=""),
 ) -> dict:
     """
     Gera 1 pergunta substituta de forma síncrona.
     Retorna o dilema serializado ou 422 se não conseguir gerar.
     """
-    api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
+    provedor = _resolve_provedor(x_llm_provider)
+    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
 
     # Recusa do provedor vira 502 com causa; "não gerei dilema válido" segue 422.
     # Antes do passo 5b as duas coisas saíam como o mesmo 422.
@@ -90,6 +93,8 @@ def regenerate_one(
 def generate_one(
     req: GenerateRequest,
     x_gemini_api_key: str = Header(default=""),
+    x_deepseek_api_key: str = Header(default=""),
+    x_llm_provider: str = Header(default=""),
 ) -> dict:
     """
     Gera 1 dilema de forma síncrona. O JS do painel chama este endpoint
@@ -99,7 +104,8 @@ def generate_one(
     # Resolução FORA do try: um 401 de chave ausente não deve ser confundido
     # com falha de geração. O `except HTTPException: raise` abaixo já o
     # repassaria, mas resolver antes deixa a ordem explícita.
-    api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
+    provedor = _resolve_provedor(x_llm_provider)
+    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
     try:
         dilema = generator.generate_one_dilema(req, api_key)
         if dilema is None:
@@ -127,6 +133,8 @@ def generate_one(
 def generate(
     req: GenerateRequest,
     x_gemini_api_key: str = Header(default=""),
+    x_deepseek_api_key: str = Header(default=""),
+    x_llm_provider: str = Header(default=""),
 ) -> StreamingResponse:
     """
     Gera dilemas via RAG + Gemini e retorna como SSE stream.
@@ -135,7 +143,8 @@ def generate(
     """
     # Resolvida ANTES de a resposta começar: com o stream já aberto não há como
     # devolver 401 — os headers HTTP já foram enviados.
-    api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
+    provedor = _resolve_provedor(x_llm_provider)
+    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
     return StreamingResponse(
         generator.generate_stream(req, api_key),
         media_type="text/event-stream",
@@ -225,15 +234,92 @@ _SCHEMA_DOMAIN_ANALYSIS_EXAMPLE = """{
 }"""
 
 
-def _resolve_gemini_key(header_key: str, body_key: str) -> str:
+def _resolve_provedor(header_provedor: str) -> str:
     """
-    Resolve a chave de API por prioridade: header > body > Settings (.env).
+    Resolve o provedor de IA da requisição: header > Settings (.env) > default.
+
+    O valor sempre passa por `generator.normalizar_provedor()`, que é a lista
+    fechada — este módulo NÃO mantém cópia dela. Valor desconhecido vira 400
+    com a origem nomeada, e não cai para o default: ver a nota na função lá.
+
+    ⚠️ O provedor NÃO viaja no body, só em header. Consequência a conhecer:
+    um chamador externo que mande `gemini_api_key` no body enquanto o backend
+    tem `LLM_PROVIDER=deepseek` terá o campo do body ignorado, porque a
+    resolução de chave abaixo lê o campo DO PROVEDOR RESOLVIDO. O painel
+    WordPress não cai nisso — ele manda header de provedor e header de chave
+    na mesma requisição.
+    """
+    if header_provedor.strip():
+        origem = "header X-LLM-Provider"
+        bruto = header_provedor
+    elif get_settings().llm_provider.strip():
+        origem = "variável de ambiente LLM_PROVIDER"
+        bruto = get_settings().llm_provider
+    else:
+        return generator.PROVEDOR_DEFAULT
+
+    try:
+        provedor = generator.normalizar_provedor(bruto)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="%s (%s)" % (exc, origem)) from exc
+
+    # ⚠️ ANDAIME TEMPORÁRIO — REMOVER NO PASSO 4 DESTA FASE.
+    # A resolução de chave já é multiprovedor, mas `generator._get_llm()` ainda
+    # constrói só cliente do Gemini. Sem esta guarda, pedir `deepseek` agora
+    # entregaria a chave do DeepSeek a um cliente do Gemini, e o erro visível
+    # seria "o provedor recusou a chave de API" — mensagem que manda o editor
+    # conferir uma chave correta. 501 diz a verdade: o provedor é reconhecido e
+    # ainda não está ligado.
+    if provedor != "gemini":
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "Provedor %s reconhecido, mas o construtor de cliente dele ainda "
+                "não foi ligado neste backend (H1 fase B, passo 4)."
+                % generator.PROVEDORES[provedor]["rotulo"]
+            ),
+        )
+    return provedor
+
+
+def _resolve_api_key(provedor: str, header_gemini: str, header_deepseek: str, req) -> str:
+    """
+    Resolve a chave do PROVEDOR JÁ RESOLVIDO: header > body > Settings (.env).
 
     Único gate de "existe chave disponível" do backend — as seis rotas que usam
-    LLM passam por aqui antes de construir cliente. Desde a fase 0 do H1,
-    `gemini_api_key` é opcional em config.py, então é este 401 que substitui a
-    falha no boot.
+    LLM passam por aqui antes de construir cliente. Desde a fase 0 do H1 as
+    chaves são opcionais em config.py, então é este 401 que substitui a falha
+    no boot.
+
+    A escolha de QUAL header e QUAL campo consultar sai da tabela
+    `generator.PROVEDORES`, e não de um `if provedor == ...` repetido nas seis
+    rotas: acrescentar provedor não deve pedir edição em seis lugares.
     """
+    meta = generator.PROVEDORES[provedor]
+
+    # ⚠️ Os headers seguem sendo PARÂMETROS EXPLÍCITOS nas rotas, e não uma
+    # leitura de `request.headers` guiada por `meta["header_chave"]`, que seria
+    # mais curta. Motivo: parâmetro declarado aparece no /openapi.json, e foi
+    # justamente ler o contrato publicado que revelou, no diagnóstico do H1, que
+    # 3 das 8 rotas aceitavam chave por requisição e 5 não. Perder essa
+    # visibilidade para economizar linhas trocaria evidência por concisão.
+    #
+    # O preço é este mapa: PROVEDOR NOVO exige o parâmetro nas 6 rotas e uma
+    # linha aqui. Se faltar a linha, o `raise` abaixo denuncia — sem ele, o
+    # provedor novo receberia chave vazia e o sintoma seria um 401 de "chave não
+    # encontrada" apontando para a configuração do editor, que estaria correta.
+    headers_de_chave = {"gemini": header_gemini, "deepseek": header_deepseek}
+    if provedor not in headers_de_chave:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Provedor %s está em generator.PROVEDORES mas não tem header "
+                "declarado nas rotas de main.py." % provedor
+            ),
+        )
+    header_key = headers_de_chave[provedor]
+    body_key = getattr(req, meta["campo_chave"], "") or ""
+
     if header_key:
         return header_key
     if body_key:
@@ -252,14 +338,15 @@ def _resolve_gemini_key(header_key: str, body_key: str) -> str:
     # pydantic-settings lê variável de ambiente REAL e o arquivo .env, com a
     # real tendo precedência — cobre estritamente mais que os.getenv(), que só
     # vê o que já está no ambiente do processo.
-    env_key = get_settings().gemini_api_key
+    env_key = getattr(get_settings(), meta["campo_chave"], "") or ""
     if env_key:
         return env_key
     raise HTTPException(
         status_code=401,
         detail=(
-            "Chave de API Gemini não encontrada. Forneça via header X-Gemini-Api-Key, "
-            "campo gemini_api_key no body, ou variável de ambiente GEMINI_API_KEY."
+            "Chave de API %s não encontrada. Forneça via header %s, "
+            "campo %s no body, ou variável de ambiente %s."
+            % (meta["rotulo"], meta["header_chave"], meta["campo_chave"], meta["env_chave"])
         ),
     )
 
@@ -335,11 +422,14 @@ def _extract_json(text: str) -> dict:
 def analyze_domain(
     req: DomainAnalysisRequest,
     x_gemini_api_key: str = Header(default=""),
+    x_deepseek_api_key: str = Header(default=""),
+    x_llm_provider: str = Header(default=""),
 ) -> DomainAnalysisResponse:
     """Analisa um corpus textual e identifica eixos de tensão e perfis de jogador via Gemini."""
 
     # PASSO 1 — Resolver chave de API
-    api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
+    provedor = _resolve_provedor(x_llm_provider)
+    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
     logger.info("[analyze-domain] Iniciando análise de domínio. Tamanho do contexto: %d chars.", len(req.context_text))
 
     # PASSO 2 — Construir prompt de usuário
@@ -420,11 +510,14 @@ REGRAS:
 def assign_weights(
     req: AssignWeightsRequest,
     x_gemini_api_key: str = Header(default=""),
+    x_deepseek_api_key: str = Header(default=""),
+    x_llm_provider: str = Header(default=""),
 ) -> AssignWeightsResponse:
     """Atribui pesos (-20 a +20) em cada eixo para cada alternativa de cada dilema."""
 
     # PASSO 1 — Resolver chave de API
-    api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
+    provedor = _resolve_provedor(x_llm_provider)
+    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
     logger.info("[assign-weights] Atribuindo pesos para %d dilema(s).", len(req.dilemmas))
 
     # PASSO 2 — Montar representação simplificada dos dilemas para o prompt
@@ -546,11 +639,14 @@ def _distancia_euclidiana(v1: dict[str, float], v2: dict[str, float]) -> float:
 def generate_verdict(
     req: GenerateVerdictRequest,
     x_gemini_api_key: str = Header(default=""),
+    x_deepseek_api_key: str = Header(default=""),
+    x_llm_provider: str = Header(default=""),
 ) -> GenerateVerdictResponse:
     """Seleciona o perfil mais próximo do vetor do jogador e gera texto narrativo personalizado."""
 
     # PASSO 1 — Resolver chave de API
-    api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
+    provedor = _resolve_provedor(x_llm_provider)
+    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
     logger.info("[generate-verdict] Vetor do jogador: %s. Perfis disponíveis: %d.", req.vetor_jogador, len(req.perfis_disponiveis))
 
     if not req.perfis_disponiveis:

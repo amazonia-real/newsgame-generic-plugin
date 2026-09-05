@@ -599,6 +599,71 @@ def detail_de_provedor(exc: Exception) -> str:
     )
 
 
+# ── Registro de provedores de LLM — LUGAR ÚNICO da lista fechada ────
+#
+# Quem valida "este provedor existe?" (main.py, na borda da requisição) e quem
+# constrói o cliente (o _get_llm, abaixo) leem esta MESMA tabela. É a promessa
+# escrita no comentário de `llm_provider` em config.py.
+#
+# ⚠️ POR QUE AQUI, E NÃO EM config.py — a pergunta é legítima, porque as duas
+# primeiras colunas de cada linha são NOMES DE CAMPO do Settings e pareceriam
+# pertencer a ele. O motivo é o que a tabela ganha no passo 4: cada provedor
+# tem especificidade de CONSTRUTOR DE SDK (`google_api_key=` no Gemini contra
+# `api_key=` no DeepSeek, mais o `extra_body` que desliga o modo thinking).
+# Isso é conhecimento de SDK, e generator.py é o ÚNICO módulo do backend que
+# importa SDK de provedor — config.py é folha e não deve passar a importar.
+# Partir a tabela em duas, os nomes de campo lá e o construtor aqui, é
+# exatamente o que criaria as duas cópias que divergem em silêncio quando um
+# provedor entra. Uma tabela, no arquivo que pode conhecer as duas coisas.
+#
+# ACRESCENTAR PROVEDOR = uma linha aqui + o construtor no _get_llm + a
+# whitelist do painel (class-newsgame-settings.php). Os três, ou o provedor
+# fica selecionável e não funciona.
+PROVEDOR_DEFAULT = "gemini"
+
+PROVEDORES: dict[str, dict[str, str]] = {
+    "gemini": {
+        "rotulo": "Gemini",
+        "campo_chave": "gemini_api_key",    # atributo de Settings
+        "campo_modelo": "llm_model",        # consumido no passo 4
+        "header_chave": "X-Gemini-Api-Key",
+        "env_chave": "GEMINI_API_KEY",
+    },
+    "deepseek": {
+        "rotulo": "DeepSeek",
+        "campo_chave": "deepseek_api_key",
+        "campo_modelo": "llm_model_deepseek",
+        "header_chave": "X-DeepSeek-Api-Key",
+        "env_chave": "DEEPSEEK_API_KEY",
+    },
+}
+
+
+def normalizar_provedor(valor: str) -> str:
+    """
+    Valida um slug de provedor contra a lista fechada e o normaliza.
+
+    Aceita variação de caixa e espaço em volta — `" Gemini "` vira `"gemini"`.
+    Levanta `ValueError` para valor desconhecido, com a lista válida na
+    mensagem; quem chama decide o status HTTP e diz de ONDE veio o valor.
+
+    ⚠️ NÃO cai para o default em caso de valor desconhecido, de propósito.
+    Um `LLM_PROVIDER=gemni` no .env ou um header com typo produziria, no
+    silêncio, um cliente do Gemini recebendo a chave do DeepSeek — e o sintoma
+    seria "o provedor recusou a chave", que aponta para a chave em vez de para
+    o nome errado. É a mesma classe de defeito do C13/C14: falhar apontando
+    para o lugar errado. A cascata de default é decidida por quem chama, e só
+    para valor AUSENTE.
+    """
+    slug = (valor or "").strip().lower()
+    if slug not in PROVEDORES:
+        raise ValueError(
+            "Provedor de IA desconhecido: %r. Válidos: %s."
+            % (valor, ", ".join(sorted(PROVEDORES)))
+        )
+    return slug
+
+
 # ── Cliente do LLM — ponto único de construção do backend ──────────
 #
 # Fase 0 do H1: era um singleton global (`_llm`) que lia `cfg.gemini_api_key`
@@ -644,7 +709,7 @@ def _get_llm(api_key: str) -> ChatGoogleGenerativeAI:
     # passo 4 da fase 0 é o que a tornou possível: com `gemini_api_key`
     # opcional em config.py, existe agora instalação sem chave nenhuma no .env.
     #
-    # As seis rotas resolvem antes de chegar aqui, e `_resolve_gemini_key()`
+    # As seis rotas resolvem antes de chegar aqui, e `_resolve_api_key()`
     # levanta 401 quando os três degraus estão vazios. Então quem chegar aqui
     # com "" é chamador NOVO que esqueceu de resolver.
     #
@@ -656,7 +721,7 @@ def _get_llm(api_key: str) -> ChatGoogleGenerativeAI:
     if not api_key:
         raise ValueError(
             "_get_llm() recebeu chave vazia: a rota chamadora não passou por "
-            "_resolve_gemini_key(). Ver fase 0 do H1."
+            "_resolve_api_key(). Ver fase 0 do H1."
         )
 
     cfg = get_settings()

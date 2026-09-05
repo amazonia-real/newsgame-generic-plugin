@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     # OPCIONAL desde a fase 0 do H1 (2026-09-04). Era campo sem default, e o
     # servidor não subia sem ele — inconsistente com a chave poder chegar por
     # requisição. Quem valida "existe alguma chave disponível" é
-    # `_resolve_gemini_key()` (main.py), que levanta 401 quando os três degraus
+    # `_resolve_api_key()` (main.py), que levanta 401 quando os três degraus
     # da cascata — header, body, este campo — estão todos vazios.
     #
     # ⚠️ `api_secret_token`, mais abaixo, CONTINUA OBRIGATÓRIO. A guarda do
