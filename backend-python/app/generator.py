@@ -416,6 +416,98 @@ def _aplicar_fallback_correta(dilema: DilemaNg, nivel_nome: str) -> None:
         dilema.alternativa_correta = "B"
 
 
+# ── Classificação de erro de provedor — compartilhada ──────────────
+#
+# Mora aqui, e não em main.py, porque TRÊS módulos precisam dela: as rotas de
+# cascata (main), a geração (este arquivo) e a regeneração (regenerator). O
+# `main` já importa `generator`, então não há ciclo de import. No passo 5a isto
+# nasceu dentro de main.py e serviu a um consumidor só; o 5b o tornou
+# compartilhado, e cópia em dois lugares é a família do C13.
+#
+# ⚠️ DETECÇÃO POR SUBSTRING, FRÁGIL DE PROPÓSITO E DECLARADA: o SDK do Gemini
+# levanta UMA classe genérica (ChatGoogleGenerativeAIError) para tudo, com a
+# causa apenas no texto. `openai` e `anthropic` levantam classes DEDICADAS com
+# `status_code` — quando o segundo provedor entrar, isto muda de forma, e o
+# Gemini continuará sendo o caso que exige o remendo de texto.
+#
+# Sem "401"/"403" na lista: são números curtos demais e apareceriam por
+# coincidência em mensagens que não são de autenticação.
+MARCADORES_CHAVE = (
+    "api key not valid",
+    "api_key_invalid",
+    "invalid api key",
+    "incorrect api key",
+    "invalid authentication",
+    "unauthenticated",
+    "permission denied",
+    "permission_denied",
+)
+
+# Crédito esgotado. Já era tratado como fatal no laço de geração (bare `raise`),
+# mas o `raise` cru virava 500 "Erro interno" na rota — agora vira 502 com causa.
+MARCADORES_CREDITO = ("prepayment", "credits are depleted", "billing")
+
+
+class ErroDeProvedor(Exception):
+    """
+    O provedor RECUSOU a chamada — chave rejeitada ou crédito esgotado.
+
+    Existe para separar duas coisas que os laços de retentativa tratavam como
+    uma só: "não consegui gerar um dilema válido" (que é falha de geração, e
+    merece o 422 e o retry) e "o provedor não me atendeu" (que não melhora com
+    retry e não é culpa do dilema).
+
+    Carrega `detail` pronto para virar corpo de resposta HTTP. Quem traduz para
+    502 são as rotas em main.py; este módulo não conhece HTTP.
+    """
+
+    def __init__(self, detail: str):
+        self.detail = detail
+        super().__init__(detail)
+
+
+def erro_de_chave(exc: Exception) -> bool:
+    """True quando a mensagem do provedor indica chave rejeitada."""
+    texto = str(exc).lower()
+    return any(m in texto for m in MARCADORES_CHAVE)
+
+
+def erro_fatal_de_provedor(exc: Exception) -> bool:
+    """
+    True quando retentar é inútil: chave recusada ou crédito esgotado.
+
+    NÃO inclui rate limit (429/quota), que continua no caminho de sleep+retry,
+    nem erro de rede transitório — este último segue caindo no `break` que
+    devolve None e faz a rota responder 422, porque num lote de 15 slots pular
+    um slot é melhor que abortar o lote inteiro. Escopo estreito de propósito:
+    a fase 0 trata "o provedor recusou", e não constrói taxonomia de erro.
+    """
+    texto = str(exc).lower()
+    return erro_de_chave(exc) or any(m in texto for m in MARCADORES_CREDITO)
+
+
+def detail_de_provedor(exc: Exception) -> str:
+    """Mensagem para o editor. Nunca traceback — a decisão do C2/FLAG 003."""
+    if erro_de_chave(exc):
+        return (
+            "O provedor de IA recusou a chave de API. Verifique a chave em "
+            "News-Game › Configurações — ou, se o backend usa a própria, a "
+            "variável GEMINI_API_KEY do servidor."
+        )
+    texto = str(exc).lower()
+    if any(m in texto for m in MARCADORES_CREDITO):
+        return (
+            "O provedor de IA recusou a chamada por falta de crédito na conta "
+            "da chave de API. Nenhuma retentativa resolve isso."
+        )
+    # Quota estourada, timeout e indisponibilidade caem aqui: mensagem truncada,
+    # não traceback, porque o editor precisa de pista.
+    return (
+        f"Falha na chamada ao provedor de IA ({type(exc).__name__}): "
+        f"{str(exc)[:200]}"
+    )
+
+
 # ── Cliente do LLM — ponto único de construção do backend ──────────
 #
 # Fase 0 do H1: era um singleton global (`_llm`) que lia `cfg.gemini_api_key`
@@ -740,9 +832,22 @@ def generate_one_dilema(req: GenerateRequest, api_key: str) -> DilemaNg | None:
             return dilema
         except Exception as exc:
             err = str(exc).lower()
-            # "prepayment credits are depleted" — erro fatal, não adianta retry
-            if "prepayment" in err or "credits are depleted" in err or "billing" in err:
-                raise
+            # RECUSA DO PROVEDOR (chave rejeitada ou crédito esgotado) não é
+            # falha de geração — passo 5b da fase 0. Antes, chave inválida caía
+            # no `break` abaixo e a rota respondia 422 "não foi possível gerar
+            # um dilema válido": mensagem que culpa o dilema por um problema de
+            # credencial. Medido em 2026-09-04: aqui gastava 1 tentativa, e o
+            # mesmo erro no regenerator gastava 5.
+            #
+            # O crédito esgotado já era fatal (bare `raise`), mas o `raise` cru
+            # virava 500 "Erro interno" na rota. Agora leva `detail`.
+            if erro_fatal_de_provedor(exc):
+                logger.warning(
+                    "[generator] generate_one slot=%s ABORTADO por recusa do provedor: %r",
+                    req.slot_index, exc,
+                )
+                raise ErroDeProvedor(detail_de_provedor(exc)) from exc
+
             is_rate = any(k in err for k in ["429", "resource_exhausted", "resourceexhausted", "quota", "rate_limit"])
             logger.warning(
                 "[generator] generate_one tentativa=%s slot=%s is_rate=%s erro=%r",
@@ -839,6 +944,23 @@ def generate_stream(req: GenerateRequest, api_key: str) -> Generator[str, None, 
                     break
                 except Exception as exc:
                     err    = str(exc).lower()
+
+                    # RECUSA DO PROVEDOR encerra o stream — passo 5b da fase 0.
+                    # Aqui NÃO se levanta exceção: os headers HTTP já foram
+                    # enviados e não há como trocar o status. Em vez disso emite
+                    # um evento final e retorna.
+                    #
+                    # Antes, este caminho caía no `yield ... 'error'` com
+                    # `str(exc)` cru e dava `break` só no laço INTERNO — com uma
+                    # chave inválida, o stream seguia para o próximo lote e
+                    # repetia o erro em todos, um por um.
+                    if erro_fatal_de_provedor(exc):
+                        logger.warning(
+                            "[generator] stream ABORTADO por recusa do provedor: %r", exc
+                        )
+                        yield f"data: {json.dumps({'type': 'error', 'fatal': True, 'msg': detail_de_provedor(exc)})}\n\n"
+                        return
+
                     is_rate = any(k in err for k in ["429", "resource_exhausted", "quota", "rate_limit"])
                     logger.warning(
                         "[generator] tentativa=%s batch=%s i=%s personagem=%s erro=%r",

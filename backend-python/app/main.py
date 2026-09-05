@@ -73,7 +73,14 @@ def regenerate_one(
     Retorna o dilema serializado ou 422 se não conseguir gerar.
     """
     api_key = _resolve_gemini_key(x_gemini_api_key, req.gemini_api_key)
-    dilema = regenerator.generate_one(req, api_key)
+
+    # Recusa do provedor vira 502 com causa; "não gerei dilema válido" segue 422.
+    # Antes do passo 5b as duas coisas saíam como o mesmo 422.
+    try:
+        dilema = regenerator.generate_one(req, api_key)
+    except generator.ErroDeProvedor as exc:
+        raise HTTPException(status_code=502, detail=exc.detail) from exc
+
     if dilema is None:
         raise HTTPException(status_code=422, detail="Não foi possível gerar uma pergunta substituta válida.")
     return dilema.model_dump()
@@ -101,6 +108,11 @@ def generate_one(
         result["instance_id"] = req.instance_id
         result["position"]    = req.slot_index + 1
         return result
+    except generator.ErroDeProvedor as exc:
+        # Ramo PRÓPRIO, antes do `except Exception` — sem ele a recusa do
+        # provedor cairia no 500 "Erro interno" do ramo genérico, que é tão mudo
+        # quanto o 422 que o 5b acabou de tirar do caminho.
+        raise HTTPException(status_code=502, detail=exc.detail) from exc
     except HTTPException:
         raise
     except Exception:
@@ -265,32 +277,10 @@ def _resolve_gemini_key(header_key: str, body_key: str) -> str:
 
 # ── Chamada ao provedor, com erro traduzido ────────────────
 #
-# Marcadores de "o provedor recusou a chave". FRÁGIL DE PROPÓSITO, E DECLARADO:
-# o SDK do Gemini levanta UMA classe genérica (ChatGoogleGenerativeAIError)
-# para tudo, com a causa apenas no texto da mensagem. Importar as classes de
-# exceção do google aqui acoplaria `main.py` ao provedor, que é o oposto do H1 —
-# este arquivo deixou de importar o SDK no passo 2 e não deve voltar a importar.
-#
-# ⚠️ QUANDO O SEGUNDO PROVEDOR ENTRAR, ISTO MUDA DE FORMA. `openai` e
-# `anthropic` levantam classes DEDICADAS de autenticação, com `status_code` —
-# lá a detecção deve ser por classe/status, não por substring. O Gemini vai
-# continuar sendo o caso que exige o remendo de texto. Nada de taxonomia por
-# provedor antes de o segundo existir de fato (decisão da fase 0).
-#
-# Sem "401"/"403" na lista de propósito: são números curtos demais e apareceriam
-# por coincidência em mensagens que não são de autenticação.
-_MARCADORES_AUTH = (
-    "api key not valid",
-    "api_key_invalid",
-    "invalid api key",
-    "incorrect api key",
-    "invalid authentication",
-    "unauthenticated",
-    "permission denied",
-    "permission_denied",
-)
-
-
+# Os marcadores e o construtor de mensagem viviam AQUI no passo 5a. No 5b eles
+# foram para `generator.py`, porque passaram a servir três módulos (rotas de
+# cascata, geração e regeneração) — ver a nota longa lá. Este arquivo consome
+# `generator.detail_de_provedor()` e continua sem importar o SDK do provedor.
 def _invoke_llm(llm, messages, rota: str) -> str:
     """
     Chama o provedor e traduz recusa em resposta HTTP estruturada.
@@ -322,23 +312,9 @@ def _invoke_llm(llm, messages, rota: str) -> str:
         return llm.invoke(messages).content
     except Exception as exc:
         logger.exception("[%s] Chamada ao provedor de IA falhou.", rota)
-        texto = str(exc).lower()
-
-        if any(marcador in texto for marcador in _MARCADORES_AUTH):
-            detail = (
-                "O provedor de IA recusou a chave de API. Verifique a chave em "
-                "News-Game › Configurações — ou, se o backend usa a própria, a "
-                "variável GEMINI_API_KEY do servidor."
-            )
-        else:
-            # Mensagem truncada, não traceback: quota estourada, timeout e
-            # indisponibilidade caem aqui, e o editor precisa de pista.
-            detail = (
-                f"Falha na chamada ao provedor de IA ({type(exc).__name__}): "
-                f"{str(exc)[:200]}"
-            )
-
-        raise HTTPException(status_code=502, detail=detail) from exc
+        raise HTTPException(
+            status_code=502, detail=generator.detail_de_provedor(exc)
+        ) from exc
 
 
 def _extract_json(text: str) -> dict:

@@ -11,7 +11,10 @@ import re
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.config import get_settings
-from app.generator import _get_llm, _build_prompt, _is_valid_dilema, _nivel_nome, _extract_json_dilema
+from app.generator import (
+    _get_llm, _build_prompt, _is_valid_dilema, _nivel_nome, _extract_json_dilema,
+    ErroDeProvedor, erro_fatal_de_provedor, detail_de_provedor,
+)
 from app.models import RegenerateRequest, DilemaNg
 from app.rag import get_collection, mmr_search
 
@@ -90,6 +93,18 @@ def generate_one(req: RegenerateRequest, api_key: str) -> DilemaNg | None:
                 dilema.personagem_tipo = req.personagem_tipo
                 return dilema
         except Exception as exc:
+            # RECUSA DO PROVEDOR aborta na primeira — passo 5b da fase 0.
+            # Este laço era o pior dos três: sem nenhuma classificação, ele
+            # retentava QUALQUER exceção até `max_retries_batch`. Medido em
+            # 2026-09-04 com chave inválida: **cinco** tentativas contra uma só
+            # do `generate_one_dilema`, todas condenadas, e no fim um 422
+            # dizendo "não foi possível gerar uma pergunta substituta válida".
+            if erro_fatal_de_provedor(exc):
+                logger.warning(
+                    "[regenerator] ABORTADO por recusa do provedor: %r", exc
+                )
+                raise ErroDeProvedor(detail_de_provedor(exc)) from exc
+
             logger.warning(
                 "[regenerator] tentativa=%s personagem=%s erro=%r",
                 tentativa, req.personagem_tipo, exc,
