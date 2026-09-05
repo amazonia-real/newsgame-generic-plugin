@@ -303,6 +303,23 @@ TERMINANTEMENTE PROIBIDO: aspas triplas (```json, ```), blocos de \
 código markdown ou qualquer texto explicativo fora do objeto JSON.
 """
 
+# ⚠️ OS VALORES DE `impacto` NO SCHEMA ABAIXO SÃO EXEMPLOS DIFERENCIADOS, E ISSO
+# É DELIBERADO. Eles eram `{"popularidade": 0, "recursos": 0}` nas três
+# alternativas, e o efeito foi medido em 2026-09-04: **24 de 24** dilemas no banco
+# — todos gerados pelo Gemini — saíram com os quatro valores em ZERO. O modelo
+# copiava o exemplo literalmente.
+#
+# A faixa −10/+10 existia apenas como `description` de campo Pydantic
+# (`models.py:67,71`), e description NÃO CHEGA AO MODELO: o projeto extrai JSON de
+# texto e não usa structured output (é a FLAG 001). Ou seja, a única declaração da
+# faixa vivia num lugar que o LLM nunca lê.
+#
+# A instrução em texto logo depois do schema é o conserto principal; trocar os
+# zeros por valores diferenciados é o que impede que a cópia literal volte a
+# zerar. Validado com Gemini e DeepSeek — ver o commit desta mudança.
+#
+# ⚠️ Se algum dia estes exemplos voltarem a ser iguais entre si, ou uniformes, o
+# defeito volta: o modelo copia o que vê.
 USER_PROMPT = """\
 Texto-fonte:
 {texto}
@@ -325,19 +342,19 @@ Responda APENAS com um bloco JSON puro contendo a estrutura exata abaixo (substi
       "letra": "A",
       "texto": "Texto começando com verbo no presente (máx 90 chars)",
       "consequencia": "Projeção da consequência realista",
-      "impacto": {"popularidade": 0, "recursos": 0}
+      "impacto": {"popularidade": -3, "recursos": 5}
     },
     {
       "letra": "B",
       "texto": "Texto começando com verbo no presente (máx 90 chars)",
       "consequencia": "Projeção da consequência realista",
-      "impacto": {"popularidade": 0, "recursos": 0}
+      "impacto": {"popularidade": 7, "recursos": -4}
     },
     {
       "letra": "C",
       "texto": "Texto começando com verbo no presente (máx 90 chars)",
       "consequencia": "Projeção da consequência realista",
-      "impacto": {"popularidade": 0, "recursos": 0}
+      "impacto": {"popularidade": 2, "recursos": 1}
     }
   ],
   "alternativa_correta": "B",
@@ -351,6 +368,11 @@ Responda APENAS com um bloco JSON puro contendo a estrutura exata abaixo (substi
 ```
 
 O campo "alternativa_correta" é OBRIGATÓRIO. Deve conter "A", "B" ou "C".
+
+FAIXA NUMÉRICA OBRIGATÓRIA — "popularidade" e "recursos":
+Os valores de "popularidade" e "recursos" em cada "impacto" DEVEM ser números inteiros estritamente entre -10 e 10. NUNCA use escala de 0 a 100, porcentagem, nem qualquer valor fora dessa faixa.
+Os números do schema acima são exemplos de FORMA — não os copie. Cada alternativa recebe valores próprios, positivos ou negativos, coerentes com o trade-off que ela representa: a escolha que ganha audiência e custa dinheiro tem "popularidade" positiva e "recursos" negativa, e vice-versa. Zerar os dois valores só se justifica quando a alternativa é de fato neutra nas duas dimensões.
+
 NUNCA retorne qualquer texto antes ou depois do bloco JSON.
 """
 
