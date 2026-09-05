@@ -1073,6 +1073,82 @@ interpretação de um teste.
 
 ---
 
+## FLAG 014 — Impacto zerado em 24 de 24 dilemas: restrição declarada onde o LLM não lê
+
+**Status:** 🟡 **Parcial.** A **causa** foi corrigida em 2026-09-04 (commit
+`a5f4c52`) e validada nos dois provedores. O **dado histórico** segue zerado: os
+24 dilemas que já estão no banco não foram regerados.
+
+**Problema:**
+Consulta direta ao MySQL em 2026-09-04: **24 de 24** dilemas de
+`wp_newsgame_dilemas` — todos gerados pelo Gemini — tinham os quatro valores de
+`impacto` (`popularidade` e `recursos` das duas alternativas) em **zero**.
+
+A causa tem duas metades, e a segunda é a interessante:
+
+1. **O exemplo do schema no prompt usava zeros.** `generator.py`, nas três
+   alternativas do `USER_PROMPT`: `"impacto": {"popularidade": 0, "recursos": 0}`.
+   O modelo copiava literalmente.
+2. ⚠️ **A faixa −10/+10 existia APENAS como `description` de campo Pydantic**
+   (`models.py:67,71`), e **`description` não chega ao modelo**. O projeto extrai
+   JSON de texto e não usa structured output — é a **FLAG 001**. Ou seja: a única
+   declaração da restrição vivia num lugar que o LLM nunca lê. `grep` por menção
+   à faixa em `generator.py` devolvia **zero**.
+
+**A REGRA GENERALIZÁVEL, que é o que vale guardar:** neste projeto, restrição que
+só existe como `Field(description=…)` é **invisível para o modelo**. Enquanto a
+FLAG 001 (JSON de texto, sem structured output) valer, toda regra que o LLM
+precisa obedecer tem de estar **no texto do prompt**. Vale para qualquer campo
+novo, não só para o `impacto`.
+
+**Correção aplicada (`a5f4c52`):** instrução em texto logo depois do schema,
+declarando a faixa e proibindo escala 0–100; e os três exemplos passaram a ter
+valores diferenciados (`-3/5`, `7/-4`, `2/1`), com forma de trade-off, para que a
+cópia literal não volte a zerar.
+
+**Validação:** Gemini **3/3** na faixa e **0/3** zeradas, zero retentativas;
+DeepSeek **5/5** na faixa com o prompt corrigido, contra **2/5** sem a instrução.
+
+**Onde está:**
+- `backend-python/app/generator.py` — o `USER_PROMPT`, com o comentário de código
+  que explica por que os exemplos são diferenciados
+- `backend-python/app/models.py:67,71` — a `description` que não chega ao modelo
+- `wp_newsgame_dilemas` — as 24 linhas com zeros
+
+**O que sobra, e por que não é urgente:**
+- ⚠️ **Os 24 dilemas históricos continuam zerados.** Se o campo voltar a ser
+  exibido, é **regeração ou edição manual** — não há migração possível, porque o
+  valor nunca existiu para ser recuperado.
+- **Hoje nada exibe o campo.** Ele é gravado (`class-newsgame-generator.php:316`)
+  e editável na Mesa Editorial (`class-newsgame-review.php:506`), mas os badges de
+  impacto saíram da superfície do jogador em 2026-08-29 — `newsgame-game.js:253`
+  guarda só o comentário disso. O radar do veredito usa `axis_weights`, que vem de
+  `/assign-weights` e **não** deste campo.
+- **A cópia literal não desapareceu:** 1 das 3 gerações do Gemini devolveu
+  exatamente os valores de exemplo (`-3/5`, `7/-4`). A diferença é que agora a
+  cópia produz números na escala e com forma de trade-off, em vez de zeros.
+  **Nenhuma validação de faixa detecta isso** — valor copiado é valor válido. Se o
+  campo voltar a importar, considerar exemplos propositalmente implausíveis para o
+  domínio, de modo que copiar fique visível.
+- **`_is_valid_dilema` não valida faixa**, e isso segue como **defesa em
+  profundidade pendente**, não como bloqueio. Ele checa título, situação e
+  contagem de alternativas. A validação pegaria o caso fora de faixa
+  (`15`, `60/80`) que o prompt sozinho não garante — e **não** pegaria os zeros,
+  porque zero está dentro da faixa. Por isso o prompt é o conserto principal e o
+  código é a rede.
+
+⚠️ **Evidência de que instrução de prompt não é garantia:** o `SYSTEM_PROMPT` já
+proíbe cerca de markdown em maiúsculas (*"TERMINANTEMENTE PROIBIDO: aspas triplas
+(```json, ```)"*), e o Gemini enviou cerca em **3/3** gerações. O pipeline remove
+antes do parse e nada quebrou, mas é a razão pela qual a rede em código continua
+valendo a pena.
+
+**Ver também:** **FLAG 001** (a validação Pydantic + auto-reparo que explica por
+que não há structured output) e a subseção de POC do DeepSeek na §5 do
+`ROADMAP_OPEN_SOURCE.md`, onde o achado apareceu.
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.
