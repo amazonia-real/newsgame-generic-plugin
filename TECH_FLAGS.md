@@ -1012,6 +1012,67 @@ já está no caixa. Ver o bloco de correção de 2026-09-04 na §4 (D1) do
 
 ---
 
+## FLAG 013 — Armadilha de ambiente: `uvicorn --reload` no Windows aceita bind duplo na mesma porta
+
+**Status:** 🔵 Registrado em 2026-09-04. **Não é defeito do produto** — é
+propriedade do ambiente de desenvolvimento, e entra aqui pela mesma razão da
+FLAG 008: custou tempo duas vezes no mesmo dia e vai custar de novo sem registro.
+
+**Problema:**
+No Windows, dois processos conseguem escutar `:8000` **ao mesmo tempo**, sem erro
+de "address already in use" — não há `SO_EXCLUSIVEADDRUSE` por padrão. Quando isso
+acontece, quem responde é o bind **mais específico**: um processo em
+`127.0.0.1:8000` intercepta o tráfego que um processo em `0.0.0.0:8000` também
+está escutando. E o plugin fala com `http://127.0.0.1:8000`
+(`newsgame_backend_url`), então é o intruso que atende.
+
+Somam-se duas armadilhas de identificação de processo:
+
+1. **O PID que detém o socket é o PAI, não o worker.** Em `uvicorn --reload` o
+   processo que aparece no `netstat`/`Get-NetTCPConnection` sobrevive aos reloads;
+   só o filho é substituído. **Comparar esse PID antes e depois de editar um
+   arquivo não diz nada sobre o código estar carregado.**
+2. **Os workers não têm o caminho do projeto na linha de comando.** Eles são
+   spawns de `multiprocessing`:
+   `python.exe -c "from multiprocessing.spawn import spawn_main; spawn_main(parent_pid=…)"`.
+   Portanto `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*news-game*" }`
+   **não os alcança**, e um `taskkill` filtrado assim deixa o worker vivo,
+   segurando a porta e servindo código velho.
+
+**Onde custou, medido em 2026-09-04:**
+- **Episódio 1.** Um processo meu em `127.0.0.1:8000` ficou de pé por engano e
+  interceptou quatro `POST /generate-one` disparados do painel pelo editor. Ele
+  havia lido o `.env` 13 minutos antes da troca de chave, o que tornou o teste do
+  editor inconclusivo — e a investigação de "qual processo atendeu" consumiu uma
+  rodada inteira de perícia de timestamps.
+- **Episódio 2.** Na validação do passo 5b da fase 0, três rotas devolveram o
+  comportamento **antigo** depois de um restart aparentemente bem-sucedido. Causa:
+  o worker anterior sobreviveu ao `taskkill` filtrado por linha de comando e
+  continuou ganhando o socket.
+
+**Onde está:** ambiente de desenvolvimento local (Windows 11 + `.venv` do
+`backend-python`). Nenhum arquivo do projeto.
+
+**Regra de ambiente que fica — verificar por COMPORTAMENTO, não por PID:**
+1. depois de reiniciar, exercitar um caminho cujo resultado **mude** com o código
+   novo. Foi o 502 aparecendo que provou o carregamento do passo 5a, não o PID;
+2. no log, `Started server process` deve aparecer **uma vez por startup**. Um
+   `Reloading...` sem `Started server process` depois dele significa que o worker
+   **não** foi substituído — aconteceu quando o uvicorn subiu como job de
+   background cujo shell pai encerrou. `nohup` resolveu;
+3. para derrubar, matar o **dono do socket com a árvore** (`taskkill /T`), e
+   depois conferir a porta — não confiar em filtro por linha de comando;
+4. antes de qualquer teste, conferir que existe **um** listener na porta:
+   `Get-NetTCPConnection -LocalPort 8000 -State Listen` deve devolver **uma**
+   linha. Duas linhas com `LocalAddress` diferentes é a armadilha instalada.
+
+**Ver também:** **FLAG 008**, que registra a outra regra de ambiente deste projeto
+(`innodb_force_recovery` é medida de emergência, não configuração). As duas têm a
+mesma forma: estado de ambiente esquecido ligado, que depois contamina a
+interpretação de um teste.
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.
