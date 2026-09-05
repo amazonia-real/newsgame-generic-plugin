@@ -263,6 +263,84 @@ def _resolve_gemini_key(header_key: str, body_key: str) -> str:
 # vai precisar substituir.
 
 
+# ── Chamada ao provedor, com erro traduzido ────────────────
+#
+# Marcadores de "o provedor recusou a chave". FRÁGIL DE PROPÓSITO, E DECLARADO:
+# o SDK do Gemini levanta UMA classe genérica (ChatGoogleGenerativeAIError)
+# para tudo, com a causa apenas no texto da mensagem. Importar as classes de
+# exceção do google aqui acoplaria `main.py` ao provedor, que é o oposto do H1 —
+# este arquivo deixou de importar o SDK no passo 2 e não deve voltar a importar.
+#
+# ⚠️ QUANDO O SEGUNDO PROVEDOR ENTRAR, ISTO MUDA DE FORMA. `openai` e
+# `anthropic` levantam classes DEDICADAS de autenticação, com `status_code` —
+# lá a detecção deve ser por classe/status, não por substring. O Gemini vai
+# continuar sendo o caso que exige o remendo de texto. Nada de taxonomia por
+# provedor antes de o segundo existir de fato (decisão da fase 0).
+#
+# Sem "401"/"403" na lista de propósito: são números curtos demais e apareceriam
+# por coincidência em mensagens que não são de autenticação.
+_MARCADORES_AUTH = (
+    "api key not valid",
+    "api_key_invalid",
+    "invalid api key",
+    "incorrect api key",
+    "invalid authentication",
+    "unauthenticated",
+    "permission denied",
+    "permission_denied",
+)
+
+
+def _invoke_llm(llm, messages, rota: str) -> str:
+    """
+    Chama o provedor e traduz recusa em resposta HTTP estruturada.
+
+    ── POR QUE 502 E NÃO 401 ──────────────────────────────────────────
+    Nesta API o 401 já significa outra coisa: é o que `_verify_token()` (:54)
+    devolve quando o `X-Api-Key` do plugin está errado. Reusar 401 para "o
+    PROVEDOR recusou a NOSSA chave" faria duas causas muito diferentes chegarem
+    ao editor com o mesmo código. 502 = a dependência externa recusou a chamada.
+
+    ── O QUE ESTE HELPER NÃO É ────────────────────────────────────────
+    Ele NÃO cobre a validação da resposta. O `try` de cada rota, logo depois da
+    chamada, continua cuidando de "o provedor respondeu mas o JSON não presta" —
+    é o auto-reparo em duas tentativas da FLAG 001. São duas falhas diferentes,
+    em dois `try` diferentes: aqui é "a chamada não aconteceu", lá é "a resposta
+    não serve". A prova de que não se atropelam é que o retry da FLAG 001 chama
+    ESTE helper de novo (linhas 333, 457, 566): se a segunda chamada falhar no
+    provedor, sai 502; se ela responder e o JSON continuar ruim, sai o 422 da
+    validação, como antes.
+
+    Antes da fase 0 (passo 5a) os seis `invoke` rodavam soltos e qualquer erro
+    de provedor virava `500 Internal Server Error` sem `detail` — medido em
+    2026-09-04: cinco 500 mudos durante os testes da cascata.
+
+    O traceback completo vai para o log do servidor; o cliente recebe só
+    `detail`, que é a decisão do C2/FLAG 003.
+    """
+    try:
+        return llm.invoke(messages).content
+    except Exception as exc:
+        logger.exception("[%s] Chamada ao provedor de IA falhou.", rota)
+        texto = str(exc).lower()
+
+        if any(marcador in texto for marcador in _MARCADORES_AUTH):
+            detail = (
+                "O provedor de IA recusou a chave de API. Verifique a chave em "
+                "News-Game › Configurações — ou, se o backend usa a própria, a "
+                "variável GEMINI_API_KEY do servidor."
+            )
+        else:
+            # Mensagem truncada, não traceback: quota estourada, timeout e
+            # indisponibilidade caem aqui, e o editor precisa de pista.
+            detail = (
+                f"Falha na chamada ao provedor de IA ({type(exc).__name__}): "
+                f"{str(exc)[:200]}"
+            )
+
+        raise HTTPException(status_code=502, detail=detail) from exc
+
+
 def _extract_json(text: str) -> dict:
     """Extrai e parseia o JSON bruto da resposta do Gemini, ignorando markdown e lixo."""
     text = text.strip()
@@ -312,7 +390,7 @@ def analyze_domain(
     # PASSO 3 — Chamar Gemini
     llm = generator._get_llm(api_key)
     logger.debug("[analyze-domain] Chamando Gemini (tentativa 1)...")
-    raw_text = llm.invoke(messages).content
+    raw_text = _invoke_llm(llm, messages, "analyze-domain")
 
     # PASSO 4 — Validar resposta
     try:
@@ -330,7 +408,7 @@ def analyze_domain(
                 )
             ),
         ]
-        raw_text2 = llm.invoke(retry_messages).content
+        raw_text2 = _invoke_llm(llm, retry_messages, "analyze-domain")
         try:
             data = _extract_json(raw_text2)
             result = DomainAnalysisResponse(**data)
@@ -421,7 +499,7 @@ def assign_weights(
     # PASSO 3 — Chamar Gemini
     llm = generator._get_llm(api_key)
     logger.debug("[assign-weights] Chamando Gemini (tentativa 1)...")
-    raw_text = llm.invoke(messages).content
+    raw_text = _invoke_llm(llm, messages, "assign-weights")
 
     # PASSO 4 — Validar e fundir os pesos
     def _parse_and_merge(raw: str) -> list[dict]:
@@ -454,7 +532,7 @@ def assign_weights(
                 )
             ),
         ]
-        raw_text2 = llm.invoke(retry_messages).content
+        raw_text2 = _invoke_llm(llm, retry_messages, "assign-weights")
         try:
             weighted = _parse_and_merge(raw_text2)
             logger.info("[assign-weights] Pesos atribuídos com sucesso na tentativa 2.")
@@ -542,7 +620,7 @@ def generate_verdict(
     # PASSO 4 — Chamar Gemini
     llm = generator._get_llm(api_key)
     logger.debug("[generate-verdict] Chamando Gemini (tentativa 1)...")
-    raw_text = llm.invoke(messages).content
+    raw_text = _invoke_llm(llm, messages, "generate-verdict")
 
     # PASSO 5 — Validar narrativa
     def _parse_narrativa(raw: str) -> VerdictNarrative:
@@ -563,7 +641,7 @@ def generate_verdict(
                 )
             ),
         ]
-        raw_text2 = llm.invoke(retry_messages).content
+        raw_text2 = _invoke_llm(llm, retry_messages, "generate-verdict")
         try:
             narrativa = _parse_narrativa(raw_text2)
             logger.info("[generate-verdict] Narrativa gerada com sucesso na tentativa 2.")
