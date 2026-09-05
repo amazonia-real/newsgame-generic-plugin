@@ -16,7 +16,9 @@ import time
 from functools import lru_cache
 from typing import Generator
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_deepseek import ChatDeepSeek
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.config import get_settings
@@ -616,18 +618,49 @@ def detail_de_provedor(exc: Exception) -> str:
 # exatamente o que criaria as duas cópias que divergem em silêncio quando um
 # provedor entra. Uma tabela, no arquivo que pode conhecer as duas coisas.
 #
-# ACRESCENTAR PROVEDOR = uma linha aqui + o construtor no _get_llm + a
-# whitelist do painel (class-newsgame-settings.php). Os três, ou o provedor
-# fica selecionável e não funciona.
+# ACRESCENTAR PROVEDOR = uma linha nesta tabela (a coluna `construtor`
+# inclusive) + o parâmetro de header nas 6 rotas de main.py + a whitelist do
+# painel (class-newsgame-settings.php). Os três, ou o provedor fica
+# selecionável e não funciona.
 PROVEDOR_DEFAULT = "gemini"
 
-PROVEDORES: dict[str, dict[str, str]] = {
+
+def _cliente_gemini(modelo: str, temperatura: float, api_key: str) -> BaseChatModel:
+    # `google_api_key=` — é a ÚNICA diferença de assinatura em relação ao
+    # DeepSeek, medida na POC de 2026-09-04. O resto da forma de chamada
+    # (`model=`, `temperature=`, `max_retries=`) é idêntico, e é o que permitiu
+    # o pipeline de geração rodar sem ajuste com o segundo provedor.
+    return ChatGoogleGenerativeAI(
+        model=modelo,
+        temperature=temperatura,
+        google_api_key=api_key,
+        max_retries=2,
+    )
+
+
+def _cliente_deepseek(modelo: str, temperatura: float, api_key: str) -> BaseChatModel:
+    # ⚠️ `extra_body` DESLIGA O MODO THINKING, e não é ajuste fino: com
+    # thinking ligado a calibração de 2026-09-04 mediu 96 s e até 12.322 tokens
+    # de saída (95% deles `reasoning`), contra 4,6 s e 480 tokens desligado —
+    # 21× mais rápido. O teto de 120 s do `wp_remote_post` do plugin torna o
+    # modo thinking inviável na prática, não apenas caro.
+    return ChatDeepSeek(
+        model=modelo,
+        temperature=temperatura,
+        api_key=api_key,
+        max_retries=2,
+        extra_body={"thinking": {"type": "disabled"}},
+    )
+
+
+PROVEDORES: dict[str, dict] = {
     "gemini": {
         "rotulo": "Gemini",
         "campo_chave": "gemini_api_key",    # atributo de Settings
-        "campo_modelo": "llm_model",        # consumido no passo 4
+        "campo_modelo": "llm_model",        # idem
         "header_chave": "X-Gemini-Api-Key",
         "env_chave": "GEMINI_API_KEY",
+        "construtor": _cliente_gemini,
     },
     "deepseek": {
         "rotulo": "DeepSeek",
@@ -635,6 +668,7 @@ PROVEDORES: dict[str, dict[str, str]] = {
         "campo_modelo": "llm_model_deepseek",
         "header_chave": "X-DeepSeek-Api-Key",
         "env_chave": "DEEPSEEK_API_KEY",
+        "construtor": _cliente_deepseek,
     },
 }
 
@@ -694,17 +728,23 @@ def normalizar_provedor(valor: str) -> str:
 #  3. duas requisições concorrentes com a mesma chave nova podem construir
 #     dois clientes. Inofensivo: um vence o slot, os dois funcionam.
 #
-# ⚠️ A CHAVE DE CACHE É SÓ `api_key`. `llm_model` e `llm_temperature` são
-# lidos de dentro e NÃO fazem parte dela — hoje isso é seguro porque
-# `get_settings()` é cacheado e não muda em runtime. Se algum dia o modelo
-# passar a variar por requisição (é o caminho natural do H1 completo), ele
-# TEM de entrar na assinatura, senão o cache serve o modelo errado.
+# ⚠️ A CHAVE DE CACHE É `(provedor, api_key)`. O `provedor` entrou no passo 4
+# da fase B justamente por este motivo: o modelo passou a variar com ele
+# (`llm_model` contra `llm_model_deepseek`), e sem o provedor na assinatura
+# duas requisições de provedores diferentes com a mesma chave compartilhariam
+# o cliente — servindo o modelo errado, em silêncio.
 #
-# `maxsize=4` porque no uso real é uma entrada; o teto existe para o caso de
-# várias instâncias WordPress com chaves distintas apontando para o mesmo
-# backend.
-@lru_cache(maxsize=4)
-def _get_llm(api_key: str) -> ChatGoogleGenerativeAI:
+# `llm_temperature` e o nome do modelo seguem lidos de dentro e FORA da
+# chave. É seguro porque `get_settings()` é cacheado e não muda em runtime. Se
+# algum dia o MODELO passar a vir por requisição (escolher `v4-pro` no
+# painel, por exemplo), ele TEM de entrar na assinatura pelo mesmo motivo.
+#
+# `maxsize=8` — eram 4 quando a chave de cache era só a chave de API. Com
+# `(provedor, api_key)` o mesmo cenário de várias instâncias WordPress pode
+# multiplicar por provedor, então o teto dobrou. No uso real segue sendo uma
+# entrada.
+@lru_cache(maxsize=8)
+def _get_llm(provedor: str, api_key: str) -> BaseChatModel:
     # ⚠️ GUARDA CONTRA CHAVE VAZIA — só alcançável por BUG DE CHAMADOR, e o
     # passo 4 da fase 0 é o que a tornou possível: com `gemini_api_key`
     # opcional em config.py, existe agora instalação sem chave nenhuma no .env.
@@ -724,13 +764,22 @@ def _get_llm(api_key: str) -> ChatGoogleGenerativeAI:
             "_resolve_api_key(). Ver fase 0 do H1."
         )
 
+    # ⚠️ MESMA CLASSE DE GUARDA, para o provedor. As rotas normalizam antes de
+    # chegar aqui (`normalizar_provedor`), então slug desconhecido é bug de
+    # chamador — e um `KeyError` cru na linha seguinte não diria isso.
+    if provedor not in PROVEDORES:
+        raise ValueError(
+            "_get_llm() recebeu provedor desconhecido: %r. Válidos: %s. A rota "
+            "chamadora não passou por normalizar_provedor()."
+            % (provedor, ", ".join(sorted(PROVEDORES)))
+        )
+
     cfg = get_settings()
-    return ChatGoogleGenerativeAI(
-        model=cfg.llm_model,
-        temperature=cfg.llm_temperature,
-        google_api_key=api_key,
-        max_retries=2,
-    )
+    meta = PROVEDORES[provedor]
+    # O modelo sai da tabela, e não de um `if provedor == ...`: é `llm_model`
+    # para o Gemini e `llm_model_deepseek` para o DeepSeek.
+    modelo = getattr(cfg, meta["campo_modelo"])
+    return meta["construtor"](modelo, cfg.llm_temperature, api_key)
 
 
 # ── Distribuição de lotes ─────────────────────────────────
@@ -898,7 +947,9 @@ _NIVEL_MAP: dict[str, tuple[int, str]] = {
 }
 
 
-def generate_one_dilema(req: GenerateRequest, api_key: str) -> DilemaNg | None:
+def generate_one_dilema(
+    req: GenerateRequest, api_key: str, provedor: str = PROVEDOR_DEFAULT
+) -> DilemaNg | None:
     """
     Gera exatamente 1 dilema de forma síncrona.
     O nível narrativo é determinado 100% por req.nivel_padrao (escolha do painel WP).
@@ -909,7 +960,7 @@ def generate_one_dilema(req: GenerateRequest, api_key: str) -> DilemaNg | None:
     """
     cfg = get_settings()
     db  = get_collection(req.site_id)
-    llm = _get_llm(api_key)
+    llm = _get_llm(provedor, api_key)
 
     # Nível obedece cegamente ao campo enviado pelo WordPress
     nivel, nivel_nome = _NIVEL_MAP.get(req.nivel_padrao, (1, "PEDAGÓGICO"))
@@ -1019,7 +1070,9 @@ def generate_one_dilema(req: GenerateRequest, api_key: str) -> DilemaNg | None:
 
 # ── Stream SSE ────────────────────────────────────────────
 
-def generate_stream(req: GenerateRequest, api_key: str) -> Generator[str, None, None]:
+def generate_stream(
+    req: GenerateRequest, api_key: str, provedor: str = PROVEDOR_DEFAULT
+) -> Generator[str, None, None]:
     """
     Gerador SSE — emite eventos à medida que dilemas são gerados.
     1 chamada LLM por dilema; itera N vezes por lote.
@@ -1031,7 +1084,7 @@ def generate_stream(req: GenerateRequest, api_key: str) -> Generator[str, None, 
     """
     cfg            = get_settings()
     db             = get_collection(req.site_id)
-    llm            = _get_llm(api_key)
+    llm            = _get_llm(provedor, api_key)
     batches        = _build_batches(req)
     total_plan     = sum(b["quantidade"] for b in batches)
     generated      = 0

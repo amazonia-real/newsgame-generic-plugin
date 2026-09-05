@@ -80,7 +80,7 @@ def regenerate_one(
     # Recusa do provedor vira 502 com causa; "não gerei dilema válido" segue 422.
     # Antes do passo 5b as duas coisas saíam como o mesmo 422.
     try:
-        dilema = regenerator.generate_one(req, api_key)
+        dilema = regenerator.generate_one(req, api_key, provedor)
     except generator.ErroDeProvedor as exc:
         raise HTTPException(status_code=502, detail=exc.detail) from exc
 
@@ -107,7 +107,7 @@ def generate_one(
     provedor = _resolve_provedor(x_llm_provider)
     api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
     try:
-        dilema = generator.generate_one_dilema(req, api_key)
+        dilema = generator.generate_one_dilema(req, api_key, provedor)
         if dilema is None:
             raise HTTPException(status_code=422, detail="Não foi possível gerar um dilema válido para este slot.")
         result = dilema.model_dump()
@@ -137,7 +137,7 @@ def generate(
     x_llm_provider: str = Header(default=""),
 ) -> StreamingResponse:
     """
-    Gera dilemas via RAG + Gemini e retorna como SSE stream.
+    Gera dilemas via RAG + provedor de IA e retorna como SSE stream.
     Cada evento: data: {"type": "dilema", "current": N, "total": M, "dilema": {...}}
     Evento final: data: {"type": "done", "total_generated": N}
     """
@@ -146,7 +146,7 @@ def generate(
     provedor = _resolve_provedor(x_llm_provider)
     api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
     return StreamingResponse(
-        generator.generate_stream(req, api_key),
+        generator.generate_stream(req, api_key, provedor),
         media_type="text/event-stream",
         headers={
             "Cache-Control":   "no-cache",
@@ -263,22 +263,6 @@ def _resolve_provedor(header_provedor: str) -> str:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="%s (%s)" % (exc, origem)) from exc
 
-    # ⚠️ ANDAIME TEMPORÁRIO — REMOVER NO PASSO 4 DESTA FASE.
-    # A resolução de chave já é multiprovedor, mas `generator._get_llm()` ainda
-    # constrói só cliente do Gemini. Sem esta guarda, pedir `deepseek` agora
-    # entregaria a chave do DeepSeek a um cliente do Gemini, e o erro visível
-    # seria "o provedor recusou a chave de API" — mensagem que manda o editor
-    # conferir uma chave correta. 501 diz a verdade: o provedor é reconhecido e
-    # ainda não está ligado.
-    if provedor != "gemini":
-        raise HTTPException(
-            status_code=501,
-            detail=(
-                "Provedor %s reconhecido, mas o construtor de cliente dele ainda "
-                "não foi ligado neste backend (H1 fase B, passo 4)."
-                % generator.PROVEDORES[provedor]["rotulo"]
-            ),
-        )
     return provedor
 
 
@@ -352,9 +336,10 @@ def _resolve_api_key(provedor: str, header_gemini: str, header_deepseek: str, re
 
 
 # O construtor do cliente saiu daqui na fase 0 do H1 e virou
-# `generator._get_llm(api_key)` — ver a nota longa lá. Havia dois construtores
-# com políticas diferentes: este, sem cache, e o singleton do generator, que
-# ignorava a chave da requisição. Agora é um só, com cache por chave.
+# `generator._get_llm(provedor, api_key)` — ver a nota longa lá. Havia dois
+# construtores com políticas diferentes: este, sem cache, e o singleton do
+# generator, que ignorava a chave da requisição. Agora é um só, com cache por
+# `(provedor, chave)`.
 #
 # ⚠️ CONSEQUÊNCIA QUE VALE REGISTRAR: com este bloco, `main.py` deixou de
 # importar `langchain_google_genai`. O acoplamento com o SDK do provedor passou
@@ -384,8 +369,8 @@ def _invoke_llm(llm, messages, rota: str) -> str:
     é o auto-reparo em duas tentativas da FLAG 001. São duas falhas diferentes,
     em dois `try` diferentes: aqui é "a chamada não aconteceu", lá é "a resposta
     não serve". A prova de que não se atropelam é que o retry da FLAG 001 chama
-    ESTE helper de novo (linhas 333, 457, 566): se a segunda chamada falhar no
-    provedor, sai 502; se ela responder e o JSON continuar ruim, sai o 422 da
+    ESTE helper de novo (nas três rotas de cascata): se a segunda chamada falhar
+    no provedor, sai 502; se ela responder e o JSON continuar ruim, sai o 422 da
     validação, como antes.
 
     Antes da fase 0 (passo 5a) os seis `invoke` rodavam soltos e qualquer erro
@@ -405,7 +390,7 @@ def _invoke_llm(llm, messages, rota: str) -> str:
 
 
 def _extract_json(text: str) -> dict:
-    """Extrai e parseia o JSON bruto da resposta do Gemini, ignorando markdown e lixo."""
+    """Extrai e parseia o JSON bruto da resposta do provedor, ignorando markdown e lixo."""
     text = text.strip()
     match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text)
     if match:
@@ -425,7 +410,7 @@ def analyze_domain(
     x_deepseek_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> DomainAnalysisResponse:
-    """Analisa um corpus textual e identifica eixos de tensão e perfis de jogador via Gemini."""
+    """Analisa um corpus textual e identifica eixos de tensão e perfis de jogador via IA."""
 
     # PASSO 1 — Resolver chave de API
     provedor = _resolve_provedor(x_llm_provider)
@@ -454,8 +439,10 @@ def analyze_domain(
     ]
 
     # PASSO 3 — Chamar Gemini
-    llm = generator._get_llm(api_key)
-    logger.debug("[analyze-domain] Chamando Gemini (tentativa 1)...")
+    llm = generator._get_llm(provedor, api_key)
+    logger.debug(
+        "[analyze-domain] Chamando %s (tentativa 1)...", generator.PROVEDORES[provedor]["rotulo"]
+    )
     raw_text = _invoke_llm(llm, messages, "analyze-domain")
 
     # PASSO 4 — Validar resposta
@@ -483,7 +470,7 @@ def analyze_domain(
             logger.error("[analyze-domain] Tentativa 2 falhou: %s.", erro2)
             raise HTTPException(
                 status_code=422,
-                detail=f"Falha na validação da resposta do Gemini após 2 tentativas: {erro2}",
+                detail=f"Falha na validação da resposta do provedor de IA após 2 tentativas: {erro2}",
             )
 
     # PASSO 5 — Retornar
@@ -566,8 +553,10 @@ def assign_weights(
     ]
 
     # PASSO 3 — Chamar Gemini
-    llm = generator._get_llm(api_key)
-    logger.debug("[assign-weights] Chamando Gemini (tentativa 1)...")
+    llm = generator._get_llm(provedor, api_key)
+    logger.debug(
+        "[assign-weights] Chamando %s (tentativa 1)...", generator.PROVEDORES[provedor]["rotulo"]
+    )
     raw_text = _invoke_llm(llm, messages, "assign-weights")
 
     # PASSO 4 — Validar e fundir os pesos
@@ -690,8 +679,10 @@ def generate_verdict(
     ]
 
     # PASSO 4 — Chamar Gemini
-    llm = generator._get_llm(api_key)
-    logger.debug("[generate-verdict] Chamando Gemini (tentativa 1)...")
+    llm = generator._get_llm(provedor, api_key)
+    logger.debug(
+        "[generate-verdict] Chamando %s (tentativa 1)...", generator.PROVEDORES[provedor]["rotulo"]
+    )
     raw_text = _invoke_llm(llm, messages, "generate-verdict")
 
     # PASSO 5 — Validar narrativa

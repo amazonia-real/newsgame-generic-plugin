@@ -14,6 +14,7 @@ from app.config import get_settings
 from app.generator import (
     _get_llm, _build_prompt, _is_valid_dilema, _nivel_nome, _extract_json_dilema,
     ErroDeProvedor, erro_fatal_de_provedor, detail_de_provedor,
+    PROVEDOR_DEFAULT,
 )
 from app.models import RegenerateRequest, DilemaNg
 from app.rag import get_collection, mmr_search
@@ -21,18 +22,26 @@ from app.rag import get_collection, mmr_search
 logger = logging.getLogger(__name__)
 
 
-def generate_one(req: RegenerateRequest, api_key: str) -> DilemaNg | None:
+def generate_one(
+    req: RegenerateRequest, api_key: str, provedor: str = PROVEDOR_DEFAULT
+) -> DilemaNg | None:
     """
     Gera 1 dilema substituto baseado no mesmo personagem e nível do original descartado.
     Retorna DilemaNg ou None se falhar após todas as tentativas.
 
-    `api_key` chega JÁ RESOLVIDO pela rota (header > body > env). Este módulo
-    reusa o `_get_llm()` do generator e por isso NÃO herdou a correção da fase 0
-    de graça: a chave precisa atravessar explicitamente.
+    `api_key` e `provedor` chegam JÁ RESOLVIDOS pela rota (header > body > env,
+    e header > env > default). Este módulo reusa o `_get_llm()` do generator e
+    por isso NÃO herdou de graça nem a correção da fase 0 nem a do passo 4:
+    os dois valores precisam atravessar explicitamente.
+
+    ⚠️ E o import é POR VALOR (`from app.generator import _get_llm`), então
+    patchear `generator._get_llm` num teste NÃO alcança este módulo — tem de
+    ser `regenerator._get_llm`. Errar isso faz o teste usar o cliente real e
+    falhar na rede sem dizer por quê; aconteceu em 2026-09-04.
     """
     cfg            = get_settings()
     db             = get_collection(req.site_id)
-    llm            = _get_llm(api_key)
+    llm            = _get_llm(provedor, api_key)
 
     modo_geral = not bool(req.characters)
     n_nome     = _nivel_nome(req.nivel, modo_geral, req.personagem_tipo)
