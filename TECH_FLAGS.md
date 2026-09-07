@@ -1149,6 +1149,108 @@ que não há structured output) e a subseção de POC do DeepSeek na §5 do
 
 ---
 
+## FLAG 015 — Incidente de ambiente: `mysqld` abortando por leitura de página que volta com zero bytes
+
+**Status:** 🔴 **ABERTA, sem causa determinada.** Servidor restabelecido manualmente
+em 2026-09-07 às 20:25:58 e estável desde então. Registrada no mesmo dia.
+
+**Por que virou FLAG, sendo defeito de ambiente e não do plugin:** pelo mesmo critério
+da **FLAG 008** — o episódio bloqueou os testes de um passo de desenvolvimento (o B5),
+e produziu um dado que o **C10** carrega desde 24/08 como *mecanismo candidato
+inverificável*. Sem registro, a referência do C10 fica órfã e a próxima recorrência
+começa do zero.
+
+### Linha do tempo, medida
+
+| hora (07/09) | evento |
+|---|---|
+| 16:59:05 | MariaDB 10.4.32 sobe em `C:/xampp/mysql/data-novo`, **já com crash recovery** do LSN 23326306 |
+| 17:48:44 | **5× `LiveKernelEvent`** no log Application do Windows |
+| 18:10:07 | falha de I/O do InnoDB (mensagem abaixo) |
+| 18:10:08 | **`mysqld.exe` APPCRASH, código de exceção `0x80000003`** |
+| 18:20:52 | sobe de novo, sem intervenção, recuperando **8 páginas do redo log** |
+| 18:20:53 | "ready for connections" |
+| ≤18:22:50 | **morre outra vez, sem uma linha de log e sem nenhuma query em curso** |
+| 20:25:58 | restabelecido manualmente pelo editor |
+
+A mensagem que matou a primeira instância:
+
+```
+InnoDB: Retry attempts for reading partial data failed.
+InnoDB: Tried to read 16384 bytes at offset 6242304, but was only able to read 0
+InnoDB: Operating system error number 203 in a file operation.
+InnoDB: File (unknown): 'read' returned OS error 403. Cannot continue operation
+```
+
+⚠️ **ESSAS QUATRO LINHAS NÃO ESTÃO NO `mysql_error.log`** — só no log Application do
+Windows (provider `MariaDB`). O arquivo salta de `16:59:05 Server socket created` para
+`18:20:52 Starting MariaDB`, sem nada no meio: o `abort()` levou o buffer do arquivo
+junto. **Consequência de método: em crash de MariaDB no Windows, o `mysql_error.log`
+pode ser incompleto, e o Event Viewer é a fonte a consultar** — foi ele que deu a causa
+proximal. `Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='MariaDB'}`.
+
+### O que foi descartado por medição
+
+- **Espaço em disco** — 334 GB livres em `C:` (60,9%)
+- **Memória** — 10,25 GB livres de 31,56 GB
+- **SMART e volume** — `Get-PhysicalDisk` devolve `HealthStatus: Healthy` para o único
+  disco físico (KINGSTON SNV3S1000G, SSD), e `Get-Volume -DriveLetter C` devolve
+  `Healthy`/`OK`. ⚠️ **Isto NÃO absolve a camada de armazenamento:** o SSD não expõe
+  `ReadErrorsTotal`/`ReadErrorsUncorrected` (vieram vazios), então o contador que
+  importaria não pôde ser lido
+- **O trabalho do B5** — a segunda morte é o que exonera: aconteceu **sem nenhum
+  acesso ao banco**, e a operação que falhou é **leitura**, não a escrita que estava em
+  curso na primeira
+
+### O que sobra, e não é conclusão
+
+- **Este `mysqld` nunca desliga limpo.** Todos os boots registrados desde a
+  reconstrução de 22/08 (FLAG 008) começam com *crash recovery*: 27/08, 29/08, 03/09 e
+  os dois de 07/09
+- O log de **27/08** ainda trazia `InnoDB: Page [page id: space=1, page number=3] log
+  sequence number 14046149 is in the future!` — tablespace e redo dessincronizados,
+  anterior a este episódio
+- Os `LiveKernelEvent` de 17:48:44, 22 minutos antes da falha de I/O, **não foram
+  investigados** e são a única pista que aponta para fora do MariaDB
+
+### Relação com o C10 — eleva o candidato, NÃO reabre o item
+
+O C10 (`wp_newsgame_dilemas` vazia em 19/08) recebeu em 24/08 um **mecanismo
+candidato**: com `innodb_force_recovery` no nível 1, leitura de página corrompida
+**volta com zero linhas, sem erro e sem log**. Estava anotado como **inverificável**.
+
+Este episódio mostra o mesmo mecanismo — leitura devolvendo zero bytes — só que
+**ruidoso**, porque o `force_recovery` está **desligado** desde 22/08 e o InnoDB
+aborta em vez de ignorar. É o contraste exato que a FLAG 008 descreve.
+
+⚠️ **O que isto NÃO é:** evidência positiva do que aconteceu em 19/08. O C10 continua
+sem hipótese sustentável e **não reabre**. O que muda é o status do candidato — de
+"mecanismo sem demonstração possível" para **"mecanismo demonstrado nesta máquina, com
+data e log"**.
+
+### Se recorrer — medir antes de restaurar
+
+Na ordem, e as três primeiras são grátis:
+
+1. `Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='MariaDB'}` —
+   é onde a causa aparece quando o `mysql_error.log` não a tem
+2. `SHOW VARIABLES LIKE 'innodb_force_recovery'` (a primeira medição do C10, e continua
+   valendo: precisa estar em **0**)
+3. Cronologia dos `LiveKernelEvent` e `Application Error` em volta do horário
+4. **Não rodar `aria_chk`, nem `CHECK TABLE`, antes de decidir** — pela correção
+   registrada na FLAG 008, `aria_chk --check` **grava** o flag de "tabela checada" no
+   header, e a ferramenta de medição altera o que mede. `-T, --read-only` suprime a
+   escrita
+5. Só então reiniciar. **Cada boot faz crash recovery e ESCREVE no datadir** — reerguer
+   o servidor é, ele mesmo, alteração de evidência
+
+**Ver também:** **FLAG 008** (mesma máquina, mesmo datadir, e a regra de que
+`force_recovery` é medida de emergência e não configuração), o **C10** e o aprendizado
+de método da §6 do `ROADMAP_OPEN_SOURCE.md` — *em perda de dado, medir antes de
+restaurar*.
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.

@@ -25,6 +25,40 @@
     <h2>IA Generativa</h2>
     <table class="form-table" role="presentation">
       <tr>
+        <th scope="row"><label for="newsgame_llm_provider">Provedor de IA</label></th>
+        <td>
+          <?php
+          /*
+           * O `selected` sai de llm_provider(), ou seja DO BANCO — nunca de uma
+           * comparação com PROVEDOR_DEFAULT. É o que faz um save que não toca
+           * neste campo reenviar o valor atual e a escrita ser idempotente, em
+           * vez de rebaixar o provedor salvo: a família do C11, que o padrão de
+           * skins já pagou uma vez.
+           *
+           * As opções vêm em loop sobre a whitelist, então valor inválido não é
+           * oferecido pela tela para começo de conversa. A rede para o que o
+           * formulário não cobre (POST forjado, campo `disabled`, exibição
+           * condicional futura) é Newsgame_Settings::sanitize_provedor().
+           */
+          $provedor_atual = Newsgame_Settings::llm_provider();
+          ?>
+          <select id="newsgame_llm_provider" name="newsgame_llm_provider">
+            <?php foreach ( Newsgame_Settings::PROVEDORES as $slug => $meta ) : ?>
+              <option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $provedor_atual, $slug ); ?>>
+                <?php echo esc_html( $meta['rotulo'] ); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+          <p class="description">
+            Define qual provedor gera os dilemas. Preencha abaixo a chave do provedor escolhido.
+            <br>
+            <strong>Ainda sem efeito:</strong> as chamadas ao backend seguem usando o Gemini
+            independentemente desta escolha. A integração que faz o painel informar o provedor
+            ao backend é o passo seguinte — ver o estado do B5/B6 no <code>CLAUDE.md</code>.
+          </p>
+        </td>
+      </tr>
+      <tr>
         <th scope="row"><label for="newsgame_gemini_api_key">Gemini API Key</label></th>
         <td>
           <input type="password" id="newsgame_gemini_api_key" name="newsgame_gemini_api_key"
@@ -33,6 +67,21 @@
           <p class="description">
             Obtida em <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
             Armazenada nas configurações do WordPress, sem criptografia. Restrito a administradores com permissão de gerenciar opções.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row"><label for="newsgame_deepseek_api_key">DeepSeek API Key</label></th>
+        <td>
+          <input type="password" id="newsgame_deepseek_api_key" name="newsgame_deepseek_api_key"
+                 value="<?php echo esc_attr( get_option( 'newsgame_deepseek_api_key', '' ) ); ?>"
+                 class="regular-text" autocomplete="off">
+          <p class="description">
+            Obtida em <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">DeepSeek Platform</a>.
+            Armazenada nas configurações do WordPress, sem criptografia. Restrito a administradores com permissão de gerenciar opções.
+            <br>
+            <strong>Ainda não é usada:</strong> nenhuma chamada ao backend envia esta chave até o
+            próximo passo da integração. Guardá-la aqui agora não altera a geração de dilemas.
           </p>
         </td>
       </tr>

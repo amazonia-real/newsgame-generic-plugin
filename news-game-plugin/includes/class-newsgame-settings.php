@@ -3,6 +3,71 @@ defined( 'ABSPATH' ) || exit;
 
 class Newsgame_Settings {
 
+    /**
+     * Provedores de IA oferecidos no painel — ESPELHO da lista fechada do backend.
+     *
+     * ⚠️ A ORIGEM DESTA LISTA É `generator.PROVEDORES` (backend-python/app/
+     * generator.py:656), e não este arquivo. Aqui é cópia declarada, e a decisão
+     * de que fosse cópia foi tomada em 2026-09-07 depois de medir a alternativa:
+     * buscar a lista do backend exigiria rota nova (não existe canal de
+     * descoberta — o plugin nunca chama /health, e o $backend_ok de
+     * page-instance-form.php:551 é só "a URL está preenchida") e seria CIRCULAR,
+     * porque esta é justamente a tela onde se configura a URL do backend: numa
+     * instalação nova o <select> nasceria vazio. Um fallback local seria
+     * obrigatório de todo jeito, ou seja: a rota rebaixaria a cópia a fallback
+     * em vez de eliminá-la.
+     *
+     * A regra que o backend já contratou em generator.py:621-624 —
+     * ACRESCENTAR PROVEDOR = uma linha na tabela de lá (a coluna `construtor`
+     * inclusive) + o parâmetro de header nas 6 rotas de main.py + esta whitelist.
+     * Os três, ou o provedor fica selecionável e não funciona.
+     *
+     * `option_chave` é a única coluna que o backend NÃO conhece nem poderia: qual
+     * option do WordPress guarda a chave de qual provedor é conhecimento do
+     * plugin. `generator.PROVEDORES` fala de `env_chave`/`campo_chave`, que são
+     * nomes do Settings do Python.
+     */
+    const PROVEDORES = array(
+        'gemini'   => array(
+            'rotulo'       => 'Gemini',
+            'option_chave' => 'newsgame_gemini_api_key',
+        ),
+        'deepseek' => array(
+            'rotulo'       => 'DeepSeek',
+            'option_chave' => 'newsgame_deepseek_api_key',
+        ),
+    );
+
+    /**
+     * Provedor usado quando não há valor válido salvo. Espelha
+     * `generator.PROVEDOR_DEFAULT` (generator.py:625).
+     *
+     * ⚠️ NÃO é o valor de queda de um POST inválido — ver sanitize_provedor().
+     */
+    const PROVEDOR_DEFAULT = 'gemini';
+
+    /**
+     * Options que nascem com `autoload` desligado.
+     *
+     * `register_setting()` NÃO aceita autoload (conferido nos $defaults do WP 7.1
+     * local: type, group, label, description, sanitize_callback, show_in_rest),
+     * então o ajuste vai por hook — ver fixar_autoload().
+     *
+     * ⚠️ ASSIMETRIA DELIBERADA: `newsgame_gemini_api_key` fica em `auto`, como
+     * está hoje no banco. Mexer no autoload de uma option de produção já em uso
+     * é decisão própria e ficou FORA deste escopo, por decisão de 2026-09-07;
+     * anotado como item futuro na FLAG 011.
+     *
+     * E não confundir com criptografia: isto é REDUÇÃO DE SUPERFÍCIE (o segredo
+     * deixa de entrar no cache de options carregado em todo request, público
+     * incluído), não proteção do valor. A chave segue em texto claro em
+     * wp_options e segue saindo no fonte HTML desta própria tela. FLAG 011.
+     */
+    const OPTIONS_AUTOLOAD_OFF = array(
+        'newsgame_llm_provider',
+        'newsgame_deepseek_api_key',
+    );
+
     /** Hook suffix da tela de configurações — usado para enfileirar só nela */
     private static $hook_suffix = '';
 
@@ -10,6 +75,47 @@ class Newsgame_Settings {
         add_action( 'admin_menu',            array( __CLASS__, 'register_menu' ) );
         add_action( 'admin_init',            array( __CLASS__, 'register_fields' ) );
         add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
+
+        // Um hook por option, e não um 'added_option' genérico: o hook nomeado
+        // dispara EXATAMENTE UMA VEZ na vida de cada option — no momento em que
+        // ela é criada —, então em regime o custo é zero. A alternativa
+        // (wp_set_option_autoload no admin_init) cobraria um SELECT por página do
+        // admin para sempre; medido na implementação de
+        // wp_set_option_autoload_values() (wp-includes/option.php:397-471), que
+        // faz um SELECT de checagem e só emite UPDATE no que difere.
+        foreach ( self::OPTIONS_AUTOLOAD_OFF as $option ) {
+            add_action( 'add_option_' . $option, array( __CLASS__, 'fixar_autoload' ) );
+        }
+    }
+
+    /**
+     * Desliga o autoload de uma option recém-criada.
+     *
+     * Chamada pelo hook `add_option_{$option}`, que já roda DEPOIS da inserção —
+     * o que importa porque wp_set_option_autoload_values() filtra por
+     * `option_name IN (...)` e portanto só alcança option que já existe. Chamar
+     * antes da primeira gravação não pré-configuraria nada, e é por isso que
+     * add_option() na ativação do plugin não resolveria: numa instalação que já
+     * roda, a option nasce no primeiro save da tela, não na ativação (e subir o
+     * XAMPP não reativa plugin).
+     *
+     * `function_exists` porque wp_set_option_autoload() é do WP 6.4 e o plugin se
+     * declara compatível com WP 6.x inteiro. Em WP mais antigo a option
+     * simplesmente fica em `auto` — degradação, não erro fatal.
+     *
+     * A guarda de lista existe para o caso de o método ser chamado direto: o hook
+     * é nomeado e já garante a origem, mas um callback público que aceita
+     * qualquer nome de option e mexe no banco não deve confiar só nisso.
+     *
+     * @param string $option Nome da option, vindo do hook.
+     */
+    public static function fixar_autoload( $option ) {
+        if ( ! in_array( $option, self::OPTIONS_AUTOLOAD_OFF, true ) ) {
+            return;
+        }
+        if ( function_exists( 'wp_set_option_autoload' ) ) {
+            wp_set_option_autoload( $option, false );
+        }
     }
 
     public static function register_menu() {
@@ -68,7 +174,13 @@ class Newsgame_Settings {
     }
 
     public static function register_fields() {
+        register_setting( 'newsgame_settings', 'newsgame_llm_provider', array(
+            'sanitize_callback' => array( __CLASS__, 'sanitize_provedor' ),
+        ) );
         register_setting( 'newsgame_settings', 'newsgame_gemini_api_key', array(
+            'sanitize_callback' => 'sanitize_text_field',
+        ) );
+        register_setting( 'newsgame_settings', 'newsgame_deepseek_api_key', array(
             'sanitize_callback' => 'sanitize_text_field',
         ) );
         register_setting( 'newsgame_settings', 'newsgame_organization_name', array(
@@ -83,6 +195,75 @@ class Newsgame_Settings {
         ) );
     }
 
+    /* ── Provedor de IA ─────────────────────────────────────────── */
+
+    /**
+     * Valida um slug de provedor contra a whitelist. Devolve '' se não bater.
+     *
+     * Espelha `generator.normalizar_provedor()`: sanitize_key() baixa a caixa e
+     * corta o que não é [a-z0-9_-], então `" Gemini "` vira `gemini` nos dois
+     * lados da integração.
+     *
+     * `is_scalar` antes do cast pelo mesmo motivo registrado em sanitize_skin():
+     * o valor vem do $_POST, e `newsgame_llm_provider[]=x` chega como array —
+     * `(string) array()` emitiria warning e produziria "Array".
+     *
+     * String vazia é RETORNO ESPERADO e significa "não é provedor conhecido". Quem
+     * chama decide o que fazer com isso, e as duas decisões são diferentes:
+     * sanitize_provedor() na escrita, llm_provider() na leitura.
+     *
+     * @param  mixed $value Valor cru.
+     * @return string Slug válido, ou '' se não estiver na whitelist.
+     */
+    private static function provedor_valido( $value ) {
+        $slug = is_scalar( $value ) ? sanitize_key( (string) $value ) : '';
+
+        return isset( self::PROVEDORES[ $slug ] ) ? $slug : '';
+    }
+
+    /**
+     * sanitize_callback de `newsgame_llm_provider` — caminho de ESCRITA.
+     *
+     * ⚠️ VALOR INVÁLIDO CAI PARA O ATUAL SALVO, NÃO PARA O DEFAULT, e a diferença
+     * de política em relação a sanitize_skin() é deliberada: skin inválida cai
+     * para 'default' porque o custo é degradação visual, enquanto provedor
+     * inválido caindo para 'gemini' em silêncio mandaria a geração para o
+     * provedor errado sem sintoma na tela. Preservar o salvo é o que não mascara
+     * erro de configuração — mesma intenção do `normalizar_provedor()` do
+     * backend, que levanta ValueError em vez de escolher por conta.
+     *
+     * ⚠️ E É AQUI QUE MORA A DEFESA CONTRA A FAMÍLIA DO C11. Campo AUSENTE do
+     * POST não é ignorado pelo WordPress: wp-admin/options.php:336-345 percorre
+     * as options REGISTRADAS no grupo (não as recebidas), inicializa
+     * `$value = null` e chama update_option() de qualquer jeito. Com um callback
+     * do tipo sanitize_text_field(), esse null viraria '' e a option seria
+     * ZERADA por um save que nem tocou no campo. Aqui o null cai em
+     * provedor_valido() → '' → valor atual preservado.
+     *
+     * A proteção PRINCIPAL, porém, é do lado do formulário: o <select> é gerado
+     * em loop sobre a whitelist e o `selected` sai de llm_provider(), ou seja do
+     * banco — nunca comparado contra um default assumido. Salvar a tela sem
+     * tocar no seletor reenvia o valor atual e a escrita é idempotente. Este
+     * callback é a rede para o que o formulário não cobre: POST forjado, campo
+     * `disabled`, ou uma futura exibição condicional do seletor.
+     *
+     * @param  mixed $value Valor cru vindo do $_POST (pode ser null).
+     * @return string Slug de provedor sempre válido.
+     */
+    public static function sanitize_provedor( $value ) {
+        $novo = self::provedor_valido( $value );
+        if ( '' !== $novo ) {
+            return $novo;
+        }
+
+        // get_option() aqui devolve o valor ANTERIOR: o filtro sanitize_option_*
+        // roda dentro de update_option(), antes da escrita. Sem recursão — o
+        // filtro que nos chamou é sanitize_option_*, não option_*.
+        $atual = self::provedor_valido( get_option( 'newsgame_llm_provider', '' ) );
+
+        return '' !== $atual ? $atual : self::PROVEDOR_DEFAULT;
+    }
+
     public static function render_page() {
         if ( ! current_user_can( 'manage_options' ) ) return;
         require NEWSGAME_DIR . 'admin/views/page-settings.php';
@@ -92,6 +273,31 @@ class Newsgame_Settings {
 
     public static function gemini_key() {
         return (string) get_option( 'newsgame_gemini_api_key', '' );
+    }
+
+    public static function deepseek_key() {
+        return (string) get_option( 'newsgame_deepseek_api_key', '' );
+    }
+
+    /**
+     * Provedor de IA ativo — caminho de LEITURA.
+     *
+     * Normaliza na leitura também, e não só na escrita, pelo mesmo motivo que
+     * tornou sanitize_skin() pública: linha gravada por SQL à mão, ou salva
+     * antes de uma entrada sair da whitelist, chega aqui com um valor que não
+     * existe mais. Quem monta header ou caminho a partir do provedor passa por
+     * este método, e nunca por get_option() cru.
+     *
+     * ⚠️ AQUI a queda É para PROVEDOR_DEFAULT, ao contrário de
+     * sanitize_provedor(): na leitura não existe "valor anterior" a preservar, e
+     * devolver '' faria o chamador montar requisição sem provedor.
+     *
+     * @return string Slug de provedor sempre válido.
+     */
+    public static function llm_provider() {
+        $slug = self::provedor_valido( get_option( 'newsgame_llm_provider', '' ) );
+
+        return '' !== $slug ? $slug : self::PROVEDOR_DEFAULT;
     }
 
     public static function org_name() {
