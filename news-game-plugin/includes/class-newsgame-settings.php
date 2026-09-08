@@ -327,10 +327,14 @@ class Newsgame_Settings {
      * O `gemini_key()` era usado exatamente nos quatro `wp_remote_post` que
      * passaram a chamar `provider_headers()`; o `deepseek_key()` nasceu sem
      * chamador no B5. A tela **não** os usa — `page-settings.php` lê as duas
-     * options por `get_option()` direto. Os dois ficaram de pé de propósito (são
-     * acessores públicos e removê-los é decisão própria, fora do escopo do B6),
-     * e isto está anotado como item aberto no CLAUDE.md para que "sem chamador"
-     * não seja redescoberto como novidade.
+     * options por `get_option()` direto.
+     *
+     * ✅ **DECISÃO TOMADA EM 07/09: MANTER OS DOIS.** Não é pendência e não é
+     * esquecimento. São acessores públicos da classe, e removê-los seria churn
+     * sem ganho — quando algo precisar ler a chave de um provedor ESPECÍFICO,
+     * fora do fluxo "provedor ativo" que este método atende, eles já existem
+     * prontos. Registrado aqui para que "sem chamador" não seja redescoberto
+     * como novidade nem tratado como código morto a limpar.
      *
      * @return string Chave do provedor ativo, ou '' se não configurada.
      */

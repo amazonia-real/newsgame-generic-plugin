@@ -576,13 +576,37 @@ def erro_fatal_de_provedor(exc: Exception) -> bool:
     return erro_de_chave(exc) or any(m in texto for m in MARCADORES_CREDITO)
 
 
-def detail_de_provedor(exc: Exception) -> str:
-    """Mensagem para o editor. Nunca traceback — a decisão do C2/FLAG 003."""
+def detail_de_provedor(exc: Exception, provedor: str) -> str:
+    """
+    Mensagem para o editor. Nunca traceback — a decisão do C2/FLAG 003.
+
+    ⚠️ `provedor` É OBRIGATÓRIO E NÃO TEM DEFAULT, de propósito. Com um
+    `provedor=PROVEDOR_DEFAULT`, um chamador futuro que esquecesse de passá-lo
+    diria "GEMINI_API_KEY" **em silêncio** — que é exatamente o defeito que este
+    parâmetro veio corrigir (a mensagem citava a variável do Gemini mesmo quando
+    a chamada tinha ido para o DeepSeek). Obrigatório, esquecer dá `TypeError`
+    visível. Mesmo critério de `normalizar_provedor()`, que recusa cair para
+    default em vez de escolher por conta.
+
+    `PROVEDORES` é definido mais abaixo neste módulo; a referência resolve em
+    tempo de chamada, não de definição.
+    """
     if erro_de_chave(exc):
+        # `.get()` e não `PROVEDORES[...]`: esta função roda DENTRO de um
+        # `except`, e um KeyError aqui substituiria a causa real por um erro de
+        # programação. Slug desconhecido só chega por bug de chamador — e nesse
+        # caso não citamos variável NENHUMA, em vez de citar a errada. Citar a
+        # errada foi o que abriu este item.
+        meta = PROVEDORES.get(provedor)
+        if meta is None:
+            return (
+                "O provedor de IA recusou a chave de API. Verifique a chave em "
+                "News-Game › Configurações."
+            )
         return (
-            "O provedor de IA recusou a chave de API. Verifique a chave em "
+            "O provedor %s recusou a chave de API. Verifique a chave dele em "
             "News-Game › Configurações — ou, se o backend usa a própria, a "
-            "variável GEMINI_API_KEY do servidor."
+            "variável %s do servidor." % (meta["rotulo"], meta["env_chave"])
         )
 
     status = _status_http(exc)
@@ -1053,7 +1077,7 @@ def generate_one_dilema(
                     "[generator] generate_one slot=%s ABORTADO por recusa do provedor: %r",
                     req.slot_index, exc,
                 )
-                raise ErroDeProvedor(detail_de_provedor(exc)) from exc
+                raise ErroDeProvedor(detail_de_provedor(exc, provedor)) from exc
 
             is_rate = any(k in err for k in ["429", "resource_exhausted", "resourceexhausted", "quota", "rate_limit"])
             logger.warning(
@@ -1167,7 +1191,7 @@ def generate_stream(
                         logger.warning(
                             "[generator] stream ABORTADO por recusa do provedor: %r", exc
                         )
-                        yield f"data: {json.dumps({'type': 'error', 'fatal': True, 'msg': detail_de_provedor(exc)})}\n\n"
+                        yield f"data: {json.dumps({'type': 'error', 'fatal': True, 'msg': detail_de_provedor(exc, provedor)})}\n\n"
                         return
 
                     is_rate = any(k in err for k in ["429", "resource_exhausted", "quota", "rate_limit"])

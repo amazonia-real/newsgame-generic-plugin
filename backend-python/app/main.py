@@ -353,7 +353,7 @@ def _resolve_api_key(provedor: str, header_gemini: str, header_deepseek: str, re
 # foram para `generator.py`, porque passaram a servir três módulos (rotas de
 # cascata, geração e regeneração) — ver a nota longa lá. Este arquivo consome
 # `generator.detail_de_provedor()` e continua sem importar o SDK do provedor.
-def _invoke_llm(llm, messages, rota: str) -> str:
+def _invoke_llm(llm, messages, rota: str, provedor: str) -> str:
     """
     Chama o provedor e traduz recusa em resposta HTTP estruturada.
 
@@ -384,8 +384,12 @@ def _invoke_llm(llm, messages, rota: str) -> str:
         return llm.invoke(messages).content
     except Exception as exc:
         logger.exception("[%s] Chamada ao provedor de IA falhou.", rota)
+        # `provedor` entra só para a MENSAGEM: sem ele o ramo de chave rejeitada
+        # citava GEMINI_API_KEY mesmo quando a chamada tinha ido para o DeepSeek.
+        # Este é o único dos quatro chamadores de detail_de_provedor() que não
+        # tinha o provedor à mão — os outros três já o recebem desde a fase 0.
         raise HTTPException(
-            status_code=502, detail=generator.detail_de_provedor(exc)
+            status_code=502, detail=generator.detail_de_provedor(exc, provedor)
         ) from exc
 
 
@@ -443,7 +447,7 @@ def analyze_domain(
     logger.debug(
         "[analyze-domain] Chamando %s (tentativa 1)...", generator.PROVEDORES[provedor]["rotulo"]
     )
-    raw_text = _invoke_llm(llm, messages, "analyze-domain")
+    raw_text = _invoke_llm(llm, messages, "analyze-domain", provedor)
 
     # PASSO 4 — Validar resposta
     try:
@@ -461,7 +465,7 @@ def analyze_domain(
                 )
             ),
         ]
-        raw_text2 = _invoke_llm(llm, retry_messages, "analyze-domain")
+        raw_text2 = _invoke_llm(llm, retry_messages, "analyze-domain", provedor)
         try:
             data = _extract_json(raw_text2)
             result = DomainAnalysisResponse(**data)
@@ -557,7 +561,7 @@ def assign_weights(
     logger.debug(
         "[assign-weights] Chamando %s (tentativa 1)...", generator.PROVEDORES[provedor]["rotulo"]
     )
-    raw_text = _invoke_llm(llm, messages, "assign-weights")
+    raw_text = _invoke_llm(llm, messages, "assign-weights", provedor)
 
     # PASSO 4 — Validar e fundir os pesos
     def _parse_and_merge(raw: str) -> list[dict]:
@@ -590,7 +594,7 @@ def assign_weights(
                 )
             ),
         ]
-        raw_text2 = _invoke_llm(llm, retry_messages, "assign-weights")
+        raw_text2 = _invoke_llm(llm, retry_messages, "assign-weights", provedor)
         try:
             weighted = _parse_and_merge(raw_text2)
             logger.info("[assign-weights] Pesos atribuídos com sucesso na tentativa 2.")
@@ -683,7 +687,7 @@ def generate_verdict(
     logger.debug(
         "[generate-verdict] Chamando %s (tentativa 1)...", generator.PROVEDORES[provedor]["rotulo"]
     )
-    raw_text = _invoke_llm(llm, messages, "generate-verdict")
+    raw_text = _invoke_llm(llm, messages, "generate-verdict", provedor)
 
     # PASSO 5 — Validar narrativa
     def _parse_narrativa(raw: str) -> VerdictNarrative:
@@ -704,7 +708,7 @@ def generate_verdict(
                 )
             ),
         ]
-        raw_text2 = _invoke_llm(llm, retry_messages, "generate-verdict")
+        raw_text2 = _invoke_llm(llm, retry_messages, "generate-verdict", provedor)
         try:
             narrativa = _parse_narrativa(raw_text2)
             logger.info("[generate-verdict] Narrativa gerada com sucesso na tentativa 2.")

@@ -112,7 +112,7 @@ def generate_one(
                 logger.warning(
                     "[regenerator] ABORTADO por recusa do provedor: %r", exc
                 )
-                raise ErroDeProvedor(detail_de_provedor(exc)) from exc
+                raise ErroDeProvedor(detail_de_provedor(exc, provedor)) from exc
 
             logger.warning(
                 "[regenerator] tentativa=%s personagem=%s erro=%r",

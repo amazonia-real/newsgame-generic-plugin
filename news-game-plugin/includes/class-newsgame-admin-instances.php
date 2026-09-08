@@ -682,15 +682,22 @@ class Newsgame_Admin_Instances {
         $response = wp_remote_post(
             $backend_url . '/assign-weights',
             array(
-                'timeout' => 120,
-                'headers' => array_merge(
+                'timeout'   => 120,
+                // Linha IDÊNTICA à das outras quatro chamadas ao backend, e ela
+                // faltava só aqui — inconsistência pré-existente, corrigida em
+                // 07/09. Em produção é no-op: com WP_DEBUG desligado a expressão
+                // dá `true`, que é o default do WordPress. O único caso que muda
+                // é dev com WP_DEBUG e 'localhost' na URL, onde a verificação é
+                // pulada de propósito para aceitar certificado self-signed.
+                'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
+                'headers'   => array_merge(
                     array(
                         'Content-Type' => 'application/json',
                         'X-Api-Key'    => (string) get_option( 'newsgame_backend_api_key', '' ),
                     ),
                     Newsgame_Settings::provider_headers()
                 ),
-                'body' => wp_json_encode( array(
+                'body'      => wp_json_encode( array(
                     'dilemmas' => $dilemmas,
                     'eixos'    => $axis_data['eixos_principais'],
                 ), JSON_UNESCAPED_UNICODE ),

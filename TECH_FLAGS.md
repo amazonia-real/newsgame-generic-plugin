@@ -1039,7 +1039,7 @@ Somam-se duas armadilhas de identificação de processo:
    **não os alcança**, e um `taskkill` filtrado assim deixa o worker vivo,
    segurando a porta e servindo código velho.
 
-**Onde custou, medido em 2026-09-04:**
+**Onde custou** — os dois primeiros medidos em 2026-09-04, o terceiro em 2026-09-07:
 - **Episódio 1.** Um processo meu em `127.0.0.1:8000` ficou de pé por engano e
   interceptou quatro `POST /generate-one` disparados do painel pelo editor. Ele
   havia lido o `.env` 13 minutos antes da troca de chave, o que tornou o teste do
@@ -1049,6 +1049,29 @@ Somam-se duas armadilhas de identificação de processo:
   comportamento **antigo** depois de um restart aparentemente bem-sucedido. Causa:
   o worker anterior sobreviveu ao `taskkill` filtrado por linha de comando e
   continuou ganhando o socket.
+- **Episódio 3, em 2026-09-07 — e a CAUSA É DIFERENTE das duas de cima, que é o
+  motivo de valer registro próprio.** Nos episódios 1 e 2 a flag veio de **restart
+  manual**: alguém religou o servidor e esqueceu de tirar `--reload`. Aqui **não
+  houve restart** — a máquina **reiniciou sozinha** (erro crítico do Windows,
+  boot às 21:55:24) e o uvicorn voltou na **forma padrão do ambiente**, com a flag,
+  às 21:59:49. Ninguém decidiu nada: o defeito reentrou por baixo, num momento em
+  que o trabalho da sessão estava todo **não commitado**.
+  - **Segunda ocorrência DO DIA, e quarta registrada.** A primeira de 07/09 foi o
+    restart no início do B6, que está no `CLAUDE.md` e não aqui.
+  - **Custo real desta vez: baixo, e só porque foi checado antes de testar.** A
+    árvore de 4 processos apareceu na conferência de estado pós-reinício; foi morta
+    pelo topo e o servidor religado sem a flag (3 processos, socket do próprio
+    servidor) **antes** de qualquer validação. Se a checagem não tivesse acontecido,
+    todo o roteiro de re-validação daquele dia teria rodado contra um servidor cuja
+    identidade de código não se pode afirmar por PID — que é exatamente o custo dos
+    episódios 1 e 2.
+  - ⚠️ **NÃO CONFUNDIR COM A FLAG 015, e os dois defeitos são diferentes.** O
+    reinício da máquina em si — e o `crash recovery` do InnoDB que ele provocou —
+    é assunto da FLAG 015. Esta flag trata só do **efeito colateral no uvicorn**.
+    Um evento, dois defeitos, cada um na sua flag.
+  - **Regra que se acrescenta:** depois de qualquer boot inesperado, conferir a
+    **forma da árvore** antes de confiar em teste — 3 processos com o socket na
+    folha, e não 4 com o socket no *reloader*.
 
 **Onde está:** ambiente de desenvolvimento local (Windows 11 + `.venv` do
 `backend-python`). Nenhum arquivo do projeto.
@@ -1172,6 +1195,20 @@ começa do zero.
 | 18:20:53 | "ready for connections" |
 | ≤18:22:50 | **morre outra vez, sem uma linha de log e sem nenhuma query em curso** |
 | 20:25:58 | restabelecido manualmente pelo editor |
+| 21:55:24 | ⚠️ **a MÁQUINA reinicia sozinha** — erro crítico do Windows, no meio da sessão de trabalho |
+| 21:58:55 | `mysqld` sobe com **crash recovery** do LSN 23681504, **sem corrupção**: nenhuma linha de `Tried to read`, `innodb_force_recovery = 0`, e os dados do plugin íntegros (24 dilemas, nenhum aprovado sem peso) |
+
+⚠️ **O REINÍCIO DAS 21:55 É UM SEGUNDO EVENTO DO MESMO DIA, e também sem causa
+determinada** — o Windows derrubou a máquina, não uma ação do editor nem um comando de
+sessão. Não há evidência de que seja o mesmo defeito das 18:10: ali o `mysqld` abortou
+sozinho com a máquina de pé; aqui foi a máquina inteira. Ficam registrados juntos porque
+**esta flag é o lugar do que este ambiente faz sozinho**, e separá-los criaria duas
+flags para um dia. O que o reinício **não** produziu foi dano: o `crash recovery` das
+21:58:55 completou limpo, o que é o **oposto** do que se viu às 18:10.
+
+⚠️ **O EFEITO COLATERAL NO UVICORN NÃO É DESTA FLAG.** O boot trouxe o servidor de
+volta com `--reload`, e isso é **defeito diferente**, registrado como **Episódio 3 da
+FLAG 013**. Um evento, dois defeitos — não somar os dois aqui.
 
 A mensagem que matou a primeira instância:
 
