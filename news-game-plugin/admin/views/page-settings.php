@@ -50,11 +50,12 @@
             <?php endforeach; ?>
           </select>
           <p class="description">
-            Define qual provedor gera os dilemas. Preencha abaixo a chave do provedor escolhido.
+            Define qual provedor gera os dilemas. A escolha vale para <strong>todas</strong> as
+            chamadas ao backend: geração de perguntas, pedido de substituta, atribuição de pesos
+            e análise do acervo.
             <br>
-            <strong>Ainda sem efeito:</strong> as chamadas ao backend seguem usando o Gemini
-            independentemente desta escolha. A integração que faz o painel informar o provedor
-            ao backend é o passo seguinte — ver o estado do B5/B6 no <code>CLAUDE.md</code>.
+            Preencha abaixo a chave do provedor escolhido. A chave do outro provedor fica
+            guardada e não é enviada.
           </p>
         </td>
       </tr>
@@ -79,9 +80,6 @@
           <p class="description">
             Obtida em <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">DeepSeek Platform</a>.
             Armazenada nas configurações do WordPress, sem criptografia. Restrito a administradores com permissão de gerenciar opções.
-            <br>
-            <strong>Ainda não é usada:</strong> nenhuma chamada ao backend envia esta chave até o
-            próximo passo da integração. Guardá-la aqui agora não altera a geração de dilemas.
           </p>
         </td>
       </tr>

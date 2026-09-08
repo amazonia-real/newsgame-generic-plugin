@@ -667,21 +667,32 @@ class Newsgame_Admin_Instances {
         }
 
         $backend_url = rtrim( Newsgame_Settings::backend_url(), '/' );
-        $gemini_key  = Newsgame_Settings::gemini_key();
 
+        /*
+         * ⚠️ A CHAVE SAIU DO CORPO NO B6, e não é limpeza cosmética. O campo
+         * `gemini_api_key` que vivia aqui era código morto em duas frentes: o
+         * backend resolve `header > body > env` (`_resolve_api_key()`,
+         * `main.py:305`), então o header sempre venceu; e com provedor DeepSeek o
+         * corpo consultado passa a ser `deepseek_api_key`, então o campo antigo
+         * nunca seria lido de jeito nenhum. Sobrava um segredo trafegando por um
+         * caminho que ninguém lê, num campo cujo NOME mente sobre o provedor.
+         * Seguro por contrato: `AssignWeightsRequest.gemini_api_key`
+         * (`models.py:244`) tem `default=""`.
+         */
         $response = wp_remote_post(
             $backend_url . '/assign-weights',
             array(
                 'timeout' => 120,
-                'headers' => array(
-                    'Content-Type'     => 'application/json',
-                    'X-Gemini-Api-Key' => $gemini_key,
-                    'X-Api-Key'        => (string) get_option( 'newsgame_backend_api_key', '' ),
+                'headers' => array_merge(
+                    array(
+                        'Content-Type' => 'application/json',
+                        'X-Api-Key'    => (string) get_option( 'newsgame_backend_api_key', '' ),
+                    ),
+                    Newsgame_Settings::provider_headers()
                 ),
                 'body' => wp_json_encode( array(
-                    'dilemmas'       => $dilemmas,
-                    'eixos'          => $axis_data['eixos_principais'],
-                    'gemini_api_key' => $gemini_key,
+                    'dilemmas' => $dilemmas,
+                    'eixos'    => $axis_data['eixos_principais'],
                 ), JSON_UNESCAPED_UNICODE ),
             )
         );
@@ -886,22 +897,24 @@ class Newsgame_Admin_Instances {
         }
 
         $backend_url = rtrim( Newsgame_Settings::backend_url(), '/' );
-        $gemini_key  = Newsgame_Settings::gemini_key();
         $api_key     = (string) get_option( 'newsgame_backend_api_key', '' );
 
+        // A chave saiu do corpo no B6 — mesmo motivo do `/assign-weights` acima.
+        // `DomainAnalysisRequest.gemini_api_key` (`models.py:227`) tem `default=""`.
         $response = wp_remote_post(
             $backend_url . '/analyze-domain',
             array(
                 'timeout'   => 120,
                 'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
-                'headers'   => array(
-                    'Content-Type'     => 'application/json',
-                    'X-Gemini-Api-Key' => $gemini_key,
-                    'X-Api-Key'        => $api_key,
+                'headers'   => array_merge(
+                    array(
+                        'Content-Type' => 'application/json',
+                        'X-Api-Key'    => $api_key,
+                    ),
+                    Newsgame_Settings::provider_headers()
                 ),
                 'body' => wp_json_encode( array(
-                    'context_text'   => $context_text,
-                    'gemini_api_key' => $gemini_key,
+                    'context_text' => $context_text,
                 ), JSON_UNESCAPED_UNICODE ),
             )
         );

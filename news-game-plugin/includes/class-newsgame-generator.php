@@ -121,7 +121,8 @@ class Newsgame_Generator {
         }
 
         /*
-         * A CHAVE DO GEMINI VAI EM HEADER, E SÓ EM HEADER — fase 0 do H1.
+         * A CHAVE DO PROVEDOR ATIVO VAI EM HEADER, E SÓ EM HEADER — fase 0 do H1,
+         * e desde o B6 o provedor sai do painel em vez de ser sempre o Gemini.
          *
          * Antes deste passo o proxy não mandava chave nenhuma, e o backend caía
          * no `GEMINI_API_KEY` do `.env` dele. Ou seja: a chave configurada em
@@ -141,16 +142,23 @@ class Newsgame_Generator {
          * ⚠️ E NÃO ACRESCENTAR A CHAVE AO PAYLOAD DE `ajax_start()` (:76-88),
          * que é justamente o que sai daqui para o JS. Ver o comentário do campo
          * `gemini_api_key` em `backend-python/app/models.py`.
+         *
+         * ⚠️ O MESMO VALE PARA O `X-LLM-Provider` que `provider_headers()`
+         * acrescenta: ele é header, e o provedor NÃO tem campo no corpo em
+         * `models.py` — por decisão do lado Python, e não por esquecimento. Ver
+         * `_resolve_provedor()` em `main.py:245`.
          */
         $response = wp_remote_post(
             rtrim( $backend_url, '/' ) . '/generate-one',
             array(
                 'timeout'   => 120,
                 'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
-                'headers'   => array(
-                    'Content-Type'     => 'application/json',
-                    'X-Api-Key'        => (string) get_option( 'newsgame_backend_api_key', '' ),
-                    'X-Gemini-Api-Key' => Newsgame_Settings::gemini_key(),
+                'headers'   => array_merge(
+                    array(
+                        'Content-Type' => 'application/json',
+                        'X-Api-Key'    => (string) get_option( 'newsgame_backend_api_key', '' ),
+                    ),
+                    Newsgame_Settings::provider_headers()
                 ),
                 'body' => wp_json_encode( $payload, JSON_UNESCAPED_UNICODE ),
             )

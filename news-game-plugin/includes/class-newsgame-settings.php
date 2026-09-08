@@ -22,19 +22,36 @@ class Newsgame_Settings {
      * inclusive) + o parâmetro de header nas 6 rotas de main.py + esta whitelist.
      * Os três, ou o provedor fica selecionável e não funciona.
      *
-     * `option_chave` é a única coluna que o backend NÃO conhece nem poderia: qual
-     * option do WordPress guarda a chave de qual provedor é conhecimento do
-     * plugin. `generator.PROVEDORES` fala de `env_chave`/`campo_chave`, que são
-     * nomes do Settings do Python.
+     * As três colunas, e de onde cada uma vem:
+     *
+     * - `rotulo` — só UI. Espelha o `rotulo` da tabela do backend.
+     * - `option_chave` — a única que o backend **não conhece nem poderia**: qual
+     *   option do WordPress guarda a chave de qual provedor é conhecimento do
+     *   plugin. `generator.PROVEDORES` fala de `env_chave`/`campo_chave`, que são
+     *   nomes do Settings do Python.
+     * - `header_chave` — ⚠️ **ESPELHO EXATO** de `header_chave` em
+     *   `generator.py:661` e `:669`, e a string tem de casar com o nome do
+     *   parâmetro declarado nas 6 rotas de `main.py`. **Divergir aqui não levanta
+     *   erro:** o backend recebe um header que não declarou, ignora, e a cascata
+     *   cai para o `.env` — a chave do painel deixa de governar a geração **em
+     *   silêncio**, que é exatamente o defeito que a fase 0 do H1 corrigiu.
+     *
+     * `header_chave` entrou no **B6**, quando os quatro `wp_remote_post` passaram
+     * a mandar a chave do provedor ativo. Sem ela, cada um dos quatro precisaria
+     * de um `if ( 'deepseek' === … )` só para escolher o nome do header — o mesmo
+     * motivo pelo qual `_resolve_api_key()` (`main.py:282`) resolve header e campo
+     * pela tabela em vez de comparar slug nas seis rotas.
      */
     const PROVEDORES = array(
         'gemini'   => array(
             'rotulo'       => 'Gemini',
             'option_chave' => 'newsgame_gemini_api_key',
+            'header_chave' => 'X-Gemini-Api-Key',
         ),
         'deepseek' => array(
             'rotulo'       => 'DeepSeek',
             'option_chave' => 'newsgame_deepseek_api_key',
+            'header_chave' => 'X-DeepSeek-Api-Key',
         ),
     );
 
@@ -298,6 +315,67 @@ class Newsgame_Settings {
         $slug = self::provedor_valido( get_option( 'newsgame_llm_provider', '' ) );
 
         return '' !== $slug ? $slug : self::PROVEDOR_DEFAULT;
+    }
+
+    /**
+     * Chave de API do provedor ATIVO, resolvida pela tabela.
+     *
+     * Este é o caso "a chave que vale para a requisição que estou montando
+     * agora", em oposição a "a chave de um provedor específico".
+     *
+     * ⚠️ E O B6 DEIXOU `gemini_key()` E `deepseek_key()` SEM NENHUM CHAMADOR.
+     * O `gemini_key()` era usado exatamente nos quatro `wp_remote_post` que
+     * passaram a chamar `provider_headers()`; o `deepseek_key()` nasceu sem
+     * chamador no B5. A tela **não** os usa — `page-settings.php` lê as duas
+     * options por `get_option()` direto. Os dois ficaram de pé de propósito (são
+     * acessores públicos e removê-los é decisão própria, fora do escopo do B6),
+     * e isto está anotado como item aberto no CLAUDE.md para que "sem chamador"
+     * não seja redescoberto como novidade.
+     *
+     * @return string Chave do provedor ativo, ou '' se não configurada.
+     */
+    public static function provider_key() {
+        $meta = self::PROVEDORES[ self::llm_provider() ];
+
+        return (string) get_option( $meta['option_chave'], '' );
+    }
+
+    /**
+     * Headers de provedor para as requisições ao backend — o par do
+     * `_resolve_api_key()` do lado Python.
+     *
+     * Devolve `X-LLM-Provider` mais o header de chave do provedor ativo, com o
+     * NOME do header saindo da tabela. É o que permite aos quatro
+     * `wp_remote_post` não terem uma linha de condicional: acrescentar provedor
+     * é uma entrada em `PROVEDORES`, e nenhum dos quatro arquivos é tocado.
+     *
+     * ⚠️ MANDA UM SÓ HEADER DE CHAVE, o do provedor ativo — não os dois. A
+     * alternativa (mandar `X-Gemini-Api-Key` e `X-DeepSeek-Api-Key` sempre, e
+     * deixar o `X-LLM-Provider` decidir qual o backend lê) é mais curta e foi
+     * DESCARTADA no B6: poria dois segredos em toda requisição para o backend
+     * usar um. Mesma invariante do A1/FLAG 003 — segredo no menor número de
+     * lugares possível.
+     *
+     * ⚠️ O PROVEDOR VIAJA SÓ EM HEADER, nunca no corpo. É decisão do lado Python
+     * (ver a nota de `_resolve_provedor()`, `main.py:245`) e o plugin a respeita:
+     * `models.py` tem campo de chave para os dois provedores, mas **nenhum campo
+     * de provedor**.
+     *
+     * Chave vazia é passada como header vazio, de propósito, e não omitida: o
+     * backend trata `''` como "degrau não preenchido" e desce a cascata para o
+     * corpo e depois para o `.env`. Omitir o header daria o mesmo resultado com
+     * mais código.
+     *
+     * @return array<string,string> Headers prontos para `array_merge()`.
+     */
+    public static function provider_headers() {
+        $slug = self::llm_provider();
+        $meta = self::PROVEDORES[ $slug ];
+
+        return array(
+            'X-LLM-Provider'        => $slug,
+            $meta['header_chave']   => self::provider_key(),
+        );
     }
 
     public static function org_name() {
