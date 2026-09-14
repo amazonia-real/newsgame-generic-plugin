@@ -53,6 +53,11 @@ class Newsgame_Settings {
             'option_chave' => 'newsgame_deepseek_api_key',
             'header_chave' => 'X-DeepSeek-Api-Key',
         ),
+        'openai'   => array(
+            'rotulo'       => 'OpenAI',
+            'option_chave' => 'newsgame_openai_api_key',
+            'header_chave' => 'X-OpenAI-Api-Key',
+        ),
     );
 
     /**
@@ -83,6 +88,7 @@ class Newsgame_Settings {
     const OPTIONS_AUTOLOAD_OFF = array(
         'newsgame_llm_provider',
         'newsgame_deepseek_api_key',
+        'newsgame_openai_api_key',
     );
 
     /** Hook suffix da tela de configurações — usado para enfileirar só nela */
@@ -200,6 +206,9 @@ class Newsgame_Settings {
         register_setting( 'newsgame_settings', 'newsgame_deepseek_api_key', array(
             'sanitize_callback' => 'sanitize_text_field',
         ) );
+        register_setting( 'newsgame_settings', 'newsgame_openai_api_key', array(
+            'sanitize_callback' => 'sanitize_text_field',
+        ) );
         register_setting( 'newsgame_settings', 'newsgame_organization_name', array(
             'sanitize_callback' => 'sanitize_text_field',
             'default'           => 'News-Game',
@@ -294,6 +303,18 @@ class Newsgame_Settings {
 
     public static function deepseek_key() {
         return (string) get_option( 'newsgame_deepseek_api_key', '' );
+    }
+
+    /**
+     * Terceiro provedor (B8, 2026-09-14). Existe por SIMETRIA com os dois
+     * acima, sob a decisão de 07/09 registrada em provider_key(): acessor de
+     * chave de provedor ESPECÍFICO, para quando algo precisar dela fora do
+     * fluxo "provedor ativo". Sem chamador hoje, como os outros dois — e a
+     * assimetria seria pior que a linha extra: quem procurasse `openai_key()`
+     * por analogia não acharia nada e concluiria que falta suporte.
+     */
+    public static function openai_key() {
+        return (string) get_option( 'newsgame_openai_api_key', '' );
     }
 
     /**

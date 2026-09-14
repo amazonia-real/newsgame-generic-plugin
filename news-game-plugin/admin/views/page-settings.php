@@ -84,6 +84,18 @@
         </td>
       </tr>
       <tr>
+        <th scope="row"><label for="newsgame_openai_api_key">OpenAI API Key</label></th>
+        <td>
+          <input type="password" id="newsgame_openai_api_key" name="newsgame_openai_api_key"
+                 value="<?php echo esc_attr( get_option( 'newsgame_openai_api_key', '' ) ); ?>"
+                 class="regular-text" autocomplete="off">
+          <p class="description">
+            Obtida em <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI Platform</a>.
+            Armazenada nas configurações do WordPress, sem criptografia. Restrito a administradores com permissão de gerenciar opções.
+          </p>
+        </td>
+      </tr>
+      <tr>
         <th scope="row"><label for="newsgame_backend_url">URL do Backend Python</label></th>
         <td>
           <input type="url" id="newsgame_backend_url" name="newsgame_backend_url"
