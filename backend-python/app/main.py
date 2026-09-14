@@ -68,6 +68,7 @@ def regenerate_one(
     req: RegenerateRequest,
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
+    x_openai_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> dict:
     """
@@ -75,7 +76,9 @@ def regenerate_one(
     Retorna o dilema serializado ou 422 se não conseguir gerar.
     """
     provedor = _resolve_provedor(x_llm_provider)
-    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
+    api_key = _resolve_api_key(
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+    )
 
     # Recusa do provedor vira 502 com causa; "não gerei dilema válido" segue 422.
     # Antes do passo 5b as duas coisas saíam como o mesmo 422.
@@ -94,6 +97,7 @@ def generate_one(
     req: GenerateRequest,
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
+    x_openai_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> dict:
     """
@@ -105,7 +109,9 @@ def generate_one(
     # com falha de geração. O `except HTTPException: raise` abaixo já o
     # repassaria, mas resolver antes deixa a ordem explícita.
     provedor = _resolve_provedor(x_llm_provider)
-    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
+    api_key = _resolve_api_key(
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+    )
     try:
         dilema = generator.generate_one_dilema(req, api_key, provedor)
         if dilema is None:
@@ -134,6 +140,7 @@ def generate(
     req: GenerateRequest,
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
+    x_openai_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> StreamingResponse:
     """
@@ -144,7 +151,9 @@ def generate(
     # Resolvida ANTES de a resposta começar: com o stream já aberto não há como
     # devolver 401 — os headers HTTP já foram enviados.
     provedor = _resolve_provedor(x_llm_provider)
-    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
+    api_key = _resolve_api_key(
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+    )
     return StreamingResponse(
         generator.generate_stream(req, api_key, provedor),
         media_type="text/event-stream",
@@ -266,7 +275,13 @@ def _resolve_provedor(header_provedor: str) -> str:
     return provedor
 
 
-def _resolve_api_key(provedor: str, header_gemini: str, header_deepseek: str, req) -> str:
+def _resolve_api_key(
+    provedor: str,
+    header_gemini: str,
+    header_deepseek: str,
+    header_openai: str,
+    req,
+) -> str:
     """
     Resolve a chave do PROVEDOR JÁ RESOLVIDO: header > body > Settings (.env).
 
@@ -292,7 +307,11 @@ def _resolve_api_key(provedor: str, header_gemini: str, header_deepseek: str, re
     # linha aqui. Se faltar a linha, o `raise` abaixo denuncia — sem ele, o
     # provedor novo receberia chave vazia e o sintoma seria um 401 de "chave não
     # encontrada" apontando para a configuração do editor, que estaria correta.
-    headers_de_chave = {"gemini": header_gemini, "deepseek": header_deepseek}
+    headers_de_chave = {
+        "gemini": header_gemini,
+        "deepseek": header_deepseek,
+        "openai": header_openai,
+    }
     if provedor not in headers_de_chave:
         raise HTTPException(
             status_code=500,
@@ -412,13 +431,16 @@ def analyze_domain(
     req: DomainAnalysisRequest,
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
+    x_openai_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> DomainAnalysisResponse:
     """Analisa um corpus textual e identifica eixos de tensão e perfis de jogador via IA."""
 
     # PASSO 1 — Resolver chave de API
     provedor = _resolve_provedor(x_llm_provider)
-    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
+    api_key = _resolve_api_key(
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+    )
     logger.info("[analyze-domain] Iniciando análise de domínio. Tamanho do contexto: %d chars.", len(req.context_text))
 
     # PASSO 2 — Construir prompt de usuário
@@ -502,13 +524,16 @@ def assign_weights(
     req: AssignWeightsRequest,
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
+    x_openai_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> AssignWeightsResponse:
     """Atribui pesos (-20 a +20) em cada eixo para cada alternativa de cada dilema."""
 
     # PASSO 1 — Resolver chave de API
     provedor = _resolve_provedor(x_llm_provider)
-    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
+    api_key = _resolve_api_key(
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+    )
     logger.info("[assign-weights] Atribuindo pesos para %d dilema(s).", len(req.dilemmas))
 
     # PASSO 2 — Montar representação simplificada dos dilemas para o prompt
@@ -633,13 +658,16 @@ def generate_verdict(
     req: GenerateVerdictRequest,
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
+    x_openai_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> GenerateVerdictResponse:
     """Seleciona o perfil mais próximo do vetor do jogador e gera texto narrativo personalizado."""
 
     # PASSO 1 — Resolver chave de API
     provedor = _resolve_provedor(x_llm_provider)
-    api_key = _resolve_api_key(provedor, x_gemini_api_key, x_deepseek_api_key, req)
+    api_key = _resolve_api_key(
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+    )
     logger.info("[generate-verdict] Vetor do jogador: %s. Perfis disponíveis: %d.", req.vetor_jogador, len(req.perfis_disponiveis))
 
     if not req.perfis_disponiveis:
