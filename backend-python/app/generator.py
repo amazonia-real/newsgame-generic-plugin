@@ -20,6 +20,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_deepseek import ChatDeepSeek
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 from app.config import get_settings
 from app.models import GenerateRequest, DilemaNg
@@ -642,10 +643,34 @@ def detail_de_provedor(exc: Exception, provedor: str) -> str:
 # exatamente o que criaria as duas cópias que divergem em silêncio quando um
 # provedor entra. Uma tabela, no arquivo que pode conhecer as duas coisas.
 #
-# ACRESCENTAR PROVEDOR = uma linha nesta tabela (a coluna `construtor`
-# inclusive) + o parâmetro de header nas 6 rotas de main.py + a whitelist do
-# painel (class-newsgame-settings.php). Os três, ou o provedor fica
-# selecionável e não funciona.
+# ACRESCENTAR PROVEDOR — a lista abaixo foi CORRIGIDA no B8 (2026-09-14), ao
+# ser conferida contra a realidade da execução. A versão anterior listava só os
+# três primeiros itens, que são de fato os que quebram FUNCIONALMENTE ("o
+# provedor fica selecionável e não funciona"), mas omitia quatro que a
+# integração exige de todo jeito. São SETE:
+#
+#   BACKEND
+#   1. uma linha nesta tabela, a coluna `construtor` inclusive;
+#   2. o parâmetro de header nas 6 rotas de main.py, MAIS a linha no mapa
+#      `headers_de_chave` de `_resolve_api_key()` — sem ela o `raise` 500 de lá
+#      denuncia, o que é proposital;
+#   3. os dois campos de Settings em config.py (`<slug>_api_key` e
+#      `llm_model_<slug>`). ⚠️ O campo da chave é PRÉ-REQUISITO de pôr a env
+#      var no .env: o pydantic-settings usa extra='forbid' e o servidor RECUSA
+#      SUBIR com chave órfã no arquivo — ver a nota daquele campo;
+#   4. o campo `<slug>_api_key` nos 5 Requests de models.py;
+#   5. o pin do pacote do SDK em requirements.txt, se for novo;
+#
+#   PLUGIN
+#   6. a whitelist `PROVEDORES` de class-newsgame-settings.php (com
+#      `option_chave` e `header_chave`), o `register_setting()` da option nova
+#      e a entrada em `OPTIONS_AUTOLOAD_OFF`;
+#   7. a linha do campo da chave em admin/views/page-settings.php.
+#
+# NÃO precisa ser tocado, e é o que a fase B do H1 comprou: `provider_headers()`,
+# `provider_key()`, os quatro `wp_remote_post`, o `<select>` da tela (que é loop
+# sobre a whitelist), `normalizar_provedor()`, `_get_llm()`, `_resolve_provedor()`
+# e `detail_de_provedor()` — todos leem a tabela.
 PROVEDOR_DEFAULT = "gemini"
 
 
@@ -677,6 +702,54 @@ def _cliente_deepseek(modelo: str, temperatura: float, api_key: str) -> BaseChat
     )
 
 
+def _cliente_openai(modelo: str, temperatura: float, api_key: str) -> BaseChatModel:
+    # `api_key=` — mesma forma do DeepSeek (é alias de `openai_api_key` no
+    # ChatOpenAI), e `model=` é alias de `model_name`. Conferido no
+    # `model_fields` da langchain-openai 0.3.35 em 2026-09-14, não suposto.
+    #
+    # ⚠️ `reasoning_effort="none"` É O ANÁLOGO DO `extra_body` DO DEEPSEEK, e é
+    # EXPLÍCITO de propósito — não confiar no default do modelo. Os defaults
+    # divergem por família: na 5.4 (`mini`/`nano`) o default já é `none`, mas na
+    # 5.6 (`luna`/`terra`/`sol`) é `medium`. Sem esta linha, trocar
+    # `llm_model_openai` de `gpt-5.4-nano` para `gpt-5.6-luna` — mesma faixa de
+    # preço, troca de aparência inócua — LIGARIA O RACIOCÍNIO EM SILÊNCIO, com a
+    # conta e a latência que vêm com ele. Reasoning token é cobrado como saída.
+    #
+    # Medido em 2026-09-14: com esta linha, `reasoning_tokens = 0` nas seis
+    # chamadas do `luna` e do `nano`, incluindo as do `luna`, cujo default é
+    # `medium`. A doc dizia que aceita `none`; o `usage` provou que pegou.
+    #
+    # ⚠️ `gpt-6-astra` NÃO É SUBSTITUÍVEL AQUI sem revisar esta decisão: o
+    # `reasoning.effort` dele não aceita `none` (doc de 2026-09-14), ou seja o
+    # raciocínio não desliga — e a $50/1M de saída isso sai caríssimo.
+    #
+    # ⚠️⚠️ `temperatura` É IGNORADA NA FAMÍLIA gpt-5.x, E NÃO É DEFEITO DAQUI.
+    # A `langchain-openai` 0.3.35 REMOVE `temperature` do payload quando o nome
+    # do modelo é `gpt-5*`, porque aquela API não aceita o parâmetro. Medido em
+    # 2026-09-14 inspecionando `_default_params`:
+    #   gpt-5.6-luna  -> temperature=None  (removida)
+    #   gpt-5.4-nano  -> temperature=None  (removida)
+    #   gpt-4o-mini   -> temperature=0.3   (preservada)
+    #   gpt-3.5-turbo -> temperature=0.3   (preservada)
+    #
+    # CONSEQUÊNCIA A CONHECER: o `llm_temperature = 0.3` do projeto vale para o
+    # Gemini e o DeepSeek, mas NÃO para a OpenAI com o modelo padrão atual — as
+    # chamadas rodam no default da API. Não é divergência a corrigir: forçar o
+    # parâmetro faria a API recusar. A calibração de 2026-09-14 foi medida
+    # justamente nessas condições, então os números valem para o que roda.
+    #
+    # O parâmetro CONTINUA sendo recebido e repassado, de propósito: é o
+    # contrato da coluna `construtor` da tabela, e volta a ter efeito se algum
+    # dia `llm_model_openai` apontar para um modelo que o aceite.
+    return ChatOpenAI(
+        model=modelo,
+        temperature=temperatura,
+        api_key=api_key,
+        max_retries=2,
+        reasoning_effort="none",
+    )
+
+
 PROVEDORES: dict[str, dict] = {
     "gemini": {
         "rotulo": "Gemini",
@@ -693,6 +766,14 @@ PROVEDORES: dict[str, dict] = {
         "header_chave": "X-DeepSeek-Api-Key",
         "env_chave": "DEEPSEEK_API_KEY",
         "construtor": _cliente_deepseek,
+    },
+    "openai": {
+        "rotulo": "OpenAI",
+        "campo_chave": "openai_api_key",
+        "campo_modelo": "llm_model_openai",
+        "header_chave": "X-OpenAI-Api-Key",
+        "env_chave": "OPENAI_API_KEY",
+        "construtor": _cliente_openai,
     },
 }
 

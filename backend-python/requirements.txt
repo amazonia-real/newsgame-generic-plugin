@@ -15,6 +15,14 @@ langchain-google-genai==2.1.12
 # linha 0.3 e expoe os dois parametros que o projeto usa: o alias `model` e
 # `extra_body` (necessario para desligar o modo thinking do DeepSeek).
 langchain-deepseek==0.1.4
+# JA ESTAVA NO VENV ANTES DO B8, como dependencia TRANSITIVA do
+# langchain-deepseek acima (a API do DeepSeek e compativel com a da OpenAI,
+# entao a integracao dele e construida sobre esta). Passa a ser declarada
+# porque o B8 a torna IMPORT DIRETO (generator.py importa ChatOpenAI), e
+# dependencia direta nao-declarada e a familia do D3: o requirements deixa de
+# descrever o venv. A 0.3.35 e a que ja estava instalada e mantem a linha 0.3
+# do langchain-core — a linha 1.x reverteria o teto do langchain-deepseek.
+langchain-openai==0.3.35
 langchain-huggingface==0.1.0
 langchain-community==0.3.31
 langchain-text-splitters==0.3.11

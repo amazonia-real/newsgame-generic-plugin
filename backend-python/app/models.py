@@ -53,6 +53,8 @@ class GenerateRequest(BaseModel):
     # Segundo provedor (2026-09-05). O campo do provedor NÃO viaja no body:
     # ele vem no header X-LLM-Provider, ou do default global do backend.
     deepseek_api_key: str = Field(default="")
+    # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
+    openai_api_key: str = Field(default="")
 
 
 # ── Modelos Pydantic para structured output do Gemini ─────
@@ -193,6 +195,8 @@ class RegenerateRequest(BaseModel):
     # Segundo provedor (2026-09-05). O campo do provedor NÃO viaja no body:
     # ele vem no header X-LLM-Provider, ou do default global do backend.
     deepseek_api_key: str = Field(default="")
+    # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
+    openai_api_key: str = Field(default="")
 
 
 # ── Modelos para /analyze-domain ──────────────────────────────────────────
@@ -228,6 +232,8 @@ class DomainAnalysisRequest(BaseModel):
     # Segundo provedor (2026-09-05). O campo do provedor NÃO viaja no body:
     # ele vem no header X-LLM-Provider, ou do default global do backend.
     deepseek_api_key: str = Field(default="")
+    # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
+    openai_api_key: str = Field(default="")
 
 
 class DomainAnalysisResponse(BaseModel):
@@ -245,6 +251,8 @@ class AssignWeightsRequest(BaseModel):
     # Segundo provedor (2026-09-05). O campo do provedor NÃO viaja no body:
     # ele vem no header X-LLM-Provider, ou do default global do backend.
     deepseek_api_key: str = Field(default="")
+    # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
+    openai_api_key: str = Field(default="")
 
 
 class AssignWeightsResponse(BaseModel):
@@ -268,6 +276,8 @@ class GenerateVerdictRequest(BaseModel):
     # Segundo provedor (2026-09-05). O campo do provedor NÃO viaja no body:
     # ele vem no header X-LLM-Provider, ou do default global do backend.
     deepseek_api_key: str = Field(default="")
+    # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
+    openai_api_key: str = Field(default="")
 
 
 class GenerateVerdictResponse(BaseModel):

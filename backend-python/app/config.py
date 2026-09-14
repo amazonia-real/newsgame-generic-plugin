@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     # para o provedor pedido" é a resolução de chave em main.py, que levanta
     # 401 quando todos os degraus da cascata estão vazios.
     deepseek_api_key: str = ""
+    # Chave da OpenAI — terceiro provedor, integrado em 2026-09-14 (B8).
+    # Opcional pelo mesmo motivo dos dois campos acima: a chave pode chegar por
+    # requisição, vinda do painel WordPress.
+    #
+    # ⚠️ ESTE CAMPO É PRÉ-REQUISITO DE PÔR `OPENAI_API_KEY` NO .env, e não o
+    # contrário. O pydantic-settings roda com extra='forbid' (ver a nota de
+    # `llm_model` abaixo), então chave órfã no arquivo faz o servidor RECUSAR
+    # SUBIR com ValidationError — foi o incidente de 2026-08-07 com LOG_LEVEL e
+    # ANONYMIZED_TELEMETRY. Declarar aqui primeiro, popular o .env depois.
+    openai_api_key: str = ""
     # Provedor de LLM usado quando a requisição não informa nenhum. É o default
     # global do backend, e o painel WordPress o sobrepõe por requisição.
     #
@@ -48,6 +58,24 @@ class Settings(BaseSettings):
     # o teto de 120s do wp_remote_post. Nome confirmado no /models da DeepSeek com
     # chave real na mesma data — `deepseek-chat` NÃO existe mais.
     llm_model_deepseek: str = "deepseek-v4-flash"
+    # Modelo da OpenAI. `gpt-5.6-luna` escolhido em 2026-09-14 (B8), com nome
+    # confirmado no /v1/models com chave real — nunca de memória, que é a lição
+    # do `deepseek-chat`, nome que não existe mais.
+    #
+    # ⚠️ A ESCOLHA NÃO VEIO DE QUALIDADE MEDIDA, e isso é honesto registrar: a
+    # rodada pareada de 3 gerações contra `gpt-5.4-nano` NÃO separou os dois
+    # (cada um ganhou em critérios diferentes). Os motivos foram:
+    #   1. família ATUAL (5.6, junho) contra a anterior (5.4, março) — modelo
+    #      descontinuado força revalidar a FLAG 001, porque o auto-reparo
+    #      depende do formato do texto devolvido;
+    #   2. a pior violação de `situacao` foi 151 chars contra 230 do nano;
+    #   3. ~7% mais barato por dilema.
+    # Trocar é UMA LINHA aqui: o `reasoning_effort="none"` do construtor cobre
+    # os dois, e o nano é 1,7× mais rápido se a prioridade virar latência.
+    #
+    # Medido em 2026-09-14: 4,7s, US$ 0,001442/dilema (contra US$ 0,00062 do
+    # DeepSeek v4-flash), reasoning_tokens=0, JSON válido na 1ª tentativa.
+    llm_model_openai: str = "gpt-5.6-luna"
     llm_temperature: float = 0.3
     # RAG
     rag_fetch_k: int = 20
