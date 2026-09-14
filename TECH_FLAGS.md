@@ -1226,6 +1226,28 @@ junto. **Consequência de método: em crash de MariaDB no Windows, o `mysql_erro
 pode ser incompleto, e o Event Viewer é a fonte a consultar** — foi ele que deu a causa
 proximal. `Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='MariaDB'}`.
 
+⚠️ **RUÍDO CONHECIDO NO `mysql_error.log`, GRAVADO POR MIM EM 2026-09-14 — NÃO É
+RECORRÊNCIA DESTA FLAG.** Às **12:07:39 de 14/09** o arquivo recebeu sete linhas
+terminando em `[ERROR] Aborting`, precedidas de
+`[ERROR] InnoDB: The innodb_system data file 'ibdata1' must be writable` (duas vezes) e
+`[ERROR] Unknown/unsupported storage engine: InnoDB`. **Causa conhecida e benigna:
+segunda instância de `mysqld` sobre o mesmo datadir.** Na checagem de estado daquele dia
+o servidor estava fora, o `xampp-control.exe` subiu o PID 44108 às 12:03:18 — segundos
+depois da medição — e o `mysqld` que eu lancei às 12:07:39 (PID 3468) encontrou o
+`ibdata1` já travado. **O file locking do InnoDB fez o que devia:** abortou **antes** de
+rodar crash recovery e sem tocar o datadir, que é o modo de falha seguro. Dados
+conferidos íntegros depois (24 dilemas, 3 instâncias, 20 aprovados, **0** aprovados sem
+peso, schema 1.6, `innodb_force_recovery = 0`).
+- **Como distinguir das linhas que importam:** este bloco **não** tem `Tried to read`,
+  `got signal`, `Assertion` nem APPCRASH no Event Viewer, e o `Aborting` vem **na
+  mesma linha de tempo** de um `Starting MariaDB` que nunca chega a
+  `Server socket created`. Falha de bind não é falha de I/O
+- **Lição de método, um nível abaixo da do `aria_chk` (FLAG 008):** lá a ferramenta de
+  medição alterou o que media; aqui a ferramenta de **reparo** contaminou o log que
+  serve de evidência a esta flag e à 008. Antes de subir serviço deste ambiente,
+  confirmar o dono do socket — "listener respondeu na primeira tentativa" é sinal de
+  que **outro** processo já o detinha, não de partida bem-sucedida
+
 ### O que foi descartado por medição
 
 - **Espaço em disco** — 334 GB livres em `C:` (60,9%)
@@ -1247,6 +1269,18 @@ proximal. `Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='
 - O log de **27/08** ainda trazia `InnoDB: Page [page id: space=1, page number=3] log
   sequence number 14046149 is in the future!` — tablespace e redo dessincronizados,
   anterior a este episódio
+  - **Quantificado em 14/09, e é maior do que esta linha sugeria: 136 linhas**, todas
+    do **mesmo instante** (`2026-08-27 13:36:17`) e de um boot só. São
+    `[Warning] InnoDB: Ignoring a doublewrite copy of page [page id: space=N, page
+    number=N] with future log sequence number …` seguidas de
+    `[ERROR] InnoDB: Your database may be corrupt or you may have copied the InnoDB
+    tablespace but not the InnoDB log files`. **O servidor recuperou e seguiu servindo**
+    — a sessão do mecanismo de skins rodou naquele dia
+  - **Nota de BAIXA PRIORIDADE, não tarefa.** Fica registrada para não se perder: é o
+    único evento de dano no `data-novo` **anterior** a 07/09, e é a origem provável do
+    "nunca desliga limpo" acima. Não há linha de investigação viva e não se pede uma —
+    o critério é o do C10, e a evidência de 27/08 já foi sobrescrita pelos boots
+    seguintes
 - Os `LiveKernelEvent` de 17:48:44, 22 minutos antes da falha de I/O, **não foram
   investigados** e são a única pista que aponta para fora do MariaDB
 
