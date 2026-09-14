@@ -1039,7 +1039,8 @@ Somam-se duas armadilhas de identificação de processo:
    **não os alcança**, e um `taskkill` filtrado assim deixa o worker vivo,
    segurando a porta e servindo código velho.
 
-**Onde custou** — os dois primeiros medidos em 2026-09-04, o terceiro em 2026-09-07:
+**Onde custou** — os dois primeiros medidos em 2026-09-04, o terceiro em 2026-09-07, o
+quarto em 2026-09-14:
 - **Episódio 1.** Um processo meu em `127.0.0.1:8000` ficou de pé por engano e
   interceptou quatro `POST /generate-one` disparados do painel pelo editor. Ele
   havia lido o `.env` 13 minutos antes da troca de chave, o que tornou o teste do
@@ -1072,6 +1073,51 @@ Somam-se duas armadilhas de identificação de processo:
   - **Regra que se acrescenta:** depois de qualquer boot inesperado, conferir a
     **forma da árvore** antes de confiar em teste — 3 processos com o socket na
     folha, e não 4 com o socket no *reloader*.
+- **Episódio 4, em 2026-09-14 — MESMO MECANISMO do Episódio 1, com os PAPÉIS
+  INVERTIDOS.** Registrado na checagem que precedeu o B8.
+  - ⚠️ **NÃO é mecanismo novo, e a primeira redação deste item dizia que era.** O
+    bind concorrente é o **cabeçalho desta flag** e está descrito no "Problema" acima,
+    inclusive a regra do bind mais específico; o Episódio 1 é o mesmo evento. A
+    afirmação de "mecanismo diferente dos três anteriores" partiu de mim, na conversa,
+    **sem eu ter relido a flag** — e ia ser gravada aqui. Corrigida antes de entrar.
+    Fica escrita porque é a família do C11: **referência ou afirmação defasada dentro
+    de commit**, e desta vez a fonte do erro foi o meu resumo, não o documento.
+  - **O que aconteceu:** duas árvores completas coexistiram em `:8000`. Uma minha, de
+    **12:09:48**, `--host 127.0.0.1` e **sem** `--reload` (3 processos, socket na
+    folha). Uma do editor, de **13:49:48**, `--host 0.0.0.0 --reload` (**4** processos,
+    socket no *reloader* `42556`, worker `26908` como filho). `Get-NetTCPConnection`
+    devolveu **dois** `OwningProcess` para a mesma porta — `43312` em `127.0.0.1` e
+    `42556` em `0.0.0.0`.
+  - **A INVERSÃO, que é o que este episódio acrescenta:** no Episódio 1 o intruso
+    servia código/`.env` **velho**, e o dano era o teste inconclusivo. Aqui o intruso
+    era o servidor **correto** (sem a flag) e o observado era o que **tinha** a flag.
+    Consequência: o editor veria o `--reload` disparar no terminal dele a cada edição
+    de `generator.py`, e o **plugin continuaria atendido pelo processo que nunca
+    recarrega**, porque `newsgame_backend_url` é `http://127.0.0.1:8000` e o bind mais
+    específico ganha. Nos episódios 1-3 a lição operacional é *"o PID não serve de
+    prova de que o código está carregado"*; aqui é *"o servidor que responde não é o
+    que você está observando"* — e o segundo é pior de perceber, porque o sinal que se
+    olha (a linha de reload no terminal) é **verdadeiro**, só não se refere ao processo
+    que atende.
+  - **Custo real: zero.** A árvore dupla apareceu na conferência de estado feita
+    **antes** de começar o B8, que é trabalho em `generator.py` e `main.py` — exatamente
+    os arquivos cujo recarregamento estaria em questão. As duas foram mortas pelo topo
+    (`taskkill /F /T` em `40076` e `33448`), com os **pais identificados antes**: o meu
+    (`13336`) já não existia, e o do editor (`4764`) é o `powershell.exe` **interativo**,
+    conferido vivo depois. Porta livre provada por **recusa em 2.051 ms** e não por
+    timeout, e um só servidor religado sem a flag (3 processos, 1 bind em `127.0.0.1`,
+    `--reload` ausente de toda a árvore).
+  - ⚠️ **A minha própria conferência da mesma sessão ficou obsoleta DENTRO da sessão.**
+    Às 12:10 eu reportei "3 processos, socket na folha" — verdade naquele instante. O
+    editor subiu a segunda árvore 1h40 depois. **Nenhum relato de forma de árvore vale
+    além do momento da medição**, e a mesma armadilha do `mysqld` de 12:03 deste dia
+    (ver FLAG 015) apareceu aqui em outra roupa: **um serviço "conferido no ar" pode ser
+    outro processo minutos depois**.
+  - **Regra que se acrescenta:** conferir o **número de binds** na porta, e não só a
+    forma da árvore. `Get-NetTCPConnection -LocalPort 8000 -State Listen` devolvendo
+    **mais de uma linha** é o sintoma, e é o único que aparece **antes** de o teste
+    mentir. `/health` respondendo `200` **não** distingue os dois casos — foi o que
+    respondeu bem com as duas árvores no ar.
 
 **Onde está:** ambiente de desenvolvimento local (Windows 11 + `.venv` do
 `backend-python`). Nenhum arquivo do projeto.
