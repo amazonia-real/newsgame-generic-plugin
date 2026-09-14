@@ -125,7 +125,7 @@
   </p>
   <p>
     Extrai posts e páginas publicados via WP REST API e salva como JSON no vault.
-    O vault é a entrada do pipeline RAG (ChromaDB / Gemini).
+    O vault é a entrada do pipeline RAG (indexação no ChromaDB).
   </p>
 
   <button id="newsgame-sync-btn" class="button button-secondary">
@@ -144,7 +144,7 @@
   <h3 style="margin-bottom:0.25rem">Indexar no Backend (ChromaDB)</h3>
   <p class="description" style="margin-bottom:0.75rem">
     Envia os <?php echo esc_html( $vault_count ); ?> itens do vault para o endpoint <code>/ingest</code> do backend,
-    populando o ChromaDB que alimenta a geração via Gemini.
+    populando o ChromaDB que alimenta a geração de dilemas.
   </p>
   <button id="newsgame-push-btn" class="button button-primary">
     &#8679; Indexar Acervo no Backend

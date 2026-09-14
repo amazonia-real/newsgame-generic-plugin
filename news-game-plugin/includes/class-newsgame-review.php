@@ -234,7 +234,7 @@ class Newsgame_Review {
         // Um botão por dilema na Mesa Editorial — o mais exposto a clique duplo
         // entre as rotas que consomem cota Gemini.
         if ( Newsgame_Settings::rate_limited( 'regenerate', 10 ) ) {
-            wp_send_json_error( array( 'msg' => 'Muitas substituições em sequência. Aguarde um minuto — cada substituta consome cota da chave Gemini.' ) );
+            wp_send_json_error( array( 'msg' => 'Muitas substituições em sequência. Aguarde um minuto — cada substituta consome cota da chave do provedor configurado.' ) );
         }
 
         global $wpdb;

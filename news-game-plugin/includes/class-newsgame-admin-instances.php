@@ -803,7 +803,7 @@ class Newsgame_Admin_Instances {
         // modo "reatribuir". Teto baixo, e compartilhado pelos dois modos: o
         // barato também consome cota, só menos.
         if ( Newsgame_Settings::rate_limited( 'assign_weights', 10 ) ) {
-            wp_send_json_error( array( 'msg' => 'Muitas atribuições em sequência. Aguarde um minuto — cada chamada consome cota da chave Gemini.' ) );
+            wp_send_json_error( array( 'msg' => 'Muitas atribuições em sequência. Aguarde um minuto — cada chamada consome cota da chave do provedor configurado.' ) );
         }
 
         $instance_id = (int) ( $_POST['instance_id'] ?? 0 );
@@ -890,7 +890,7 @@ class Newsgame_Admin_Instances {
         }
         // Um clique por instância no uso normal — teto baixo basta.
         if ( Newsgame_Settings::rate_limited( 'analyze_domain', 10 ) ) {
-            wp_send_json_error( array( 'msg' => 'Muitas análises em sequência. Aguarde um minuto — cada análise consome cota da chave Gemini.' ) );
+            wp_send_json_error( array( 'msg' => 'Muitas análises em sequência. Aguarde um minuto — cada análise consome cota da chave do provedor configurado.' ) );
         }
 
         $instance_id  = (int) ( $_POST['instance_id'] ?? 0 );

@@ -265,7 +265,7 @@ $page_title = $is_edit
 Exemplo:
 Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal Exemplo com 800 reportagens. Os dilemas exploram escolhas éticas e artísticas de diretores, atores e produtores ao longo de décadas. O público-alvo são jovens entre 18 e 30 anos."><?php echo esc_textarea( $theme ); ?></textarea>
           <p class="description">
-            Este texto é enviado ao Gemini como contexto da geração. Seja específico:
+            Este texto é enviado à IA como contexto da geração. Seja específico:
             descreva o tema, o tipo de acervo e quem é o público-alvo.
           </p>
 
@@ -342,7 +342,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
             Ativar Níveis (Aprendiz / Pro)
           </label>
           <p class="description">
-            Se ativo, o Gemini calibra a complexidade em dois níveis: Aprendiz (linguagem acessível)
+            Se ativo, a IA calibra a complexidade em dois níveis: Aprendiz (linguagem acessível)
             e Pro (jornalístico e sistêmico, com 20% das perguntas no nível avançado).
             Se inativo, todas as perguntas têm complexidade uniforme.
           </p>
@@ -359,7 +359,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
             <option value="complexo"   <?php selected( $nivel_padrao, 'complexo' ); ?>>Complexo</option>
           </select>
           <p class="description">
-            Define o tom narrativo das perguntas geradas pelo Gemini.<br>
+            Define o tom narrativo das perguntas geradas pela IA.<br>
             <strong>Lúdico:</strong> linguagem leve, dilemas de fácil identificação.<br>
             <strong>Pedagógico:</strong> equilíbrio entre acessibilidade e profundidade (padrão).<br>
             <strong>Complexo:</strong> dilemas sistêmicos, linguagem jornalística densa.
@@ -496,10 +496,10 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     <h2 class="ng-section-title">Personagens do Jogo</h2>
     <p class="description" style="margin-bottom:0.75rem">
       Defina quem são as personas desta instância. Cada personagem representa um
-      ponto de vista nas perguntas geradas pelo Gemini.<br>
+      ponto de vista nas perguntas geradas pela IA.<br>
       Exemplo: <em>Diretor de Teatro, Ator, Produtor Executivo, Crítico Cultural.</em><br>
       <strong>Sem personagens?</strong> O motor entra no <strong>Modo Perguntas Gerais</strong>:
-      o Gemini gerará perguntas para um jogador genérico, sem perspectiva fixa de personagem.
+      a IA gerará perguntas para um jogador genérico, sem perspectiva fixa de personagem.
     </p>
 
     <div id="ng-chars-list" role="list" aria-label="Personagens"></div>
@@ -578,7 +578,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
 
   <p class="description" style="margin-bottom:1rem">
     O backend buscará no ChromaDB os trechos relevantes para cada personagem,
-    enviará ao Gemini e salvará as perguntas em <code>wp_newsgame_dilemas</code>.
+    enviará à IA e salvará as perguntas em <code>wp_newsgame_dilemas</code>.
     Meta: <strong><?php echo (int) $density; ?> perguntas</strong>
     com <strong><?php echo (int) $num_options; ?> opções de resposta</strong><?php echo $enable_levels ? ', níveis ativados' : ''; ?>.
     <?php if ( $approved_count > 0 ) : ?>
@@ -673,7 +673,7 @@ if ( $id && $review_total > 0 ) :
       ?>
       <button type="button" id="ng-btn-assign-weights" class="button"
               style="white-space:nowrap"
-              title="Chama o Gemini apenas para os dilemas que estão sem peso — inclusive os pendentes. Não altera quem já tem peso.">
+              title="Chama a IA apenas para os dilemas que estão sem peso — inclusive os pendentes. Não altera quem já tem peso.">
         ⚖ Pesar os que faltam<?php if ( $sem_peso > 0 ) : ?> <span id="ng-assign-pending" style="font-size:11px;color:#555;">(<?php echo (int) $sem_peso; ?>)</span><?php endif; ?>
       </button>
       <button type="button" id="ng-btn-reassign-weights" class="button-link"

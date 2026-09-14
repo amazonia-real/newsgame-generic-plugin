@@ -680,7 +680,7 @@
   if (assignBtn) {
     assignBtn.addEventListener('click', function () {
       pedirPesos(assignBtn, false,
-        'Isso chamará o Gemini para pesar APENAS os dilemas que estão sem peso.'
+        'Isso chamará a IA para pesar APENAS os dilemas que estão sem peso.'
         + ' Uma chamada, e quem já tem peso não é alterado. Continuar?');
     });
   }
