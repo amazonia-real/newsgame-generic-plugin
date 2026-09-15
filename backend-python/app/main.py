@@ -69,6 +69,7 @@ def regenerate_one(
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
     x_openai_api_key: str = Header(default=""),
+    x_claude_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> dict:
     """
@@ -77,7 +78,8 @@ def regenerate_one(
     """
     provedor = _resolve_provedor(x_llm_provider)
     api_key = _resolve_api_key(
-        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key,
+        x_claude_api_key, req
     )
 
     # Recusa do provedor vira 502 com causa; "não gerei dilema válido" segue 422.
@@ -98,6 +100,7 @@ def generate_one(
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
     x_openai_api_key: str = Header(default=""),
+    x_claude_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> dict:
     """
@@ -110,7 +113,8 @@ def generate_one(
     # repassaria, mas resolver antes deixa a ordem explícita.
     provedor = _resolve_provedor(x_llm_provider)
     api_key = _resolve_api_key(
-        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key,
+        x_claude_api_key, req
     )
     try:
         dilema = generator.generate_one_dilema(req, api_key, provedor)
@@ -141,6 +145,7 @@ def generate(
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
     x_openai_api_key: str = Header(default=""),
+    x_claude_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> StreamingResponse:
     """
@@ -152,7 +157,8 @@ def generate(
     # devolver 401 — os headers HTTP já foram enviados.
     provedor = _resolve_provedor(x_llm_provider)
     api_key = _resolve_api_key(
-        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key,
+        x_claude_api_key, req
     )
     return StreamingResponse(
         generator.generate_stream(req, api_key, provedor),
@@ -280,6 +286,7 @@ def _resolve_api_key(
     header_gemini: str,
     header_deepseek: str,
     header_openai: str,
+    header_claude: str,
     req,
 ) -> str:
     """
@@ -307,10 +314,22 @@ def _resolve_api_key(
     # linha aqui. Se faltar a linha, o `raise` abaixo denuncia — sem ele, o
     # provedor novo receberia chave vazia e o sintoma seria um 401 de "chave não
     # encontrada" apontando para a configuração do editor, que estaria correta.
+    #
+    # ⚠️ OS QUATRO HEADERS CHEGAM AQUI POSICIONALMENTE, e são todos `str` — uma
+    # troca de ordem no call site COMPILA e manda a chave do provedor errado, em
+    # silêncio. Com dois ainda era improvável; com quatro é um risco real, e o
+    # quinto provedor piora. Registrado e NÃO alterado: mudar para dict ou
+    # keyword-only nos 6 call sites é refatoração do caminho mais exercitado do
+    # backend, e não cabe no mesmo passo que introduz um provedor — é o
+    # precedente do A3. O que existe hoje contra isso é o teste de sentinela
+    # distinta por header, executado em 2026-09-15 (ver o B9 no estado atual):
+    # ele discrimina troca de ordem, que uma sonda com a mesma chave nos quatro
+    # não faria.
     headers_de_chave = {
         "gemini": header_gemini,
         "deepseek": header_deepseek,
         "openai": header_openai,
+        "claude": header_claude,
     }
     if provedor not in headers_de_chave:
         raise HTTPException(
@@ -432,6 +451,7 @@ def analyze_domain(
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
     x_openai_api_key: str = Header(default=""),
+    x_claude_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> DomainAnalysisResponse:
     """Analisa um corpus textual e identifica eixos de tensão e perfis de jogador via IA."""
@@ -439,7 +459,8 @@ def analyze_domain(
     # PASSO 1 — Resolver chave de API
     provedor = _resolve_provedor(x_llm_provider)
     api_key = _resolve_api_key(
-        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key,
+        x_claude_api_key, req
     )
     logger.info("[analyze-domain] Iniciando análise de domínio. Tamanho do contexto: %d chars.", len(req.context_text))
 
@@ -525,6 +546,7 @@ def assign_weights(
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
     x_openai_api_key: str = Header(default=""),
+    x_claude_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> AssignWeightsResponse:
     """Atribui pesos (-20 a +20) em cada eixo para cada alternativa de cada dilema."""
@@ -532,7 +554,8 @@ def assign_weights(
     # PASSO 1 — Resolver chave de API
     provedor = _resolve_provedor(x_llm_provider)
     api_key = _resolve_api_key(
-        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key,
+        x_claude_api_key, req
     )
     logger.info("[assign-weights] Atribuindo pesos para %d dilema(s).", len(req.dilemmas))
 
@@ -659,6 +682,7 @@ def generate_verdict(
     x_gemini_api_key: str = Header(default=""),
     x_deepseek_api_key: str = Header(default=""),
     x_openai_api_key: str = Header(default=""),
+    x_claude_api_key: str = Header(default=""),
     x_llm_provider: str = Header(default=""),
 ) -> GenerateVerdictResponse:
     """Seleciona o perfil mais próximo do vetor do jogador e gera texto narrativo personalizado."""
@@ -666,7 +690,8 @@ def generate_verdict(
     # PASSO 1 — Resolver chave de API
     provedor = _resolve_provedor(x_llm_provider)
     api_key = _resolve_api_key(
-        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key, req
+        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key,
+        x_claude_api_key, req
     )
     logger.info("[generate-verdict] Vetor do jogador: %s. Perfis disponíveis: %d.", req.vetor_jogador, len(req.perfis_disponiveis))
 
