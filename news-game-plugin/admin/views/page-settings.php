@@ -54,8 +54,8 @@
             chamadas ao backend: geração de perguntas, pedido de substituta, atribuição de pesos
             e análise do acervo.
             <br>
-            Preencha abaixo a chave do provedor escolhido. A chave do outro provedor fica
-            guardada e não é enviada.
+            Preencha abaixo a chave do provedor escolhido. As chaves dos outros provedores
+            ficam guardadas e não são enviadas.
           </p>
         </td>
       </tr>
@@ -91,6 +91,21 @@
                  class="regular-text" autocomplete="off">
           <p class="description">
             Obtida em <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI Platform</a>.
+            Armazenada nas configurações do WordPress, sem criptografia. Restrito a administradores com permissão de gerenciar opções.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row"><label for="newsgame_claude_api_key">Claude API Key</label></th>
+        <td>
+          <input type="password" id="newsgame_claude_api_key" name="newsgame_claude_api_key"
+                 value="<?php echo esc_attr( get_option( 'newsgame_claude_api_key', '' ) ); ?>"
+                 class="regular-text" autocomplete="off">
+          <p class="description">
+            <?php /* URL conferida em 2026-09-15: console.anthropic.com REDIRECIONA para
+                     platform.claude.com, então a canônica é esta. Não escrever a antiga
+                     de memória — mesma regra do nome do modelo. */ ?>
+            Obtida em <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Claude Platform</a>.
             Armazenada nas configurações do WordPress, sem criptografia. Restrito a administradores com permissão de gerenciar opções.
           </p>
         </td>

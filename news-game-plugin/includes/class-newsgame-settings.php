@@ -29,9 +29,10 @@ class Newsgame_Settings {
      *   option do WordPress guarda a chave de qual provedor é conhecimento do
      *   plugin. `generator.PROVEDORES` fala de `env_chave`/`campo_chave`, que são
      *   nomes do Settings do Python.
-     * - `header_chave` — ⚠️ **ESPELHO EXATO** de `header_chave` em
-     *   `generator.py:661` e `:669`, e a string tem de casar com o nome do
-     *   parâmetro declarado nas 6 rotas de `main.py`. **Divergir aqui não levanta
+     * - `header_chave` — ⚠️ **ESPELHO EXATO** da coluna `header_chave` da tabela
+     *   `PROVEDORES` de `generator.py` (uma entrada por provedor, hoje quatro), e
+     *   a string tem de casar com o nome do parâmetro declarado nas 6 rotas de
+     *   `main.py`. **Divergir aqui não levanta
      *   erro:** o backend recebe um header que não declarou, ignora, e a cascata
      *   cai para o `.env` — a chave do painel deixa de governar a geração **em
      *   silêncio**, que é exatamente o defeito que a fase 0 do H1 corrigiu.
@@ -57,6 +58,11 @@ class Newsgame_Settings {
             'rotulo'       => 'OpenAI',
             'option_chave' => 'newsgame_openai_api_key',
             'header_chave' => 'X-OpenAI-Api-Key',
+        ),
+        'claude'   => array(
+            'rotulo'       => 'Claude',
+            'option_chave' => 'newsgame_claude_api_key',
+            'header_chave' => 'X-Claude-Api-Key',
         ),
     );
 
@@ -89,6 +95,7 @@ class Newsgame_Settings {
         'newsgame_llm_provider',
         'newsgame_deepseek_api_key',
         'newsgame_openai_api_key',
+        'newsgame_claude_api_key',
     );
 
     /** Hook suffix da tela de configurações — usado para enfileirar só nela */
@@ -209,6 +216,9 @@ class Newsgame_Settings {
         register_setting( 'newsgame_settings', 'newsgame_openai_api_key', array(
             'sanitize_callback' => 'sanitize_text_field',
         ) );
+        register_setting( 'newsgame_settings', 'newsgame_claude_api_key', array(
+            'sanitize_callback' => 'sanitize_text_field',
+        ) );
         register_setting( 'newsgame_settings', 'newsgame_organization_name', array(
             'sanitize_callback' => 'sanitize_text_field',
             'default'           => 'News-Game',
@@ -315,6 +325,15 @@ class Newsgame_Settings {
      */
     public static function openai_key() {
         return (string) get_option( 'newsgame_openai_api_key', '' );
+    }
+
+    /**
+     * Quarto provedor (B9, 2026-09-15). Mesmo motivo do openai_key() acima —
+     * simetria, sob a decisão de 07/09 registrada em provider_key(). Não
+     * repetir aqui o raciocínio inteiro: ele está a três linhas de distância.
+     */
+    public static function claude_key() {
+        return (string) get_option( 'newsgame_claude_api_key', '' );
     }
 
     /**
