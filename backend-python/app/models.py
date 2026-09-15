@@ -55,6 +55,8 @@ class GenerateRequest(BaseModel):
     deepseek_api_key: str = Field(default="")
     # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
     openai_api_key: str = Field(default="")
+    # Quarto provedor (2026-09-15). Mesma regra dos três acima.
+    claude_api_key: str = Field(default="")
 
 
 # ── Modelos Pydantic para structured output do Gemini ─────
@@ -197,6 +199,8 @@ class RegenerateRequest(BaseModel):
     deepseek_api_key: str = Field(default="")
     # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
     openai_api_key: str = Field(default="")
+    # Quarto provedor (2026-09-15). Mesma regra dos três acima.
+    claude_api_key: str = Field(default="")
 
 
 # ── Modelos para /analyze-domain ──────────────────────────────────────────
@@ -234,6 +238,8 @@ class DomainAnalysisRequest(BaseModel):
     deepseek_api_key: str = Field(default="")
     # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
     openai_api_key: str = Field(default="")
+    # Quarto provedor (2026-09-15). Mesma regra dos três acima.
+    claude_api_key: str = Field(default="")
 
 
 class DomainAnalysisResponse(BaseModel):
@@ -253,6 +259,8 @@ class AssignWeightsRequest(BaseModel):
     deepseek_api_key: str = Field(default="")
     # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
     openai_api_key: str = Field(default="")
+    # Quarto provedor (2026-09-15). Mesma regra dos três acima.
+    claude_api_key: str = Field(default="")
 
 
 class AssignWeightsResponse(BaseModel):
@@ -278,6 +286,8 @@ class GenerateVerdictRequest(BaseModel):
     deepseek_api_key: str = Field(default="")
     # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
     openai_api_key: str = Field(default="")
+    # Quarto provedor (2026-09-15). Mesma regra dos três acima.
+    claude_api_key: str = Field(default="")
 
 
 class GenerateVerdictResponse(BaseModel):

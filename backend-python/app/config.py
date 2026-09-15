@@ -35,6 +35,25 @@ class Settings(BaseSettings):
     # SUBIR com ValidationError — foi o incidente de 2026-08-07 com LOG_LEVEL e
     # ANONYMIZED_TELEMETRY. Declarar aqui primeiro, popular o .env depois.
     openai_api_key: str = ""
+    # Chave do Claude/Anthropic — quarto provedor, integrado em 2026-09-15 (B9).
+    # Opcional pelo mesmo motivo dos três campos acima: a chave pode chegar por
+    # requisição, vinda do painel WordPress.
+    #
+    # ⚠️⚠️ O NOME DA ENV VAR É `CLAUDE_API_KEY`, E **NÃO** `ANTHROPIC_API_KEY`.
+    # Não é preferência de estilo — `ANTHROPIC_API_KEY` é um nome que o SDK da
+    # Anthropic CONSOME SOZINHO, e `main.py:13` roda `load_dotenv()`, que joga
+    # todo o `.env` dentro de `os.environ`. As duas coisas juntas criariam um
+    # QUARTO degrau de cascata, invisível e fora da nossa resolução: qualquer
+    # `ChatAnthropic` construído sem chave explícita passaria a autenticar com o
+    # valor do arquivo, e o 401 de `_resolve_api_key()` nunca dispararia.
+    #
+    # Com `CLAUDE_API_KEY` não há colisão: o SDK não conhece esse nome, e a
+    # chave só entra pelo caminho que nós controlamos. Conferido em 2026-09-15
+    # no fonte do SDK (`anthropic/_client.py:214-224`): a cascata dele é
+    # api_key explícito > ANTHROPIC_API_KEY > ANTHROPIC_AUTH_TOKEN >
+    # ANTHROPIC_PROFILE > federação > perfil ativo em disco — cinco degraus que
+    # NÃO queremos atrás dos nossos três.
+    claude_api_key: str = ""
     # Provedor de LLM usado quando a requisição não informa nenhum. É o default
     # global do backend, e o painel WordPress o sobrepõe por requisição.
     #
@@ -76,6 +95,23 @@ class Settings(BaseSettings):
     # Medido em 2026-09-14: 4,7s, US$ 0,001442/dilema (contra US$ 0,00062 do
     # DeepSeek v4-flash), reasoning_tokens=0, JSON válido na 1ª tentativa.
     llm_model_openai: str = "gpt-5.6-luna"
+    # Modelo do Claude. `claude-sonnet-5` escolhido em 2026-09-15 (B9), com o
+    # nome CONFIRMADO NO /v1/models COM CHAVE REAL na mesma data.
+    #
+    # ⚠️ A REGRA DE CONFIRMAR NA FONTE VALEU AQUI COM FORÇA EXTRA, e fica
+    # registrado porque é contraintuitivo: quem escreveu esta linha foi o
+    # próprio Claude, e isso NÃO É FONTE. Memória de treino tem corte e não
+    # sabe o que está vivo hoje; a lista literal embutida no pacote `anthropic`
+    # é de um release congelado. Valeu o mesmo protocolo do `deepseek-chat`
+    # (nome que deixou de existir) e do `gpt-6-astra` (descartado antes de
+    # gastar chamada) — bater na API e ler o que ela responde.
+    #
+    # ⚠️ `llm_temperature` NÃO SE APLICA A ESTE PROVEDOR. Medido em 2026-09-15:
+    # `temperature=0.3` devolve **400** em `claude-sonnet-5` e em
+    # `claude-opus-5` ("temperature is deprecated for this model"). O
+    # construtor força `temperature=None` — ver a nota longa em
+    # `_cliente_claude()`, que é onde a decisão mora.
+    llm_model_claude: str = "claude-sonnet-5"
     llm_temperature: float = 0.3
     # RAG
     rag_fetch_k: int = 20

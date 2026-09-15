@@ -23,6 +23,21 @@ langchain-deepseek==0.1.4
 # descrever o venv. A 0.3.35 e a que ja estava instalada e mantem a linha 0.3
 # do langchain-core — a linha 1.x reverteria o teto do langchain-deepseek.
 langchain-openai==0.3.35
+# ⚠️ TETO NA LINHA 0.3 PELO MESMO MOTIVO DO langchain-deepseek ACIMA, e aqui a
+# medicao e de 2026-09-15: a versao corrente (1.7.2) arrasta langchain-core de
+# 0.3.86 para 1.6.3 — salto de MAJOR —, que reverteria o teto dos dois pacotes
+# acima. A 0.3.22 pede apenas langchain-core<1.0.0,>=0.3.78, entao o 0.3.86 que
+# ja esta instalado satisfaz.
+#
+# Diferente da langchain-openai, esta NAO estava no venv: e dependencia nova de
+# verdade, e traz `anthropic` (o SDK) e `docstring_parser` como transitivas.
+# Conferido por dry-run antes de instalar: 3 pacotes PURAMENTE ADITIVOS, zero
+# mudanca de versao em pacote existente, `pip check` limpo depois.
+#
+# O pin antigo NAO custa superficie: a `anthropic` 0.125.0 ja conhece
+# thinking adaptive/disabled/enabled e output_config.effort, que sao os
+# parametros dos modelos atuais. Conferido na roda antes de instalar.
+langchain-anthropic==0.3.22
 langchain-huggingface==0.1.0
 langchain-community==0.3.31
 langchain-text-splitters==0.3.11

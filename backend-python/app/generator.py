@@ -18,6 +18,7 @@ from typing import Generator
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_anthropic import ChatAnthropic
 from langchain_deepseek import ChatDeepSeek
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
@@ -658,6 +659,13 @@ def detail_de_provedor(exc: Exception, provedor: str) -> str:
 #      `llm_model_<slug>`). ⚠️ O campo da chave é PRÉ-REQUISITO de pôr a env
 #      var no .env: o pydantic-settings usa extra='forbid' e o servidor RECUSA
 #      SUBIR com chave órfã no arquivo — ver a nota daquele campo;
+#   3b. as linhas correspondentes no `.env.example`. ACRESCENTADO NO B9
+#      (2026-09-15) porque a omissão foi encontrada na prática: o B8 seguiu
+#      esta lista e deixou o arquivo defasado — sem `OPENAI_API_KEY` e sem
+#      `LLM_MODEL_OPENAI` —, e o B9 teve de fechar os dois de passagem, já que
+#      acrescentar só o quarto provedor criaria a falsidade NOVA de sugerir que
+#      o terceiro não existe. Não vira item 8: é a mesma unidade de trabalho do
+#      item 3, e separar faria a lista crescer sem ganho;
 #   4. o campo `<slug>_api_key` nos 5 Requests de models.py;
 #   5. o pin do pacote do SDK em requirements.txt, se for novo;
 #
@@ -750,6 +758,67 @@ def _cliente_openai(modelo: str, temperatura: float, api_key: str) -> BaseChatMo
     )
 
 
+def _cliente_claude(modelo: str, temperatura: float, api_key: str) -> BaseChatModel:
+    # `api_key=` e `model=` — mesma forma do DeepSeek e da OpenAI. Conferido no
+    # `model_fields` da langchain-anthropic 0.3.22 em 2026-09-15, não suposto:
+    # o campo se chama `anthropic_api_key` e tem `alias="api_key"`, e a classe
+    # roda com `populate_by_name=True`, então os dois nomes funcionam. `model` é
+    # alias de `model_name`. O Gemini segue sendo o único fora do padrão.
+    #
+    # ⚠️⚠️ `temperature=None` SEMPRE, E O PARÂMETRO RECEBIDO É IGNORADO. Isto é
+    # DECISÃO MEDIDA, não omissão: em 2026-09-15, `temperature=0.3` devolveu
+    # **HTTP 400** em `claude-sonnet-5` E em `claude-opus-5`, com a mensagem
+    # "temperature is deprecated for this model". Não é degradação silenciosa —
+    # é a requisição inteira falhando.
+    #
+    # ⚠️ E A DIFERENÇA PARA A OPENAI É O QUE TORNA ESTA LINHA OBRIGATÓRIA: lá a
+    # `langchain-openai` REMOVE `temperature` do payload sozinha quando o modelo
+    # é `gpt-5*`, então passar 0.3 é inócuo. Aqui NÃO existe essa limpeza — a
+    # `langchain-anthropic` põe `"temperature": self.temperature` no payload e
+    # só descarta os `None` (`chat_models.py:1601-1617`, lido em 2026-09-15).
+    # Ou seja: o 0.3 CHEGARIA à API e derrubaria toda chamada. O `None` tem de
+    # ser nosso.
+    #
+    # O parâmetro continua sendo RECEBIDO, e não removido da assinatura, pelo
+    # mesmo motivo da OpenAI: é o contrato da coluna `construtor` da tabela, e
+    # volta a ter efeito se algum dia `llm_model_claude` apontar para um modelo
+    # que aceite o parâmetro (a geração 4.6 e o Haiku 4.5 ainda aceitam).
+    _ = temperatura  # recebido por contrato da tabela; IGNORADO de propósito
+    #
+    # ⚠️ `thinking={"type": "disabled"}` É O ANÁLOGO do `extra_body` do DeepSeek
+    # e do `reasoning_effort="none"` da OpenAI, e é EXPLÍCITO pela MESMA razão:
+    # nunca confiar no default. Aqui o risco é maior que nos outros dois, porque
+    # são DOIS defaults empilhados — o campo `thinking` do wrapper nasce `None`,
+    # e `None` significa PARÂMETRO OMITIDO (`chat_models.py:1616`), não
+    # "desligado"; quem decide então é o default do SERVIDOR, que varia por
+    # modelo e em parte da linha atual é LIGADO.
+    #
+    # Medido em 2026-09-15 com o prompt real do projeto: neste modo o texto veio
+    # SEM vazamento de tag, o JSON saiu limpo e `_is_valid_dilema` devolveu True.
+    # Ou seja o Claude segue o MESMO padrão dos outros três (thinking sempre
+    # desligado), e NÃO o padrão oposto que a leitura prévia levantou como risco
+    # — a hipótese de que desligar faria vazar `<thinking>` no corpo da resposta
+    # foi testada e NÃO se confirmou no modelo escolhido.
+    #
+    # ⚠️ Se `llm_model_claude` mudar, ISTO PRECISA SER REMEDIDO: há modelo na
+    # linha atual que RECUSA `{"type": "disabled"}` com 400 (o parâmetro não é
+    # universalmente aceito), e nesse caso a saída é `{"type": "adaptive"}` com
+    # `output_config={"effort": "low"}` via `model_kwargs`.
+    #
+    # Nota sobre chave vazia: o nosso `_get_llm()` já barra antes de chegar aqui.
+    # Vale registrar que, se chegasse, o `""` NÃO abriria a cascata própria do
+    # SDK (ANTHROPIC_API_KEY > perfil em disco): `anthropic/_client.py:214-224`
+    # testa `api_key is not None`, e `""` conta como credencial explícita. Ver a
+    # nota de `claude_api_key` em config.py, que é onde isso importa de verdade.
+    return ChatAnthropic(
+        model=modelo,
+        temperature=None,
+        api_key=api_key,
+        max_retries=2,
+        thinking={"type": "disabled"},
+    )
+
+
 PROVEDORES: dict[str, dict] = {
     "gemini": {
         "rotulo": "Gemini",
@@ -774,6 +843,19 @@ PROVEDORES: dict[str, dict] = {
         "header_chave": "X-OpenAI-Api-Key",
         "env_chave": "OPENAI_API_KEY",
         "construtor": _cliente_openai,
+    },
+    # ⚠️ `env_chave` é CLAUDE_API_KEY, e não ANTHROPIC_API_KEY — o segundo nome
+    # é consumido pelo SDK da Anthropic e colidiria com a nossa resolução por
+    # causa do load_dotenv() de main.py. Ver a nota de `claude_api_key` em
+    # config.py. Este valor é o que aparece na mensagem do 502, então dizer o
+    # nome errado aqui mandaria o editor editar a variável que não é lida.
+    "claude": {
+        "rotulo": "Claude",
+        "campo_chave": "claude_api_key",
+        "campo_modelo": "llm_model_claude",
+        "header_chave": "X-Claude-Api-Key",
+        "env_chave": "CLAUDE_API_KEY",
+        "construtor": _cliente_claude,
     },
 }
 
@@ -882,7 +964,9 @@ def _get_llm(provedor: str, api_key: str) -> BaseChatModel:
     cfg = get_settings()
     meta = PROVEDORES[provedor]
     # O modelo sai da tabela, e não de um `if provedor == ...`: é `llm_model`
-    # para o Gemini e `llm_model_deepseek` para o DeepSeek.
+    # para o Gemini, `llm_model_deepseek`, `llm_model_openai` e
+    # `llm_model_claude` para os outros três. A enumeração cresce com a tabela;
+    # esta linha não.
     modelo = getattr(cfg, meta["campo_modelo"])
     return meta["construtor"](modelo, cfg.llm_temperature, api_key)
 
