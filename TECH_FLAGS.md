@@ -1443,6 +1443,17 @@ culpa a IA por um defeito de **arquivo de configuração** — o `LLM_MODEL` apo
 um modelo retirado do ar. É a mesma mensagem enganosa que o passo 5b eliminou para
 401/402, com a diferença de que ali a **cobertura** foi o limite, não a intenção.
 
+⚠️ **ATUALIZAÇÃO DA MESMA DATA, À TARDE: o GATILHO do caso 2 foi corrigido; o DEFEITO
+DESTA FLAG, NÃO.** O `LLM_MODEL` passou a apontar para `gemini-3.6-flash` (commit
+`3ecdf14`), então aquele 404 específico não ocorre mais. Mas isso é **remoção da causa a
+montante**, não conserto da classificação: um 404 de modelo inexistente — por typo no
+`.env`, por outro modelo ser retirado do ar, ou na próxima instalação que copie um
+`LLM_MODEL` inválido — **continua saindo como 422 "não foi possível gerar um dilema
+válido"**. Os dois casos seguem válidos como descrição do mecanismo, e o **caso 1
+(403 `API_KEY_SERVICE_BLOCKED`) não tem nem gatilho corrigido**: basta uma chave com
+restrição de API para reproduzi-lo. **A flag permanece 🔴 ABERTA, com as três saídas
+intactas.**
+
 ⚠️ **ESTA FLAG NÃO ACUSA O DESENHO DE ESTAR ERRADO.** O escopo estreito está declarado
 na docstring de `erro_fatal_de_provedor()`: *"trata 'o provedor recusou', e não constrói
 taxonomia de erro"*, e o `break` que devolve 422 em erro transitório é decisão
@@ -1476,6 +1487,98 @@ acrescenta é o **custo medido** desse escopo, que antes era hipotético.
 por isso que ele é o destino padrão), **FLAG 012** (o SDK descontinuado é o que hoje
 decide qual caminho de exceção existe para o Gemini), e o item 4 do bloco de 16/09 na
 §10 do `CLAUDE.md`, que tem a evidência de log dos dois casos.
+
+---
+
+## FLAG 017 — Raciocínio do Gemini 3 desligado por parâmetro de compatibilidade retroativa
+
+**Status:** 🟡 **CORREÇÃO APLICADA, dívida residual registrada.** Não é "risco sem
+correção proposta": a linha existe, está em produção e foi calibrada. O que fica é a
+**natureza retrocompatível** do parâmetro e a revisão futura. Aberta em 2026-09-16
+(commit `3ecdf14`).
+
+**O problema, medido.** O `gemini-3.6-flash` vem com raciocínio **LIGADO por default do
+servidor**, e o `_cliente_gemini()` era o único dos quatro construtores sem controle
+disso — porque o `gemini-2.5-flash` anterior não tinha o modo. Medição com
+`usage_metadata` da resposta real, mesma instância e mesmo prompt, mudando só o
+parâmetro:
+
+| | sem o parâmetro | com `thinking_budget=0` |
+|---|---|---|
+| tokens de raciocínio | **2.339** (84,9% da saída) | **0** |
+| tokens de saída | 2.754 | **448** |
+| latência do `invoke` | 56,04 s | **4,04 s** |
+| texto visível | 1.464 chars | **1.552 chars** |
+
+Consequências que o número quantifica: token de raciocínio é **cobrado como saída**,
+então 415 tokens de dilema custavam **2.754** — 6,6× o texto entregue; e os 56 s eram
+**47% do teto de 120 s** do `wp_remote_post`, com lote de 15 slots levando ~12 min.
+
+**Correção aplicada:** `thinking_budget=0` em `_cliente_gemini()`, alinhando o Gemini ao
+padrão explícito dos outros três (`extra_body` no DeepSeek, `reasoning_effort="none"` na
+OpenAI, `thinking={"type": "disabled"}` no Claude) e à regra já escrita no código —
+*nunca confiar no default*. ✅ *Calibrado com 3 gerações reais: reasoning 0/0/0, `invoke`
+4,04/3,96/5,31 s, 1 invocação cada (sem auto-reparo da FLAG 001), `_is_valid_dilema()`
+True nas três.*
+
+### A dívida que sobra — e é o motivo desta flag existir
+
+⚠️ **`thinking_budget` é CAMINHO DE COMPATIBILIDADE RETROATIVA, e é a única linha dos
+quatro construtores que depende disso.** A doc oficial
+(`ai.google.dev/gemini-api/docs/generate-content/thinking`) o declara *"aceito por
+compatibilidade retroativa"* nos modelos Gemini 3; a ressalva de *"performance
+inesperada"* é declarada para o **3 Pro** e **não** para o Flash — testado limpo no
+`gemini-3.6-flash`, zero erro.
+
+⚠️ **O MODO DE FALHA É SILENCIOSO.** Se o Google remover a retrocompatibilidade, o
+parâmetro passa a ser ignorado, o raciocínio volta ao default **ligado**, e **não há
+erro, aviso ou log** — só a latência subindo de ~4 s para ~56 s e a conta de saída
+sextuplicando. Nenhum teste automatizado cobre isso; o sintoma observável é a latência.
+
+⚠️ **O parâmetro recomendado para a linha 3 é `thinking_level`, e hoje é INEXPRESSÁVEL
+aqui** — não é questão de estilo, é ausência nas duas camadas:
+
+| camada instalada | conhece `thinking_level`? |
+|---|---|
+| `langchain-google-genai 2.1.12` (wrapper) | ❌ zero ocorrências nos 11 `.py` do pacote |
+| `google-ai-generativelanguage 0.12.0` (proto) | ❌ `ThinkingConfig` só tem `include_thoughts` e `thinking_budget` |
+
+Como o proto também não tem o campo, **não há contorno** por `generation_config` nem por
+`model_kwargs`.
+
+**A revisão está amarrada ao upgrade da FLAG 012.** Na `langchain-google-genai 4.4.0` o
+campo existe como `reasoning_effort` com alias `thinking_level`,
+`Literal["minimal","low","medium","high"]` (`chat_models.py:3230`), e lá o
+`thinking_budget` está marcado *deprecated para Gemini 3+*. Duas ressalvas para quem
+executar:
+
+1. ⚠️ **O piso é `minimal`, que REDUZ e NÃO ZERA** — a troca **não** é equivalente e
+   precisa ser **remedida** com `usage_metadata`, não assumida.
+2. ⚠️ **O upgrade é de dois majors** (2.1.12 → 4.4.0) e mexe na mesma árvore que o
+   `0fcc866` pagou para segurar: o `langchain-core` está preso na linha 0.3 por conflito
+   declarado. **Não é ajuste de parâmetro, é decisão de dependência.**
+
+### Lição de método que esta flag carrega
+
+⚠️ **"Deprecated no pacote" não é "rejeitado na API", e confundir os dois quase custou o
+conserto.** A recomendação inicial desta sessão foi **descartar** o `thinking_budget` e
+tratar o upgrade de dois majors como pré-requisito — conclusão tirada de ler o *wheel* da
+4.4.0, onde o parâmetro aparece como depreciado. A depreciação é do **wrapper**; a
+aceitação é do **provedor**. A verificação na documentação do Google desfez a conclusão e
+o conserto saiu sem upgrade nenhum, ao custo de **1 dilema**.
+**Regra:** para saber o que o provedor aceita, a fonte é a documentação do provedor —
+não o código do wrapper. É a mesma família da regra de confirmar nome de modelo na
+fonte, com a precisão extra de que *fonte certa* também importa.
+
+**Onde está:**
+- `backend-python/app/generator.py` — `_cliente_gemini()`, com todo este raciocínio no
+  comentário encostado na função
+- `backend-python/app/config.py` — `llm_model`, cujo comentário registra a procedência do
+  `gemini-3.6-flash`
+
+**Ver também:** **FLAG 012** (o upgrade que destrava o `thinking_level`), **FLAG 001** (o
+auto-reparo que a calibração exercitou sem acionar), **FLAG 016** (o 404 que expôs o
+modelo morto saiu como 422 enganoso) e o item 9 do bloco de 16/09 na §10 do `CLAUDE.md`.
 
 ---
 
