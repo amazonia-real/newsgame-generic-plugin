@@ -941,6 +941,37 @@ Duas superfícies de exposição, medidas e distintas da questão do repouso:
   `GEMINI_API_KEY` e `API_SECRET_TOKEN` em texto claro no disco (conferidos por nome;
   valores não lidos). `config.py:35` declara `{"env_file": ".env"}`.
 
+⚠️ **Nota factual acrescentada em 2026-09-16 — o `.env` guarda uma chave MORTA, e as
+duas cópias DIVERGIRAM.** Medido nesta data, por comprimento e `md5[0:8]`, sem leitura
+de valor:
+
+| onde | comprimento | `md5[0:8]` | estado |
+|---|---|---|---|
+| painel (`newsgame_gemini_api_key`) | 53 | `eee6baac` | **viva** — `ListModels` 200 |
+| `backend-python/.env` (`GEMINI_API_KEY`) | 39 | `dedc9c80` | **bloqueada** — `403 API_KEY_SERVICE_BLOCKED`, medido no mesmo dia |
+
+Em 15/09 as duas eram **idênticas** (o `.env` foi reposto com o valor do painel). Em
+16/09 o editor rotacionou a chave **só no painel**, e o `.env` ficou com a anterior —
+que, medida horas antes, já vinha sendo **recusada pelo Google**.
+
+**Por que isto NÃO quebra nada hoje, e por que é risco:** o plugin manda a chave em
+**header**, e a cascata do `_resolve_api_key()` é `header > body > Settings (.env)` — o
+header vence sempre, então o `.env` é um terceiro degrau que nunca é alcançado pelo
+caminho normal. O problema é o modo de falha: **se o header algum dia não chegar** (bug
+no `provider_headers()`, option apagada por um save malformado — a família do **C13** —,
+ou chamador novo que esqueça o header), a cascata cai **silenciosamente** para uma chave
+**revogada**, e o sintoma vira "o provedor recusou" em vez de "o plugin não mandou a
+chave". Foi exatamente essa a assimetria que a fase 0 do **H1** corrigiu na outra
+direção.
+
+**Não é a mesma questão que esta FLAG trata** (repouso e criptografia) — é **higiene de
+credencial**: segredo revogado deixado em arquivo. Fica registrado aqui porque é onde o
+`.env` como cópia da chave já está documentado, e **não** na FLAG 015, que é sobre o
+`mysqld` deste ambiente e não tem relação. **Duas saídas, nenhuma escolhida:** sincronizar
+o `.env` a cada rotação (mantém o fallback útil e cria um segundo lugar a lembrar), ou
+**esvaziá-lo** de propósito e deixar o 401 de `_resolve_api_key()` falar — o que é
+possível desde a fase 0, que tornou `gemini_api_key` opcional em `config.py`.
+
 **Onde está:**
 - `news-game-plugin/includes/class-newsgame-settings.php:71-83` — registro das options
 - `news-game-plugin/admin/views/page-settings.php` — a tela (e o `value` da linha 31)
@@ -1365,6 +1396,86 @@ Na ordem, e as três primeiras são grátis:
 `force_recovery` é medida de emergência e não configuração), o **C10** e o aprendizado
 de método da §6 do `ROADMAP_OPEN_SOURCE.md` — *em perda de dado, medir antes de
 restaurar*.
+
+---
+
+## FLAG 016 — Cobertura do classificador de erro de provedor: o `422` é o destino de tudo o que ele não pega
+
+**Status:** 🔴 **ABERTA — decisão, não tarefa.** Registrada em 2026-09-16, a partir de
+**dois casos medidos no mesmo dia**, os dois no Gemini.
+
+**O que acontece.** As rotas de geração devolvem **422 "Não foi possível gerar um dilema
+válido para este slot"** quando `generate_one_dilema()` não produz dilema. Desde o passo
+5b da fase 0 do **H1**, recusa de provedor deixou de cair nesse 422 e passa a **502 com
+causa nomeada** — mas só a recusa que o classificador **reconhece**. Tudo o mais continua
+saindo como 422, inclusive erro que **retentar nunca resolve**.
+
+### O mecanismo, lido no código e não suposto
+
+`erro_fatal_de_provedor()` (`generator.py:556`) decide em dois degraus:
+
+1. **Status HTTP tem precedência** — `STATUS_CHAVE = (401, 403)`, `STATUS_CREDITO = (402,)`.
+2. **Texto como reserva** — `MARCADORES_CHAVE` (8 substrings, entre elas
+   `"permission denied"` e `"permission_denied"`) e `MARCADORES_CREDITO`
+   (`"prepayment"`, `"credits are depleted"`, `"billing"`).
+
+⚠️ **Para o Gemini o degrau 1 NUNCA dispara, e isso é por desenho.** `_status_http()`
+(`:495`) só lê `status_code`, `http_status` e `response.status_code` — e **não** percorre
+`__cause__` nem consulta `.code`, com motivos registrados na própria docstring (no gRPC
+`.code` é método; na família OpenAI é string). As exceções do `google.api_core` não
+expõem nenhum dos três atributos lidos, então `_status_http()` devolve `None` e **o
+Gemini sempre cai no texto**.
+
+### Os dois casos medidos em 2026-09-16
+
+| caso | erro real do provedor | por que o classificador não pegou | o que o editor viu |
+|---|---|---|---|
+| **1** | `403 PERMISSION_DENIED`, `reason: API_KEY_SERVICE_BLOCKED` — *"Requests to this API generativelanguage.googleapis.com method …GenerateContent are blocked."* | status `None` (Gemini) e **nenhum marcador casa**: `"permission denied"` está no **nome da classe**, não na mensagem, e a mensagem diz *"are blocked"* | **422** "não foi possível gerar um dilema válido" |
+| **2** | `404 NotFound` — *"This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.6-flash"* | **não é erro de credencial nem de crédito** — é erro de **configuração**, e não há degrau para ele | **422**, idem |
+
+Em ambos o log do backend registrou a causa verdadeira
+(`[generator] generate_one tentativa=1 slot=0 is_rate=False erro=…`), então **o dado
+existe e é o classificador que o descarta**.
+
+**Por que importa, e não é preciosismo:** no caso 1 o editor é convidado a retentar uma
+geração que **nunca** vai passar, gastando cota a cada tentativa; no caso 2 a mensagem
+culpa a IA por um defeito de **arquivo de configuração** — o `LLM_MODEL` apontando para
+um modelo retirado do ar. É a mesma mensagem enganosa que o passo 5b eliminou para
+401/402, com a diferença de que ali a **cobertura** foi o limite, não a intenção.
+
+⚠️ **ESTA FLAG NÃO ACUSA O DESENHO DE ESTAR ERRADO.** O escopo estreito está declarado
+na docstring de `erro_fatal_de_provedor()`: *"trata 'o provedor recusou', e não constrói
+taxonomia de erro"*, e o `break` que devolve 422 em erro transitório é decisão
+consciente — num lote de 15 slots, pular um é melhor que abortar o lote. O que a flag
+acrescenta é o **custo medido** desse escopo, que antes era hipotético.
+
+### Três saídas, nenhuma escolhida
+
+1. **Acrescentar marcadores de texto** para os dois casos (`"are blocked"`,
+   `"no longer available"`). É a saída de uma linha — e é exatamente a fragilidade que o
+   comentário de `MARCADORES_CHAVE` já descreve: substring de mensagem de provedor
+   envelhece a cada mudança de redação do fornecedor, e `"billing"` já é o precedente de
+   marcador largo demais.
+2. **Ler o status do Gemini por caminho próprio e tipado** — `isinstance` de
+   `GoogleAPICallError` e então `.code`, que nesse SDK **é** inteiro (teria pegado o caso
+   1). Custa **acoplar o classificador a um SDK específico**, que é justamente o que a
+   fase 0 do H1 desfez ao tirar o import de provedor do `main.py`. E **não** resolve o
+   caso 2, que não é credencial.
+3. **Separar "erro de configuração" de "falha de geração"** — 404/400 de modelo
+   inexistente viram resposta própria com causa, e o 422 volta a significar só *"o LLM
+   não produziu dilema válido"*. É a maior das três e a única que resolve a **classe** em
+   vez dos dois casos. Pede uma exceção irmã da `ErroDeProvedor`.
+
+**Onde está:**
+- `backend-python/app/generator.py` — `_status_http()` (`:495`), `MARCADORES_CHAVE`
+  (`:472`), `MARCADORES_CREDITO` (`:485`), `erro_de_chave()` (`:540`),
+  `erro_fatal_de_provedor()` (`:556`), `detail_de_provedor()` (`:581`)
+- `backend-python/app/main.py` — as rotas que traduzem `ErroDeProvedor` para 502
+
+**Ver também:** **FLAG 001** (é o laço de validação + auto-reparo que produz o 422, e é
+por isso que ele é o destino padrão), **FLAG 012** (o SDK descontinuado é o que hoje
+decide qual caminho de exceção existe para o Gemini), e o item 4 do bloco de 16/09 na
+§10 do `CLAUDE.md`, que tem a evidência de log dos dois casos.
 
 ---
 
