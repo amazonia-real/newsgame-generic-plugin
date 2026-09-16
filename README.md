@@ -134,7 +134,7 @@ news-game/
 | `GEMINI_API_KEY` | Sim* | — | Chave da API Google Gemini |
 | `CHROMA_DB_DIR` | Sim | `/data/chroma_db` | Caminho do banco vetorial (ajustar no Windows) |
 | `API_SECRET_TOKEN` | Sim | — | Token para autenticar chamadas do plugin WP. Obrigatório e sem valor padrão: a aplicação se recusa a subir sem ele |
-| `LLM_MODEL` | Não | `gemini-2.5-flash` | Modelo Gemini usado na geração |
+| `LLM_MODEL` | Não | `gemini-3.6-flash` | Modelo Gemini usado na geração |
 | `LLM_TEMPERATURE` | Não | `0.3` | Temperatura do modelo |
 | `EMBED_MODEL` | Não | `paraphrase-multilingual-MiniLM-L12-v2` | Modelo de embeddings |
 | `RAG_FETCH_K` | Não | `20` | Documentos buscados antes do MMR |

@@ -687,11 +687,61 @@ def _cliente_gemini(modelo: str, temperatura: float, api_key: str) -> BaseChatMo
     # DeepSeek, medida na POC de 2026-09-04. O resto da forma de chamada
     # (`model=`, `temperature=`, `max_retries=`) é idêntico, e é o que permitiu
     # o pipeline de geração rodar sem ajuste com o segundo provedor.
+    #
+    # ⚠️ `thinking_budget=0` DESLIGA O RACIOCÍNIO, e é o análogo do `extra_body`
+    # do DeepSeek, do `reasoning_effort="none"` da OpenAI e do
+    # `thinking={"type": "disabled"}` do Claude. Entrou em 2026-09-16, junto da
+    # troca para `gemini-3.6-flash`: o `gemini-2.5-flash` anterior não tinha o
+    # modo, então esta linha nunca havia sido necessária.
+    #
+    # Sem ela o campo nasce `None`, o `thinking_config` NEM É ENVIADO
+    # (`langchain_google_genai/chat_models.py:1717-1733`) e quem decide é o
+    # default do SERVIDOR — que na linha 3 é LIGADO. É a armadilha dos dois
+    # defaults empilhados que `_cliente_claude()` já descreve.
+    #
+    # MEDIDO em 2026-09-16, mesma instância e mesmo prompt, mudando só este
+    # parâmetro — `usage_metadata` lido da resposta real:
+    #   sem o parâmetro : 2.339 tokens de raciocínio (84,9% da saída), 56 s
+    #   com `=0`        : 0 tokens de raciocínio, 4 s
+    # Saída caiu de 2.754 para 448 tokens com MAIS texto visível (1.552 contra
+    # 1.464 chars). Os 56 s eram 47% do teto de 120 s do `wp_remote_post`, e um
+    # lote de 15 slots levava ~12 min.
+    #
+    # ⚠️⚠️ ESTE É O ÚNICO DOS QUATRO CONSTRUTORES QUE USA CAMINHO DE
+    # COMPATIBILIDADE RETROATIVA, e a ressalva não existe nos outros três.
+    # A doc oficial (ai.google.dev/gemini-api/docs/generate-content/thinking —
+    # consultada na fonte, não no wheel) diz que `thinking_budget` é "aceito por
+    # compatibilidade retroativa" nos modelos Gemini 3, com ressalva de
+    # "performance inesperada" declarada para o **3 Pro** e NÃO para o Flash.
+    # Testado no `gemini-3.6-flash`: zero erro, raciocínio zerado, dilema válido
+    # na primeira tentativa.
+    #
+    # ⚠️ O parâmetro que o Google RECOMENDA para a linha 3 é `thinking_level`,
+    # não este. A `langchain-google-genai` 4.4.0 marca `thinking_budget` como
+    # *deprecated para Gemini 3+*, e a versão instalada aqui (2.1.12) NÃO
+    # CONHECE `thinking_level` — nem o wrapper nem o proto
+    # (`google-ai-generativelanguage 0.12.0`, cujo `ThinkingConfig` tem só
+    # `include_thoughts` e `thinking_budget`). Ou seja, hoje não há alternativa
+    # expressável.
+    #
+    # ⚠️ O MODO DE FALHA É SILENCIOSO: se o Google remover a
+    # retrocompatibilidade, o parâmetro passa a ser ignorado, o raciocínio volta
+    # ao default LIGADO e não há erro, aviso ou log — só a latência subindo de
+    # volta para ~56 s. Mesma categoria do "nunca confiar no default".
+    #
+    # ⚠️ QUANDO/SE O UPGRADE DA FLAG 012 ACONTECER, REVISAR ESTA LINHA para
+    # `thinking_level="minimal"` (na 4.4.0 é o campo `reasoning_effort` com
+    # alias `thinking_level`, `Literal["minimal","low","medium","high"]` —
+    # `_common.py`/`chat_models.py:3230`). Confirmado suportado no
+    # `gemini-3.6-flash` pela tabela oficial, o que NÃO vale para todo modelo
+    # 3.x. Atenção: o piso lá é `minimal`, que REDUZ e não zera — então a troca
+    # precisa ser remedida, não assumida equivalente.
     return ChatGoogleGenerativeAI(
         model=modelo,
         temperature=temperatura,
         google_api_key=api_key,
         max_retries=2,
+        thinking_budget=0,
     )
 
 

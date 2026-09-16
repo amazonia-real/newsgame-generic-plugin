@@ -71,7 +71,29 @@ class Settings(BaseSettings):
     # levanta ValidationError). Renomear este campo para `llm_model_gemini`
     # faria o servidor RECUSAR SUBIR em toda instalação existente — por isso o
     # segundo provedor ganha campo com sufixo e este fica como está.
-    llm_model: str = "gemini-2.5-flash"
+    #
+    # `gemini-3.6-flash` escolhido em 2026-09-16, e a escolha NÃO foi nossa: é a
+    # substituição que o PRÓPRIO ERRO do Google indicou. O `gemini-2.5-flash`
+    # anterior passou a devolver 404 — "This model models/gemini-2.5-flash is no
+    # longer available to new users. Please update your code to use
+    # models/gemini-3.6-flash" —, e isso só aparece para chave de projeto NOVO:
+    # foi a rotação da chave daquele dia que expôs o modelo morto, não uma
+    # mudança nossa.
+    #
+    # Disponibilidade CONFIRMADA NA FONTE, nunca de memória — mesmo protocolo do
+    # `deepseek-chat`: `GET /v1beta/models` com chave real em 2026-09-16 devolveu
+    # 58 modelos, 41 com `generateContent`, e o `gemini-3.6-flash` entre eles.
+    #
+    # ⚠️ ARMADILHA MEDIDA NO MESMO DIA: `gemini-2.5-flash` APARECE no
+    # `/v1beta/models` e NÃO é utilizável — `generateContent` nele dá 404.
+    # Listado ≠ disponível; conferir a listagem não basta, só a geração real
+    # prova.
+    #
+    # ⚠️ SEM CUSTO POR DILEMA MEDIDO, ao contrário dos outros três: a troca foi
+    # forçada por indisponibilidade, não escolhida por preço ou latência. E
+    # trocar de geração de modelo é o caso em que a FLAG 012 manda revalidar a
+    # FLAG 001, porque o auto-reparo depende do formato do texto devolvido.
+    llm_model: str = "gemini-3.6-flash"
     # Modelo do DeepSeek. `deepseek-v4-flash` com thinking DESLIGADO, conforme a
     # calibração de 2026-09-04: o modo thinking levou 96s contra 4,6s e estouraria
     # o teto de 120s do wp_remote_post. Nome confirmado no /models da DeepSeek com

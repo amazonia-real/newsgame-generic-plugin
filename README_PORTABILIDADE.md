@@ -55,7 +55,7 @@ CHROMA_DB_DIR=C:/caminho/para/news-game/backend-python/data/chroma_db
 API_SECRET_TOKEN=seu-token-secreto-aqui
 
 # Opcional — padrões já configurados
-LLM_MODEL=gemini-2.5-flash
+LLM_MODEL=gemini-3.6-flash
 LLM_TEMPERATURE=0.3
 ```
 
