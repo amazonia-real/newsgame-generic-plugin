@@ -109,6 +109,12 @@
   --ng-radar-negative-fill: rgba(231, 76, 60, 0.2);
   --ng-radar-neutral:       #95A5A6;
   /*
+   * Aviso de instância sem dilemas (`.ng-empty-msg`). Semântica pelo mesmo
+   * motivo das cores de cima: é "erro", não identidade do veículo, e não segue
+   * a skin. Era `color:#f88` em atributo de estilo inline no JS até o A5 (25/09).
+   */
+  --ng-error-text:          #f88;
+  /*
    * CROMO — grade, eixos, rótulos e centro. Estas SEGUEM a skin, derivadas
    * de --ng-on-rgb como --ng-text e --ng-muted: são branco-sobre-escuro, e
    * numa skin de fundo claro ficariam invisíveis se fossem fixas.
@@ -776,6 +782,43 @@
   background:      var(--ng-accent);
   color:           var(--ng-bg);
   transform:       translateY(-2px);
+}
+
+/*
+ * Os dois botões do veredito, empilhados e centralizados. Até o A5 (25/09)
+ * isto era atributo de estilo inline no JS, e esse atributo exige
+ * `style-src 'unsafe-inline'` na CSP do site hospedeiro.
+ *
+ * Seletor com `.ng-game-wrap` na frente de propósito: o atributo inline vencia
+ * qualquer regra do tema, e a classe sozinha (0-1-0) perderia para um
+ * `.entry-content button` (0-1-1). Com 0-2-0 o resultado fica o mesmo de
+ * antes contra as regras comuns de tema.
+ */
+.ng-game-wrap .ng-btn-share,
+.ng-game-wrap .ng-btn-restart {
+  display:         block;
+  margin:          0 auto;
+}
+
+.ng-game-wrap .ng-btn-share {
+  margin-bottom:   0.75rem;
+}
+
+/* Aviso de instância sem dilemas, montado pelo JS direto no `.ng-game-inner`
+   (fora de `.ng-screen`, então o `.ng-screen p` não o alcança). Mesmo motivo
+   do seletor composto dos botões acima. */
+.ng-game-wrap .ng-empty-msg {
+  padding:         2rem;
+  color:           var(--ng-error-text);
+}
+
+/* Erro de instância sem perguntas aprovadas, emitido pelo shortcode FORA do
+   `.ng-game-wrap`: o jogo não chega a ser montado. Por isso o seletor não leva
+   o wrap. As outras três mensagens `.newsgame-error` nunca tiveram estilo, e
+   seguem sem: a classe modificadora mantém o visual só onde ele existia. */
+.newsgame-error.newsgame-error-vazio {
+  padding:         1.5rem;
+  font-family:     monospace;
 }
 
 /* ── Spinner de cálculo do perfil ────────────────────── */

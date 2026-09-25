@@ -228,7 +228,13 @@ class Newsgame_Shortcodes {
         ) );
 
         if ( empty( $rows ) ) {
-            return '<p class="newsgame-error" style="padding:1.5rem;font-family:monospace;">'
+            // O estilo desta mensagem mora em `.newsgame-error-vazio`, no CSS base,
+            // e não mais em atributo de estilo inline (A5). O `enqueue_base()` garante a folha
+            // também quando o shortcode está fora do `post_content`, onde o
+            // `enqueue_public()` não a trouxe: o enfileiramento normal do `render()`
+            // fica mais abaixo, depois deste `return`. Idempotente por handle.
+            self::enqueue_base();
+            return '<p class="newsgame-error newsgame-error-vazio">'
                  . 'News-Game: instância <strong>' . esc_html( $instance->title ) . '</strong> '
                  . 'não tem perguntas aprovadas para o jogo. Acesse o painel para revisar e aprovar as perguntas geradas.</p>';
         }

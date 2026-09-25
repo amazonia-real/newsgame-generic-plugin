@@ -436,7 +436,9 @@ sobrevivem só em espelhos locais na máquina do Eduardo e são material sensív
 
 **Status:** 🟡 Parcial — superfície **pública** fechada em 2026-08-08 (passos 1 e 2),
 superfície **autenticada** em 2026-08-28 (passo 3, `eff1f3f`). Segue parcial por
-causa do **passo 4** (exemplo de CSP no README), que depende do **A5**.
+causa do **passo 4** (exemplo de CSP no README). A dependência do **A5** caiu em
+**2026-09-25**: a superfície pública passou a funcionar sem `'unsafe-inline'` também
+em `style-src`, e o passo 4 está desbloqueado.
 Diagnóstico original de 2026-07-31.
 
 > ⚠️ **A precisão que esta flag tem de carregar depois do passo 3, para não virar
@@ -494,7 +496,7 @@ imponha, sem exigir `'unsafe-inline'` por causa dele.
 |---|---|---|
 | **Pública** (o que o leitor carrega) | **1** — `wp_add_inline_script` em `includes/class-newsgame-shortcodes.php:90`, que emite `window._ngGame_<id> = {...}` | 🎯 é o único que importa |
 | **Admin** (autenticada) | 5 blocos `<script>` inline: `admin/views/page-instance-form.php:387, 601, 819, 1233` e `page-settings.php:108`; mais 1 `onclick` em `page-instances.php:84` | Baixa — só usuário logado |
-| Estilos | ~70 atributos `style="` | Ignorar — `style-src` não vale o esforço. *Os ~70 são plugin inteiro; na superfície **pública** são 5 desde 29/08 (eram 6), em 4 grupos — ver a ressalva do passo 4 e o A5* |
+| Estilos | ~70 atributos `style="` | Ignorar — `style-src` não vale o esforço. *Os ~70 são plugin inteiro; na superfície **pública** são 5 desde 29/08 (eram 6), em 4 grupos — ver a ressalva do passo 4 e o A5.* **Atualizado em 2026-09-25: na superfície pública são ZERO** — os 4 grupos foram fechados pelo A5. O admin segue com os seus, e "ignorar" continua valendo para ele |
 
 **Boa notícia: a página pública está a UMA mudança de ficar limpa.** Isso é
 melhor que o JDA, onde há 4 `onerror` inline no template mais 2 `<script>`
@@ -579,8 +581,26 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
 4. **Documentar no README** um exemplo de cabeçalho CSP que o veículo pode
    aplicar, e declarar que o plugin funciona sob ele. Isso é argumento de
    adoção: nenhum plugin de quiz WP oferece isso. Já desbloqueado: a superfície
-   pública não exige mais `'unsafe-inline'` **em `script-src`**.
+   pública não exige mais `'unsafe-inline'` **em `script-src`** (desde 08/08)
+   **nem em `style-src`** (desde 25/09, A5).
 
+   > ✅ **RESSALVA ENCERRADA em 2026-09-25 — `style-src` resolvido na superfície
+   > pública.** Os 4 grupos da tabela abaixo foram fechados: 3 por classe no CSS e
+   > a barra de progresso por CSSOM, exatamente os dois caminhos que esta ressalva
+   > descreveu. O `grep` de auditoria devolve **zero** `style=` em
+   > `newsgame-game.js`, `class-newsgame-shortcodes.php` e `news-game.php`.
+   > ✅ *Validado em runtime em 25/09: partida completa da instância 2 em Chrome
+   > headless, com `Content-Security-Policy: script-src 'self'; style-src 'self'`
+   > injetada no documento. A barra aplicou a largura em todas as telas, os botões
+   > do veredito ficaram empilhados e centralizados, e nenhuma das 28 violações
+   > registradas veio do plugin — todas são de `<style>`/`<script>` do núcleo do
+   > WordPress e de atributos do tema Twenty Twenty-Five.* **O que o passo 4
+   > precisa dizer ao redigir o exemplo:** a promessa é do **plugin** (o tema do
+   > site pode exigir `'unsafe-inline'` por conta própria) e da superfície
+   > **pública** (o admin não está coberto — ver a precisão do passo 3, acima).
+   > **O texto da ressalva, daqui até o fim do bloco, é de 21/08 e descreve o
+   > estado de então**; fica como histórico, com a tabela já atualizada.
+   >
    > **RESSALVA, registrada em 2026-08-21 — a frase acima promete mais do que
    > entrega, e é preciso ler a diretiva.** A superfície pública **ainda exige
    > `style-src 'unsafe-inline'`**, por causa de **5 atributos `style=`, em 4
@@ -597,10 +617,16 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    >
    > | Onde | O quê | Removível? |
    > |---|---|---|
-   > | `newsgame-game.js:226` | `color:#f88` — mensagem de erro | Sim |
-   > | `newsgame-game.js:406`, `:407` | `display:block;margin:0 auto` — layout dos botões de compartilhar e reiniciar | Sim |
-   > | `class-newsgame-shortcodes.php:38` | `font-family:monospace` — erro de instância sem dilemas aprovados | Sim |
-   > | `newsgame-game.js:269`, `:320` | `width:N%` — barra de progresso | **Não** — dado dinâmico |
+   > | `newsgame-game.js:307` | `color:#f88` — mensagem de erro | Sim — ✔ **removido em 2026-09-25**: classe `.ng-empty-msg` (`newsgame-game.css:810`) e token `--ng-error-text` (`:116`) |
+   > | `newsgame-game.js:716`, `:717` | `display:block;margin:0 auto` — layout dos botões de compartilhar e reiniciar | Sim — ✔ **removido em 2026-09-25**: `.ng-btn-share`/`.ng-btn-restart` sob `.ng-game-wrap` (`newsgame-game.css:797`) |
+   > | `class-newsgame-shortcodes.php:237` | `font-family:monospace` — erro de instância sem dilemas aprovados | Sim — ✔ **removido em 2026-09-25**: modificadora `.newsgame-error-vazio` (`newsgame-game.css:819`) |
+   > | `newsgame-game.js:67` | `width:N%` — barra de progresso | ✔ **removido em 2026-09-25: convertido para CSSOM** (`aplicarProgresso()`, `:78`, `el.style.width` depois da inserção) |
+   >
+   > *Referências de linha reconferidas em 2026-09-25, depois da edição: apontam
+   > para onde cada grupo está hoje, já sem o atributo. As que a tabela trazia
+   > (`:226`, `:406`, `:407`, `:269`, `:320` e `shortcodes.php:38`) eram de antes
+   > de 21/08 e não batiam nem com a lista `57,287,633,634`/`:94` do parágrafo de
+   > cima, que também já estava defasada.*
    >
    > **As 6 são removíveis, por dois caminhos diferentes** — e a coluna acima
    > diz "Não" só para *remoção via classe no CSS*, que não serve a valor
@@ -622,6 +648,9 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    > estrita" **existe** e custa 4 grupos — 3 por classe no CSS, 1 por CSSOM.
    > Eu havia escrito aqui que ela não existia; estava errado, e a correção
    > amplia as opções em vez de reduzi-las.
+   >
+   > *(Nota de 25/09: a decisão foi revertida para a superfície pública — ver a
+   > nota em "O que NÃO fazer". O parágrafo abaixo é o raciocínio de 21/08.)*
    >
    > **Isso não reabre a decisão** de "O que NÃO fazer" abaixo: perseguir
    > `style-src` segue fora de escopo, e o argumento de retorno marginal de
@@ -653,6 +682,12 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
   valor calculado em runtime, que não sai por classe no CSS (sai por CSSOM, que
   a diretiva não alcança). A consequência da decisão é que a promessa de CSP
   tem de ser escrita qualificada por diretiva; ver a ressalva no passo 4 e o A5.*
+  **Revertida em 2026-09-25 para a superfície pública; mantida para o admin.** Na
+  superfície pública o custo se mostrou pequeno (5 atributos, fechados num passo),
+  e o ganho é o argumento de adoção do passo 4, não segurança. O "retorno de
+  segurança marginal" continua correto. O A5 fechou os 4 grupos. No **admin**, que
+  tem dezenas de atributos e o dado inline do `wp_localize_script`, esta decisão
+  fica de pé.
 
 **Ver também:** FLAG 003 (segredos fora do browser) e a correção de
 2026-07-31 que aplicou `esc()` nos nomes de eixo do radar mais

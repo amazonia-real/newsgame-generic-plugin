@@ -49,15 +49,35 @@
 
      A frase acima não escreve o nome do atributo de propósito: a auditoria do
      A5 é um `grep`, e citá-lo em comentário inflaria a contagem que ele mede.
-     Mesma regra registrada no comentário do crédito da foto, no shortcode. */
+     Mesma regra registrada no comentário do crédito da foto, no shortcode.
+
+     Desde 25/09 a largura NÃO vai mais no markup: o HTML leva só o número em
+     `data-pct`, e `aplicarProgresso()` a escreve por CSSOM depois da inserção.
+     Era o último atributo de estilo inline da superfície do jogador, e o que
+     fechou o A5: a CSP `style-src` bloqueia estilo no markup, mas não a
+     atribuição de propriedade (`el.style.width`) — mesma técnica do
+     `aplicarFundo()`.
+
+     ⚠️ Tem de ser atribuição de PROPRIEDADE. `setAttribute` com o nome do
+     atributo, ou `style.cssText`, são bloqueados pela diretiva igual ao markup. */
   function buildProgress(preenchido, atual, total) {
     var pct = Math.round(preenchido / total * 100);
     return '<div class="ng-progress">' +
         '<div class="ng-progress-track">' +
-          '<div class="ng-progress-fill" style="width:' + pct + '%"></div>' +
+          '<div class="ng-progress-fill" data-pct="' + pct + '"></div>' +
         '</div>' +
         '<span class="ng-progress-label">' + atual + ' / ' + total + '</span>' +
       '</div>';
+  }
+
+  /* Chamar logo depois do `innerHTML` que inseriu o `buildProgress()`, no mesmo
+     tick: assim a largura já está aplicada no primeiro paint, e a barra aparece
+     exatamente como aparecia com o valor no markup. Como antes, não há animação
+     entre telas — o elemento é recriado a cada tela, e a transição de `width`
+     do CSS não tem valor anterior de onde partir. */
+  function aplicarProgresso(raiz) {
+    var fill = raiz.querySelector('.ng-progress-fill');
+    if (fill) { fill.style.width = fill.getAttribute('data-pct') + '%'; }
   }
 
   /* Botão (i). Só existe se houver o que mostrar: botão que abre modal vazio é
@@ -284,7 +304,7 @@
     }
 
     if (!data || !data.dilemas || !data.dilemas.length) {
-      inner.innerHTML = '<p style="padding:2rem;color:#f88">Nenhum dilema disponível para esta instância.</p>';
+      inner.innerHTML = '<p class="ng-empty-msg">Nenhum dilema disponível para esta instância.</p>';
       return;
     }
 
@@ -566,6 +586,7 @@
           (temInfo ? buildInfoModal(sintese, d.source_url) : '') +
         '</div>';
 
+      aplicarProgresso(inner);
       ligarInfo();
       inner.querySelectorAll('.ng-btn-option').forEach(function (btn) {
         btn.addEventListener('click', function () { renderFeedback(btn.dataset.pick); });
@@ -609,6 +630,7 @@
           buildFeedback(d['option_' + pick] || {}, verd) +
         '</div>';
 
+      aplicarProgresso(inner);
       var feedback = inner.querySelector('.ng-feedback');
       var btn      = inner.querySelector('.ng-btn-next');
       var hint     = inner.querySelector('.ng-feedback-hint');
@@ -691,8 +713,8 @@
             ? '<p class="ng-verdict-summary">' + escNl(perfil.descricao) + '</p>'
             : '') +
           '<p class="ng-verdict-share-text">Compartilhe seu resultado e descubra o perfil dos seus amigos!</p>' +
-          '<button class="ng-btn-cta ng-btn-share" style="display:block;margin:0 auto 0.75rem">Compartilhar</button>' +
-          '<button class="ng-btn-cta ng-btn-restart" style="display:block;margin:0 auto">Jogar novamente</button>' +
+          '<button class="ng-btn-cta ng-btn-share">Compartilhar</button>' +
+          '<button class="ng-btn-cta ng-btn-restart">Jogar novamente</button>' +
         '</div>';
 
       inner.querySelector('.ng-btn-share').addEventListener('click', function () {
