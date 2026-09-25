@@ -1018,8 +1018,43 @@ superfície **autenticada**. Não somar as duas.
 
 ## FLAG 012 — SDK do Gemini descontinuado (`google-generativeai` → `google-genai`)
 
-**Status:** 🔴 Aberto — **não é urgente por quebra; é dívida com prazo de validade.**
+**Status:** 🟡 **PARCIALMENTE RESOLVIDA desde 2026-09-05** (commit `cfb337c`) — status
+corrigido em 2026-09-25. A mensagem daquele commit já dizia *"Fecha a FLAG 012
+parcialmente"*, mas esta flag nunca havia sido atualizada. *Status original,
+preservado:* 🔴 Aberto — **não é urgente por quebra; é dívida com prazo de validade.**
 Registrado em 2026-09-04, no diagnóstico do H1.
+
+> ✅ **O que JÁ foi resolvido (05/09, `cfb337c`).** `langchain-google-genai` passou de
+> **2.0.1 para 2.1.12**, que importa `google.ai.generativelanguage_v1beta` e **dispensa o
+> `google-generativeai`**, o pacote descontinuado. Conferido no venv em 25/09:
+> `google-generativeai` **ausente**, `google-ai-generativelanguage 0.12.0` presente, e a
+> 2.1.12 pede só `langchain-core>=0.3.75`. Por isso **não saiu da linha 0.3** e o teto
+> `<1.0` do `0fcc866` ficou intacto. O `FutureWarning` de fim de suporte transcrito
+> abaixo **não aparece mais**. O texto de 04/09 abaixo descreve o estado **anterior** e
+> fica como histórico: as versões (`2.0.1`, `0.8.6`) e as linhas citadas em "Onde está"
+> não valem mais.
+>
+> 🔴 **O que FALTA: chegar ao `google-genai`**, a biblioteca nova do Google (**ausente**
+> no venv). Isso só vem com a `langchain-google-genai` **4.x**, que exige `langchain-core`
+> **1.x**. A 4.x também é a que traz `thinking_level`, a revisão amarrada à **FLAG 017**.
+> Subir o core de 0.3 para 1.x arrasta hoje **todos os pacotes com teto `<1.0`**,
+> conferidos nos metadados instalados em 25/09:
+>
+> | pacote | versão fixada | exige de `langchain-core` |
+> |---|---|---|
+> | `langchain-openai` | 0.3.35 (B8) | `<1.0.0,>=0.3.78` |
+> | `langchain-anthropic` | 0.3.22 (B9) | `<1.0.0,>=0.3.78` |
+> | `langchain-deepseek` | 0.1.4 | `<1.0.0,>=0.3.70` |
+> | `langchain-huggingface` | 0.1.0 | `>=0.3.0,<0.4` |
+> | `langchain` | 0.3.27 | `<1.0.0,>=0.3.72` |
+>
+> Os dois primeiros foram fixados **depois** da estimativa de 05/09, pelo mesmo motivo.
+> O `langchain` não estava na lista do pedido desta correção: apareceu na conferência dos
+> metadados. `langchain-community` (0.3.31) e `langchain-text-splitters` (0.3.11) aceitam
+> `<2.0.0` e **não** bloqueiam a subida. **A estimativa de "19 pacotes" do roadmap (§5,
+> "Decisão da árvore de dependências") é anterior ao B8/B9 e está desatualizada**, com
+> uma nota lá. Nova contagem **não foi medida**. O pré-requisito continua o mesmo:
+> **revalidar a FLAG 001** contra o SDK novo.
 
 **Problema:**
 `langchain-google-genai 2.0.1` depende de `google-generativeai 0.8.6`, cujo suporte
