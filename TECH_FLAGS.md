@@ -1401,8 +1401,10 @@ restaurar*.
 
 ## FLAG 016 — Cobertura do classificador de erro de provedor: o `422` é o destino de tudo o que ele não pega
 
-**Status:** 🔴 **ABERTA — decisão, não tarefa.** Registrada em 2026-09-16, a partir de
-**dois casos medidos no mesmo dia**, os dois no Gemini.
+**Status:** ✅ **RESOLVIDA em 2026-09-25** para os dois casos medidos (403 e 404) — ver
+a seção "Resolução" no fim desta flag. *Status original, preservado:* 🔴 **ABERTA —
+decisão, não tarefa.** Registrada em 2026-09-16, a partir de **dois casos medidos no
+mesmo dia**, os dois no Gemini.
 
 **O que acontece.** As rotas de geração devolvem **422 "Não foi possível gerar um dilema
 válido para este slot"** quando `generate_one_dilema()` não produz dilema. Desde o passo
@@ -1477,10 +1479,76 @@ acrescenta é o **custo medido** desse escopo, que antes era hipotético.
    não produziu dilema válido"*. É a maior das três e a única que resolve a **classe** em
    vez dos dois casos. Pede uma exceção irmã da `ErroDeProvedor`.
 
+### Resolução (2026-09-25)
+
+**A escolha não foi exatamente nenhuma das três saídas acima.** Ficou entre a 2 e a 3: lê
+o status do Gemini, mas **sem acoplar ao SDK**; e trata o 404 como erro de configuração,
+mas **dentro** da `ErroDeProvedor` (502), sem exceção irmã.
+
+**Causa raiz, medida e não suposta.** Nos dois casos o wrapper `langchain-google-genai`
+**não embrulha** a exceção: só `InvalidArgument` vira `ChatGoogleGenerativeAIError`, e o
+resto cai num `except Exception: raise` (`chat_models.py:228`). Chegam **cruas** as
+exceções do `google.api_core` — `PermissionDenied` e `NotFound` —, que **não** têm
+`status_code`, `http_status` nem `response.status_code`, os três atributos que
+`_status_http()` lê. Por isso ela devolvia `None` e o Gemini caía no texto. Mas essas
+exceções **têm `.code` inteiro**: `HTTPStatus.FORBIDDEN` (403) e `HTTPStatus.NOT_FOUND`
+(404), e `HTTPStatus` é `IntEnum`.
+
+**A correção** (`generator.py`):
+- **`_status_por_code()`** — leitor **adicional** de `.code`, aceito só quando é inteiro.
+  O `isinstance(int)` é o que dispensa importar o SDK: na família OpenAI o `.code` é
+  string (`"invalid_api_key"`), e no gRPC é método — os dois são recusados. Era esse o
+  motivo de `_status_http()` não ler `.code`, e ela continua sem ler
+- ⚠️ **Só soma casos fatais, NÃO decide sozinho.** Ao contrário de `_status_http()`,
+  cair num código não-fatal **não** encerra a classificação: segue para os marcadores de
+  texto como antes. Se decidisse, um 429 do Gemini com "prepayment" na mensagem — crédito
+  esgotado, fatal pelo texto — passaria a ser retentado como rate limit, porque os laços
+  consultam `erro_fatal_de_provedor()` **antes** do teste de `is_rate`
+- **`STATUS_CONFIG = (404,)`**, fatal em `erro_fatal_de_provedor()` para **todos** os
+  provedores (pelo status_code nos três que o expõem, pelo `.code` no Gemini). O 403 já
+  estava em `STATUS_CHAVE`; faltava só ser **lido** no Gemini, e `erro_de_chave()` passou
+  a lê-lo
+- **Mensagem nova para o 404** em `detail_de_provedor()`: diz "HTTP 404", aponta o modelo
+  configurado, nomeia a variável do provedor pela tabela (`LLM_MODEL`,
+  `LLM_MODEL_DEEPSEEK`…) e anexa o texto do provedor truncado — que no caso 2 nomeava o
+  substituto
+
+**O status HTTP devolvido ao plugin continua 502, não 403/404 literais**, por decisão:
+o plugin repassa o status do backend ao navegador (`class-newsgame-generator.php:177`),
+onde 403 se confunde com nonce/permissão do WordPress e 404 com rota inexistente. É o
+mesmo critério que fez a fase 0 escolher 502 em vez de 401. O código real do provedor
+vai **na mensagem**.
+
+✅ *Testes em 2026-09-25:*
+- **Unidade, 15/15**, com as classes de exceção **reais** dos SDKs instalados: os dois
+  casos desta flag; as regressões que **não** podiam mudar (429 de quota não-fatal, 429
+  com "prepayment" fatal, 500 com "billing" não-fatal, chave inválida do Gemini pelo
+  texto); DeepSeek 401/402/404; `openai.AuthenticationError` com `.code` string;
+  `openai.NotFoundError` real; `.code` como método; timeout; slug desconhecido
+- **Chamada real ao Gemini com modelo inexistente** (chave de produção, zero cota):
+  `google.api_core.exceptions.NotFound`, `_status_http` = `None`, `_status_por_code` =
+  **404**, fatal, mensagem nova citando `LLM_MODEL`
+- **Chamada real ao Gemini com chave restrita** (fornecida pelo editor em arquivo
+  temporário, lida sem impressão e apagada depois; modelo inexistente de propósito, para
+  que chave **não** bloqueada desse 404 e discriminasse): `PermissionDenied` com
+  `API_KEY_SERVICE_BLOCKED`, `_status_http` = `None`, `_status_por_code` = **403**,
+  `erro_de_chave` e fatal `True`. Zero cota
+
+⚠️ **Não exercitado:** a passagem pela rota HTTP com o uvicorn no ar. Que "fatal" vira
+502 em `/generate-one` e `/regenerate` e `fatal: true` no SSE está provado desde o passo
+5b da fase 0, e foi conferido por leitura, não reexecutado aqui.
+
+⚠️ **O que continua fora, e é por isso que a classe não fechou por inteiro:** um **400**
+de modelo inválido (a saída 3 citava "404/400") segue sem degrau próprio — 400 não
+distingue modelo inválido de payload malformado. E qualquer erro sem status e sem
+marcador continua caindo no 422, que segue sendo o destino padrão.
+
 **Onde está:**
 - `backend-python/app/generator.py` — `_status_http()` (`:495`), `MARCADORES_CHAVE`
   (`:472`), `MARCADORES_CREDITO` (`:485`), `erro_de_chave()` (`:540`),
-  `erro_fatal_de_provedor()` (`:556`), `detail_de_provedor()` (`:581`)
+  `erro_fatal_de_provedor()` (`:556`), `detail_de_provedor()` (`:581`) — linhas de
+  16/09, deslocadas pela resolução; desde 25/09 também `_status_por_code()` e
+  `STATUS_CONFIG`
 - `backend-python/app/main.py` — as rotas que traduzem `ErroDeProvedor` para 502
 
 **Ver também:** **FLAG 001** (é o laço de validação + auto-reparo que produz o 422, e é

@@ -487,9 +487,11 @@ MARCADORES_CREDITO = ("prepayment", "credits are depleted", "billing")
 
 # Códigos HTTP que significam "retentar não resolve". São padrão e não dependem
 # de provedor: 401 credencial recusada, 403 credencial sem permissão, 402
-# pagamento exigido (saldo/crédito).
+# pagamento exigido (saldo/crédito), 404 recurso inexistente — na prática o
+# modelo configurado, que não existe ou foi retirado do ar (FLAG 016, caso 2).
 STATUS_CHAVE = (401, 403)
 STATUS_CREDITO = (402,)
+STATUS_CONFIG = (404,)
 
 
 def _status_http(exc: Exception) -> int | None:
@@ -519,9 +521,33 @@ def _status_http(exc: Exception) -> int | None:
     return valor if isinstance(valor, int) else None
 
 
+def _status_por_code(exc: Exception) -> int | None:
+    """
+    Código HTTP lido de `.code` quando ele é INTEIRO — o caso das exceções do
+    `google.api_core` que o wrapper do Gemini deixa passar sem embrulhar
+    (`PermissionDenied.code` = 403, `NotFound.code` = 404, como `HTTPStatus`,
+    que é `IntEnum`). Medido em 2026-09-25.
+
+    O `isinstance(int)` é o que torna seguro ler `.code` sem importar SDK: na
+    família OpenAI ele é string ("invalid_api_key") e no gRPC é método — os
+    dois são recusados aqui, que era o motivo de `_status_http()` não o ler.
+
+    ⚠️ USO RESTRITO A CASOS POSITIVOS. Diferente de `_status_http()`, este
+    código NÃO decide sozinho: só acrescenta "é fatal" quando cai num código
+    fatal (401/402/403/404 — na prática o Gemini só produz 401, 403 e 404 por
+    aqui), e em qualquer outro valor a classificação segue para os marcadores de
+    texto como antes. Se decidisse, um 429 do Gemini com "prepayment" na
+    mensagem — crédito esgotado, hoje fatal pelo texto — passaria a ser
+    retentado como rate limit.
+    """
+    valor = getattr(exc, "code", None)
+    return int(valor) if isinstance(valor, int) else None
+
+
 class ErroDeProvedor(Exception):
     """
-    O provedor RECUSOU a chamada — chave rejeitada ou crédito esgotado.
+    O provedor RECUSOU a chamada — chave rejeitada, crédito esgotado ou
+    recurso inexistente (404, em geral o modelo configurado).
 
     Existe para separar duas coisas que os laços de retentativa tratavam como
     uma só: "não consegui gerar um dilema válido" (que é falha de geração, e
@@ -549,6 +575,11 @@ def erro_de_chave(exc: Exception) -> bool:
     if status is not None:
         return status in STATUS_CHAVE
 
+    # Gemini: 403 PERMISSION_DENIED (ex.: API_KEY_SERVICE_BLOCKED) chega com o
+    # status em `.code` e sem marcador de texto que case — FLAG 016, caso 1.
+    if _status_por_code(exc) in STATUS_CHAVE:
+        return True
+
     texto = str(exc).lower()
     return any(m in texto for m in MARCADORES_CHAVE)
 
@@ -572,7 +603,10 @@ def erro_fatal_de_provedor(exc: Exception) -> bool:
     """
     status = _status_http(exc)
     if status is not None:
-        return status in STATUS_CHAVE + STATUS_CREDITO
+        return status in STATUS_CHAVE + STATUS_CREDITO + STATUS_CONFIG
+
+    if _status_por_code(exc) in STATUS_CHAVE + STATUS_CREDITO + STATUS_CONFIG:
+        return True
 
     texto = str(exc).lower()
     return erro_de_chave(exc) or any(m in texto for m in MARCADORES_CREDITO)
@@ -613,6 +647,22 @@ def detail_de_provedor(exc: Exception, provedor: str) -> str:
 
     status = _status_http(exc)
     texto = str(exc).lower()
+
+    if status in STATUS_CONFIG or (status is None and _status_por_code(exc) in STATUS_CONFIG):
+        # Não é falha de geração nem de credencial: é configuração. O texto do
+        # provedor vai junto porque costuma nomear o modelo e o substituto.
+        meta = PROVEDORES.get(provedor)
+        onde = (
+            " — confira a variável %s do servidor" % meta["campo_modelo"].upper()
+            if meta else ""
+        )
+        return (
+            "O provedor de IA não encontrou o recurso pedido (HTTP 404) — em geral "
+            "o modelo configurado não existe ou foi retirado do ar%s. Nenhuma "
+            "retentativa resolve isso. Resposta do provedor: %s"
+            % (onde, str(exc)[:200])
+        )
+
     if status in STATUS_CREDITO or (status is None and any(m in texto for m in MARCADORES_CREDITO)):
         return (
             "O provedor de IA recusou a chamada por falta de crédito na conta "
