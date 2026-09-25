@@ -142,8 +142,6 @@ class Settings(BaseSettings):
     # Controle de lotes e rate limit
     max_retries_batch: int = 5
     rate_limit_sleep: int = 60
-    batch_sleep: int = 3
-    dilema_sleep: float = 1.0   # pausa entre chamadas individuais de dilema
     # Indexação
     chunk_size: int = 1000
     chunk_overlap: int = 150

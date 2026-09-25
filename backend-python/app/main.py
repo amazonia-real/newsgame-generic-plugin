@@ -14,7 +14,7 @@ load_dotenv()
 
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from app.config import get_settings
 from app.models import (
@@ -137,38 +137,6 @@ def generate_one(
             status_code=500,
             content={"detail": "Erro interno", "dilema_invalido": True},
         )
-
-
-@app.post("/generate", dependencies=[Depends(_verify_token)])
-def generate(
-    req: GenerateRequest,
-    x_gemini_api_key: str = Header(default=""),
-    x_deepseek_api_key: str = Header(default=""),
-    x_openai_api_key: str = Header(default=""),
-    x_claude_api_key: str = Header(default=""),
-    x_llm_provider: str = Header(default=""),
-) -> StreamingResponse:
-    """
-    Gera dilemas via RAG + provedor de IA e retorna como SSE stream.
-    Cada evento: data: {"type": "dilema", "current": N, "total": M, "dilema": {...}}
-    Evento final: data: {"type": "done", "total_generated": N}
-    """
-    # Resolvida ANTES de a resposta começar: com o stream já aberto não há como
-    # devolver 401 — os headers HTTP já foram enviados.
-    provedor = _resolve_provedor(x_llm_provider)
-    api_key = _resolve_api_key(
-        provedor, x_gemini_api_key, x_deepseek_api_key, x_openai_api_key,
-        x_claude_api_key, req
-    )
-    return StreamingResponse(
-        generator.generate_stream(req, api_key, provedor),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control":   "no-cache",
-            "X-Accel-Buffering": "no",   # desativa buffer do Nginx
-            "Connection":      "keep-alive",
-        },
-    )
 
 
 # ── Helpers para os endpoints de análise de domínio ───────────────────────

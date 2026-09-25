@@ -41,7 +41,6 @@ Corpus de textos do editor
 | `/assign-weights` | POST | Atribui pesos (-20 a +20) por eixo a cada alternativa |
 | `/generate-verdict` | POST | Seleciona perfil mais próximo e gera texto narrativo |
 | `/generate-one` | POST | Gera 1 dilema de forma síncrona (chamada por slot) |
-| `/generate` | POST | Gera dilemas via SSE stream |
 | `/regenerate` | POST | Substitui 1 dilema inválido |
 
 Resolução da chave Gemini em todas as rotas:
