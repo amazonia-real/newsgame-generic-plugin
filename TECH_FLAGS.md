@@ -1582,6 +1582,61 @@ modelo morto saiu como 422 enganoso) e o item 9 do bloco de 16/09 na §10 do `CL
 
 ---
 
+## FLAG 018 — `ajax_approve()` descarta `alternativa_correta` ao remontar o veredito
+
+**Status:** 🔴 **ABERTA, sem correção aplicada.** Registrada em 2026-09-25, a partir da
+aprovação do dilema 68 (instância 3, `jogo-teste-skin`) pelo handler real.
+
+**O que acontece.** `Newsgame_Review::ajax_approve()` (`class-newsgame-review.php:137`)
+grava `edited_fields()` inteiro junto com `review_status = 'approved'`. E
+`edited_fields()` (`:512`) **reconstrói** o JSON do `veredicto` do zero, só com as três
+chaves que o formulário da Mesa Editorial edita — `desfecho`, `licao` e `sintese`
+(`:529-533`). Qualquer outra chave que existisse no veredito gravado some, e a única
+que existe hoje é `alternativa_correta`.
+
+- O dado **chega** ao navegador: `row_to_array()` expõe `alternativa_correta` (`:600`).
+  Mas o `buildRow()` do `newsgame-admin-review.js` não cria campo para ele, então o
+  `rowFields()` não o recolhe e o POST não o traz de volta
+- O botão **`💾 Salvar alterações`** das linhas aprovadas usa a **mesma action**, então
+  salvar uma edição num aprovado também passa por aqui (e o campo já não existe mais)
+
+**Medido em 2026-09-25, no banco `jda` local:**
+
+| status | total | com `alternativa_correta` |
+|---|---|---|
+| `approved` | 23 | **0** |
+| `discarded` | 2 | **0** |
+| `pending` | 5 | **5** |
+
+- **24 dilemas passaram pela aprovação e perderam o campo:** os 23 aprovados hoje, mais o
+  68, que foi aprovado e depois descartado na mesma sessão (o descarte só muda o status
+  e não devolve nada). O outro descartado, o 58, também está sem o campo, o que é
+  coerente: ele foi aprovado antes de ser descartado pelo `/regenerate` em 16/09
+- **Nenhum pendente foi afetado** — os cinco ainda têm o campo intacto
+- **Evidência direta da perda no 68:** antes da aprovação o veredito tinha
+  `"alternativa_correta":"B"`, e depois não tinha mais. Título, enunciado, as três opções
+  e a fonte ficaram iguais
+
+**Severidade.** O **AGENTS.md** trata o campo como **obrigatório** (`:114`, `:170`), e o
+backend aplica fallback `"B"` quando o modelo não o preenche (`generator.py`,
+`_LETRAS_VALIDAS`). Mas **o jogo não o lê em runtime**: zero ocorrências em
+`public/` e no `class-newsgame-shortcodes.php`. Hoje, portanto, **não há sintoma para o
+jogador** — é perda silenciosa de um campo do contrato, que passa a doer no dia em que
+algo voltar a consumi-lo.
+
+**Não confundir com a FLAG 014.** Lá a restrição nunca chegava ao modelo; aqui o dado é
+gerado e gravado corretamente e **se perde depois**, na revisão editorial.
+
+**Onde está a referência da medição:** o backup da linha do dilema 68 **antes** da
+aprovação está em `%TEMP%\ng-bk-dilema68-20260925-161613.sql` (3.399 bytes, com o
+veredito original). ⚠️ **`%TEMP%` é volátil:** mover para fora de lá se precisar dele.
+
+**Ver também:** item "substituta id 68" no bloco de 16/09 da §10 do `CLAUDE.md`, e a
+família das escritas que regravam campo não enviado — o `image_id` já é tratado com
+`isset()` em `edited_fields()` justamente para não apagar o que o chamador não mandou.
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.
