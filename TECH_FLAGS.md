@@ -942,8 +942,9 @@ Duas superfícies de exposição, medidas e distintas da questão do repouso:
   valores não lidos). `config.py:35` declara `{"env_file": ".env"}`.
 
 ⚠️ **Nota factual acrescentada em 2026-09-16 — o `.env` guarda uma chave MORTA, e as
-duas cópias DIVERGIRAM.** Medido nesta data, por comprimento e `md5[0:8]`, sem leitura
-de valor:
+duas cópias DIVERGIRAM.** *(Não corresponde mais ao estado real desde, no máximo,
+25/09 — ver a atualização logo depois desta nota. O texto de 16/09 fica preservado.)*
+Medido nesta data, por comprimento e `md5[0:8]`, sem leitura de valor:
 
 | onde | comprimento | `md5[0:8]` | estado |
 |---|---|---|---|
@@ -971,6 +972,23 @@ credencial**: segredo revogado deixado em arquivo. Fica registrado aqui porque �
 o `.env` a cada rotação (mantém o fallback útil e cria um segundo lugar a lembrar), ou
 **esvaziá-lo** de propósito e deixar o 401 de `_resolve_api_key()` falar — o que é
 possível desde a fase 0, que tornou `gemini_api_key` opcional em `config.py`.
+
+✅ **Atualização de 2026-09-25 — a divergência NÃO existe mais.** Uma comparação feita
+dentro do processo, sem impressão de valores, mostrou o `.env` (`GEMINI_API_KEY`) e o
+painel (`newsgame_gemini_api_key`) **já com a mesma chave**, de 53 caracteres. O pedido
+era substituir a chave do `.env` por uma nova, e ela era justamente a que já estava lá:
+a substituição deixou o arquivo byte-idêntico ao backup. A chave autentica: `ListModels`
+com ela deu **HTTP 200** (61 modelos, 44 com `generateContent`).
+- ⚠️ **A origem e a data dessa correção anterior são DESCONHECIDAS.** Não há registro
+  de quem sincronizou o `.env` nem quando, entre 16/09 e 25/09. **A data de modificação
+  do arquivo não serve de evidência:** o `.env` foi regravado na sessão de 25/09, com o
+  mesmo conteúdo, e o mtime passou a ser o dessa regravação
+- **Na prática foi aplicada a primeira das duas saídas de higiene** (sincronizar o
+  `.env`), mas **sem decisão registrada**: o risco de uma próxima rotação feita só no
+  painel continua o mesmo. A escolha entre sincronizar e esvaziar segue em aberto
+- **A decisão de arquitetura desta FLAG não muda:** criptografia em repouso, com as
+  três saídas, continua 🔴 aberta e sem escolha. Esta atualização trata só da cópia em
+  arquivo
 
 **Onde está:**
 - `news-game-plugin/includes/class-newsgame-settings.php:71-83` — registro das options
