@@ -445,12 +445,88 @@ class Newsgame_Admin_Instances {
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Permissão insuficiente.' );
 
         global $wpdb;
-        $wpdb->delete( $wpdb->prefix . 'newsgame_instances', array( 'id' => $id ), array( '%d' ) );
-        $wpdb->delete( $wpdb->prefix . 'newsgame_dilemas',   array( 'instance_id' => $id ), array( '%d' ) );
+
+        /*
+         * Os dois DELETE numa transação — C13. Antes eram independentes e sem
+         * conferência: a falha PARCIAL deixava dilemas órfãos (instância apagada)
+         * ou instância viva e vazia (o inverso), e os dois casos redirecionavam
+         * com `deleted=1`.
+         *
+         * Depende de as duas tabelas serem InnoDB. Em MyISAM o START TRANSACTION
+         * é aceito e o ROLLBACK não desfaz nada — sem erro e sem aviso.
+         *
+         * $wpdb->query() devolve 0 em sucesso para START/COMMIT/ROLLBACK, então
+         * só `false` é falha, como nas escritas.
+         */
+        if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+            self::abortar_delete( $id, 'db_write', 'START TRANSACTION' );
+        }
+
+        $apagada = $wpdb->delete( $wpdb->prefix . 'newsgame_instances', array( 'id' => $id ), array( '%d' ) );
+        if ( false === $apagada ) {
+            self::abortar_delete( $id, 'db_write', 'DELETE da instância' );
+        }
+
+        // 0 linhas = a instância não existia (link velho, aba duplicada, POST
+        // forjado). Não é sucesso, e não há dilemas de quem não existe a apagar.
+        if ( 0 === $apagada ) {
+            self::abortar_delete( $id, 'not_found' );
+        }
+
+        // 0 aqui é legítimo: instância sem perguntas.
+        if ( false === $wpdb->delete( $wpdb->prefix . 'newsgame_dilemas', array( 'instance_id' => $id ), array( '%d' ) ) ) {
+            self::abortar_delete( $id, 'db_write', 'DELETE dos dilemas' );
+        }
+
+        if ( false === $wpdb->query( 'COMMIT' ) ) {
+            self::abortar_delete( $id, 'db_write', 'COMMIT' );
+        }
+
+        // Backup da matriz de eixos (C11) sai junto com a instância, para não
+        // ficar órfão no wp_options. Só quando a linha da instância saiu de fato:
+        // apagar o backup de uma instância que sobreviveu à falha do DELETE
+        // tiraria a rede justamente de quem ainda a tem.
+        //
+        // DEPOIS do COMMIT, e não dentro da transação: o DELETE em wp_options
+        // seria desfeito por um ROLLBACK, mas o cache de options do WordPress
+        // não — o cache diria "sem backup" com a linha ainda no banco.
+        if ( $apagada ) {
+            delete_option( 'newsgame_axis_backup_' . $id );
+        }
 
         wp_safe_redirect( add_query_arg( array(
             'page'    => 'newsgame-instances',
             'deleted' => 1,
+        ), admin_url( 'admin.php' ) ) );
+        exit;
+    }
+
+    /**
+     * Desfaz a transação do handle_delete() e volta à listagem com o erro.
+     *
+     * O last_error é lido ANTES do ROLLBACK: o $wpdb o zera a cada query, e
+     * depois do ROLLBACK ele diria "sem erro". A causa vai para o error_log e
+     * não para a URL, mesmo critério do `db_write` do handle_save().
+     *
+     * Não retorna: redireciona e encerra o request.
+     *
+     * @param int    $id     Instância que se tentou excluir.
+     * @param string $codigo 'db_write' ou 'not_found' — renderizados em page-instances.php.
+     * @param string $etapa  Qual passo falhou, para o log. Vazio em 'not_found'.
+     */
+    private static function abortar_delete( $id, $codigo, $etapa = '' ) {
+        global $wpdb;
+
+        $erro = $wpdb->last_error ?: 'o banco não informou a causa.';
+        $wpdb->query( 'ROLLBACK' );
+
+        if ( 'db_write' === $codigo ) {
+            error_log( "[Newsgame] handle_delete: {$etapa} falhou na instância {$id}, transação desfeita — MySQL: {$erro}" );
+        }
+
+        wp_safe_redirect( add_query_arg( array(
+            'page'  => 'newsgame-instances',
+            'error' => $codigo,
         ), admin_url( 'admin.php' ) ) );
         exit;
     }

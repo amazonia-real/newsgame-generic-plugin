@@ -18,6 +18,12 @@ $status_colors = array( 'draft' => '#777',     'review' => '#b8860b',     'publi
   <?php if ( isset( $_GET['deleted'] ) ) : ?>
     <div class="notice notice-success is-dismissible"><p>Instância excluída.</p></div>
   <?php endif; ?>
+  <?php if ( isset( $_GET['error'] ) && 'db_write' === $_GET['error'] ) : ?>
+    <div class="notice notice-error"><p>Não foi possível excluir a instância — a operação foi desfeita e nada foi apagado. A causa está no log do servidor (<code>error_log</code>).</p></div>
+  <?php endif; ?>
+  <?php if ( isset( $_GET['error'] ) && 'not_found' === $_GET['error'] ) : ?>
+    <div class="notice notice-error"><p>A instância não existe mais — talvez já tenha sido excluída. Nada foi apagado.</p></div>
+  <?php endif; ?>
 
   <?php if ( empty( $instances ) ) : ?>
     <div style="margin-top:2rem;text-align:center;color:#555">
