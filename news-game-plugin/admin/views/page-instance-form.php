@@ -199,6 +199,10 @@ $page_title = $is_edit
     <div class="notice notice-error"><p>O nome do jogo é obrigatório.</p></div>
   <?php endif; ?>
 
+  <?php if ( isset( $_GET['error'] ) && 'db_write' === $_GET['error'] ) : ?>
+    <div class="notice notice-error"><p>Não foi possível gravar a instância no banco — nada foi salvo, e as alterações deste envio se perderam. A causa está no log do servidor (<code>error_log</code>).</p></div>
+  <?php endif; ?>
+
   <?php
   // Pendência de pesos: sem eles o jogador recebe veredito genérico e nada avisa
   // — nem ele, nem o editor. Sem is-dismissible de propósito: reaparece a cada

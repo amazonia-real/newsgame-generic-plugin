@@ -27,6 +27,36 @@
   var ngAxisNonce    = cfg.axisNonce;
   var ngAnalyzeNonce = cfg.analyzeNonce;
   var ngInstanceId   = cfg.instanceId;
+  // Matriz gravada no banco no carregamento da tela. Atualizada a cada save
+  // bem-sucedido, para que o segundo save seguido não peça confirmação à toa.
+  var ngSavedMatrix  = cfg.savedMatrix || '';
+
+  /* Normaliza para comparar CONTEÚDO, não formatação: o textarea pré-renderizado
+     vem com JSON_PRETTY_PRINT e o banco guarda compacto. Texto que não parseia
+     volta cru — conta como diferente, que é o lado seguro. */
+  function normalizarJson(texto) {
+    try {
+      return JSON.stringify(JSON.parse(texto));
+    } catch (e) {
+      return texto;
+    }
+  }
+
+  /* C11 — confirmação antes de sobrescrever uma matriz já gravada e diferente.
+     Primeiro save e save sem mudança passam direto. */
+  function confirmaSobrescrita(texto) {
+    if (!ngSavedMatrix || normalizarJson(ngSavedMatrix) === normalizarJson(texto)) {
+      return true;
+    }
+    return window.confirm(
+      'Já existe uma matriz de eixos salva para esta instância, diferente desta.\n\n' +
+      'Salvar vai substituí-la. Os pesos já atribuídos às perguntas guardam só a ' +
+      'posição do eixo (eixo1, eixo2, eixo3), não o nome — se os eixos mudarem, ' +
+      'eles passam a apontar para eixos que não os produziram.\n\n' +
+      'Uma cópia da matriz atual fica guardada no servidor antes da troca.\n\n' +
+      'Substituir a matriz?'
+    );
+  }
 
   /* Procura o campo de descrição do acervo tolerando os nomes históricos.
      Ver o item 2 do cabeçalho: a existência desta função é a trava de
@@ -68,6 +98,11 @@
         return;
       }
 
+      if (!confirmaSobrescrita(textarea.value)) {
+        feedbackEl.innerHTML = '<span style="color:#555;">Nada foi salvo.</span>';
+        return;
+      }
+
       btnSalvar.disabled    = true;
       btnSalvar.textContent = '⏳ Salvando...';
       feedbackEl.innerHTML  = '';
@@ -82,6 +117,7 @@
         var res  = await fetch(ajaxurl, { method: 'POST', body: body });
         var json = await res.json();
         if (json.success) {
+          ngSavedMatrix = textarea.value;
           feedbackEl.innerHTML =
             '<span style="color:#00a32a;">✅ Matriz de eixos salva com sucesso.</span>';
         } else {

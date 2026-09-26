@@ -221,10 +221,15 @@ class Newsgame_Admin_Instances {
 
         /* ── Analisar acervo e matriz de eixos ────────────────────── */
         wp_enqueue_script( 'newsgame-admin-axis', $base . 'newsgame-admin-axis.js', array(), NEWSGAME_VERSION, true );
+        // A matriz gravada viaja para o JS pedir confirmação antes de
+        // sobrescrevê-la (C11). Vazio quando não há matriz ou instância.
+        $inst_axis = $id ? self::get( $id ) : null;
+
         wp_localize_script( 'newsgame-admin-axis', 'ngAxisCfg', array(
             'instanceId'   => $id,
             'axisNonce'    => wp_create_nonce( self::NONCE_AXIS ),
             'analyzeNonce' => wp_create_nonce( self::NONCE_ANALYZE ),
+            'savedMatrix'  => (string) ( $inst_axis->axis_matrix ?? '' ),
         ) );
 
         /* ── Mesa Editorial ──────────────────────────────────────── */
@@ -373,11 +378,44 @@ class Newsgame_Admin_Instances {
             $fmt[]       = '%s';
         }
 
+        /*
+         * Retorno conferido nos dois ramos — C13. Antes, escrita falhada
+         * redirecionava com `saved=1` e a listagem dizia "Instância salva com
+         * sucesso." com o valor antigo no banco.
+         *
+         * No UPDATE só `false` é falha: 0 é "nada mudou", o save de um formulário
+         * sem edição. Diferente da Mesa Editorial, aqui NÃO há owns() antes, então
+         * 0 também cobriria um id inexistente — caso que só um POST forjado
+         * produz, e que fica fora deste passo.
+         *
+         * No INSERT a sentinela é o retorno, e não o $wpdb->insert_id: insert
+         * falhado não zera o insert_id, e o valor remanescente pode vir de
+         * qualquer INSERT anterior do mesmo request (o WordPress grava em
+         * wp_options num carregamento de admin). É a armadilha do C15. Só com
+         * exatamente 1 linha afetada o insert_id é desta instância.
+         */
+        $gravou = true;
         if ( $id ) {
-            $wpdb->update( $table, $row, array( 'id' => $id ), $fmt, array( '%d' ) );
-        } else {
-            $wpdb->insert( $table, $row, $fmt );
+            $gravou = false !== $wpdb->update( $table, $row, array( 'id' => $id ), $fmt, array( '%d' ) );
+        } elseif ( 1 === $wpdb->insert( $table, $row, $fmt ) ) {
             $id = (int) $wpdb->insert_id;
+        } else {
+            $gravou = false;
+        }
+
+        // Volta ao formulário, que é onde o notice de `db_write` é renderizado.
+        // A causa vai para o error_log e não para a URL: mensagem do MySQL não é
+        // coisa de query string.
+        if ( ! $gravou ) {
+            $erro = $wpdb->last_error ?: 'o banco não informou a causa.';
+            error_log( "[Newsgame] handle_save: escrita da instância falhou — MySQL: {$erro}" );
+            wp_safe_redirect( add_query_arg( array(
+                'page'   => 'newsgame-instances',
+                'action' => $id ? 'edit' : 'new',
+                'id'     => $id ?: null,
+                'error'  => 'db_write',
+            ), admin_url( 'admin.php' ) ) );
+            exit;
         }
 
         // Com pendência de pesos, volta para o formulário: é onde estão o aviso e o
@@ -550,9 +588,53 @@ class Newsgame_Admin_Instances {
         }
 
         global $wpdb;
+        $nova = wp_json_encode( $decoded, JSON_UNESCAPED_UNICODE );
+
+        /*
+         * Backup da matriz ATUAL antes de sobrescrever — C11.
+         *
+         * Um nível só: a option guarda a versão imediatamente anterior, e cada
+         * troca efetiva substitui o backup. Não é histórico, é rede contra a
+         * sobrescrita acidental que o C11 descreve. Restaurar ainda é manual (não
+         * há botão de desfazer).
+         *
+         * ORDEM IMPORTA, pela lição do C15: o backup precisa estar confirmado
+         * ANTES do UPDATE. Se não entrar, a matriz principal não é tocada.
+         *
+         * Sem backup quando não há o que perder (primeiro save) e quando o valor
+         * não muda: gravar o mesmo valor por cima apagaria o backup da troca
+         * anterior, que é justamente o único que vale guardar.
+         */
+        $atual = $wpdb->get_var( $wpdb->prepare(
+            "SELECT axis_matrix FROM {$wpdb->prefix}newsgame_instances WHERE id = %d",
+            $instance_id
+        ) );
+
+        // get_var devolve null tanto em erro quanto em coluna NULL. Só o
+        // last_error separa os dois, e ele é zerado a cada query do $wpdb.
+        if ( null === $atual && $wpdb->last_error ) {
+            error_log( "[Newsgame] handle_save_axis_matrix: leitura da matriz atual falhou — MySQL: {$wpdb->last_error}" );
+            wp_send_json_error( array( 'msg' => 'Não foi possível ler a matriz atual para guardar a cópia, então ela NÃO foi substituída. Erro do banco: ' . $wpdb->last_error ) );
+        }
+
+        if ( $atual && $atual !== $nova ) {
+            $chave = 'newsgame_axis_backup_' . $instance_id;
+            update_option( $chave, $atual, false );
+
+            // O retorno de update_option() NÃO serve de sentinela: ele é `false`
+            // também quando o valor gravado é igual ao que já estava lá. A prova
+            // é ler de volta — em falha, o cache de options fica com o valor
+            // anterior, diferente de $atual.
+            if ( get_option( $chave ) !== $atual ) {
+                $erro = $wpdb->last_error ?: 'o banco não informou a causa.';
+                error_log( "[Newsgame] handle_save_axis_matrix: backup da matriz da instância {$instance_id} falhou — MySQL: {$erro}" );
+                wp_send_json_error( array( 'msg' => 'Não foi possível guardar a cópia da matriz atual, então ela NÃO foi substituída. Erro do banco: ' . $erro ) );
+            }
+        }
+
         $result = $wpdb->update(
             $wpdb->prefix . 'newsgame_instances',
-            array( 'axis_matrix' => wp_json_encode( $decoded, JSON_UNESCAPED_UNICODE ) ),
+            array( 'axis_matrix' => $nova ),
             array( 'id' => $instance_id ),
             array( '%s' ),
             array( '%d' )
