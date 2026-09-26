@@ -1449,6 +1449,43 @@ peso, schema 1.6, `innodb_force_recovery = 0`).
 - Os `LiveKernelEvent` de 17:48:44, 22 minutos antes da falha de I/O, **não foram
   investigados** e são a única pista que aponta para fora do MariaDB
 
+### Nota de 2026-09-25 — o reinício das 21:55 tem causa, e ela é o driver Warsaw
+
+⚠️ **NÃO FECHA A FLAG.** Explica **um** dos dois eventos de 07/09 e parte do "nunca
+desliga limpo". **Não** explica o abort de I/O das 18:10.
+
+- **O reinício das 21:55:24 de 07/09 foi tela azul do `wsddpp.sys`** — o driver Warsaw,
+  módulo de segurança bancária da Topaz OFD. O minidump `090726-17656-01.dmp`, analisado
+  com `cdb -z … -c "!analyze -v"`, dá `BUGCHECK_CODE 0x50`, `SYMBOL_NAME wsddpp+0x2d9c`
+  e `FAILURE_ID_HASH {735da6ee-5c56-de2d-255c-3359921f37d9}`. As duas telas azuis de
+  25/09 (17:34 e ~21:36) dão **o mesmo offset e o mesmo hash**. Detalhe e recomendação
+  no bloco "Aberto em 25/09" da §10 do `CLAUDE.md`
+- **Pelo menos 3 crash recoveries têm essa tela azul como causa provável**, e não falha
+  própria do MySQL: 07/09 às 21:58:55, 25/09 às 17:39:43 e 25/09 às 21:38:34. Os três
+  vêm de 2 a 5 minutos depois de um Kernel-Power 41 com bugcheck do `wsddpp`, e o
+  `mysql_error.log` não tem nenhuma linha entre o boot anterior e o crash recovery
+- **Contagem medida em 25/09 no `mysql_error.log` do `data-novo`: 16 boots desde 22/08,
+  14 com crash recovery.** Os 2 sem crash recovery corrigem a frase "todos os boots" do
+  item acima:
+  - o de **24/08 às 15:01:46** subiu **limpo**, sem `Starting crash recovery`
+  - o de **14/09 às 12:07:39** é a segunda instância benigna, que abortou antes de
+    recuperar (ver o ruído conhecido acima)
+- **O abort de I/O das 18:10 de 07/09 continua SEM causa.** Foi com a máquina de pé, com
+  APPCRASH do próprio `mysqld.exe` e "Tried to read … only able to read 0" — nada disso
+  é tela azul. Os crash recoveries das 18:20 e das 20:25 do mesmo dia vêm **dessa**
+  falha e da morte seguinte (≤18:22), e não de queda da máquina. O das **16:59**, o
+  primeiro do dia, é **anterior** a tudo isso e segue sem causa atribuída
+- **O que falta para fechar a flag:** cruzar **cada** um dos 14 boots com os eventos
+  Kernel-Power 41 / 6008 / BugCheck do System. Isso diz se todo crash recovery vem de
+  máquina que caiu, ou se há também desligamentos de máquina de pé em que o `mysqld` não
+  fecha limpo (serviço morto no shutdown do Windows, por exemplo) — **mais de uma causa**
+  é a hipótese a descartar. É consulta de leitura, e **não foi feita**
+- ⚠️ **Desvio a declarar, pelo item 4 do roteiro abaixo:** no levantamento de 25/09 eu
+  rodei `CHECK TABLE` em `wp_options`, `wp_newsgame_instances` e `wp_newsgame_dilemas`
+  (os três `OK`) **antes** de ter a causa. Não era recorrência desta flag — a queda foi da
+  máquina, e o boot já tinha feito crash recovery limpo —, mas o roteiro pede para não
+  fazer isso antes de decidir
+
 ### Relação com o C10 — eleva o candidato, NÃO reabre o item
 
 O C10 (`wp_newsgame_dilemas` vazia em 19/08) recebeu em 24/08 um **mecanismo
