@@ -98,6 +98,9 @@ class Newsgame_Settings {
         'newsgame_claude_api_key',
     );
 
+    /** Transient que acende o aviso de trava degradada no admin — C14, ver registrar_cota_degradada(). */
+    const TRANSIENT_COTA_DEGRADADA = 'newsgame_cota_degradada';
+
     /** Hook suffix da tela de configurações — usado para enfileirar só nela */
     private static $hook_suffix = '';
 
@@ -105,6 +108,7 @@ class Newsgame_Settings {
         add_action( 'admin_menu',            array( __CLASS__, 'register_menu' ) );
         add_action( 'admin_init',            array( __CLASS__, 'register_fields' ) );
         add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
+        add_action( 'admin_notices',         array( __CLASS__, 'aviso_cota_degradada' ) );
 
         // Um hook por option, e não um 'added_option' genérico: o hook nomeado
         // dispara EXATAMENTE UMA VEZ na vida de cada option — no momento em que
@@ -457,9 +461,18 @@ class Newsgame_Settings {
      * de custo, errar para o lado de bloquear é o lado certo. Em uso sequencial
      * — o caso normal — a contagem é exata.
      *
+     * Falha do contador é FAIL-OPEN, e de propósito — C14, saída 2. Se o
+     * incremento ou a leitura falharem, a função devolve `false` mesmo sem
+     * saber quantas chamadas houve: o editor não é travado por um erro que não
+     * é dele. Por isso `false` NÃO significa "dentro do limite" — significa
+     * "não bloquear". O silêncio é que foi removido: a falha vai para o
+     * error_log e acende o aviso de aviso_cota_degradada().
+     *
      * @param  string $bucket        Identificador da rota (ex: 'generate_one').
      * @param  int    $limit_per_min Máximo de chamadas por minuto por usuário.
      * @return bool   true se o limite foi excedido — o chamador deve recusar.
+     *                false se está dentro do limite OU se o contador falhou
+     *                (fail-open com aviso, ver acima).
      */
     public static function rate_limited( $bucket, $limit_per_min ) {
         global $wpdb;
@@ -470,12 +483,21 @@ class Newsgame_Settings {
         // Atômico: o MySQL resolve o incremento dentro da própria instrução,
         // então não há janela entre ler e escrever. Depende do índice único
         // em wp_options.option_name, que faz parte do schema do WordPress.
-        $wpdb->query( $wpdb->prepare(
+        //
+        // Retorno conferido — C14. 1 = linha criada, 2 = incrementada. `false` é
+        // erro; 0 é o incremento que não aconteceu (engine que não traduz a
+        // cláusula, o risco do C9) — os dois deixam a trava sem contar.
+        $escrita = $wpdb->query( $wpdb->prepare(
             "INSERT INTO {$wpdb->options} (option_name, option_value, autoload)
              VALUES (%s, '1', 'no')
              ON DUPLICATE KEY UPDATE option_value = option_value + 1",
             $chave
         ) );
+
+        if ( false === $escrita || $escrita < 1 ) {
+            self::registrar_cota_degradada( $bucket, 'o incremento do contador', $wpdb->last_error );
+            return false;
+        }
 
         // rows_affected é 1 quando a linha foi criada — ou seja, primeira
         // chamada desta janela. É o momento barato de varrer as janelas
@@ -488,11 +510,84 @@ class Newsgame_Settings {
             ) );
         }
 
-        $count = (int) $wpdb->get_var( $wpdb->prepare(
+        // get_var devolve null em erro E em linha ausente. Logo depois de um
+        // incremento bem-sucedido, linha ausente também é anomalia — os dois
+        // casos são "não sei contar". Antes, `(int) null` virava 0 e liberava.
+        $valor = $wpdb->get_var( $wpdb->prepare(
             "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
             $chave
         ) );
 
-        return $count > (int) $limit_per_min;
+        if ( null === $valor ) {
+            self::registrar_cota_degradada( $bucket, 'a leitura do contador', $wpdb->last_error ?: 'linha do contador não encontrada.' );
+            return false;
+        }
+
+        return (int) $valor > (int) $limit_per_min;
+    }
+
+    /**
+     * Trava de cota que não consegue contar — C14, saída 2: FAIL-OPEN, MAS ALTO.
+     *
+     * A chamada segue (quem chama recebe `false`, "não limitado"): o editor não
+     * é travado por um erro que não é dele. O que muda é o silêncio: a causa vai
+     * para o error_log e um transient acende o aviso de aviso_cota_degradada()
+     * nas telas do plugin, por uma hora a partir da última falha.
+     *
+     * ⚠️ O aviso também mora em wp_options. Se a tabela inteira estiver
+     * indisponível, o set_transient() falha junto e só o error_log fica — é o
+     * limite desta saída, e está declarado. O caso que ela cobre é o provável:
+     * a query ESPECÍFICA do contador falhando (o ON DUPLICATE KEY UPDATE num
+     * engine que não o traduz — o C9) com o resto das options funcionando.
+     *
+     * @param string $bucket Rota cuja trava falhou.
+     * @param string $etapa  Qual das duas queries, para log e aviso.
+     * @param string $erro   last_error do $wpdb.
+     */
+    private static function registrar_cota_degradada( $bucket, $etapa, $erro ) {
+        $erro = $erro ?: 'o banco não informou a causa.';
+        error_log( "[Newsgame] rate_limited: {$etapa} falhou no bucket '{$bucket}' — trava de cota LIBERADA (fail-open) — MySQL: {$erro}" );
+
+        set_transient( self::TRANSIENT_COTA_DEGRADADA, array(
+            'quando' => time(),
+            'bucket' => sanitize_key( $bucket ),
+            'etapa'  => $etapa,
+        ), HOUR_IN_SECONDS );
+    }
+
+    /**
+     * Aviso no admin enquanto a trava de cota estiver degradada.
+     *
+     * Só nas telas do plugin e só para quem pode agir. A causa do MySQL não é
+     * exibida — fica no error_log, mesmo critério do `db_write` das instâncias.
+     * Sem is-dismissible: some sozinho quando o transient expira, uma hora
+     * depois da ÚLTIMA falha.
+     */
+    public static function aviso_cota_degradada() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+        $tela = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+        if ( ! $tela || false === strpos( (string) $tela->id, 'newsgame' ) ) {
+            return;
+        }
+        $falha = get_transient( self::TRANSIENT_COTA_DEGRADADA );
+        if ( ! is_array( $falha ) ) {
+            return;
+        }
+        ?>
+        <div class="notice notice-error">
+          <p>
+            <strong>A trava de cota do News-Game não conseguiu contar as chamadas</strong>
+            (<?php echo esc_html( $falha['etapa'] ?? '' ); ?>, rota
+            <code><?php echo esc_html( $falha['bucket'] ?? '' ); ?></code>, às
+            <?php echo esc_html( wp_date( 'H:i', (int) ( $falha['quando'] ?? 0 ) ) ); ?>)
+            e deixou a chamada passar <strong>sem limite</strong>. Chamadas à IA
+            podem estar consumindo cota da chave do provedor sem a proteção contra
+            clique duplo. A causa está no log do servidor (<code>error_log</code>).
+            Este aviso some sozinho uma hora depois da última falha.
+          </p>
+        </div>
+        <?php
     }
 }
