@@ -50,9 +50,10 @@ class Newsgame_Review {
      * geral: self::owns() já confirmou que a linha existe antes de cada escrita
      * deste arquivo, então "0 linhas afetadas" não pode significar "linha não
      * encontrada". Quem copiar este padrão para um handler SEM owns() perde essa
-     * garantia e precisa decidir por conta própria o que 0 significa lá — nos
-     * dois handlers de lote daqui, significa "conjunto vazio", e está anotado
-     * em cada um.
+     * garantia e precisa decidir por conta própria o que 0 significa lá — no
+     * único handler de lote que usa este helper, o ajax_approve_all(),
+     * significa "conjunto vazio", e está anotado lá. O ajax_clear_instance()
+     * também não tem owns(), mas usa abortar_limpeza(), por causa da transação.
      *
      * Não retorna quando falha: wp_send_json_error() encerra o request.
      *
@@ -474,6 +475,23 @@ class Newsgame_Review {
             wp_send_json_error( array( 'msg' => 'ID de instância inválido.' ) );
         }
 
+        /*
+         * Remoção e rebaixamento numa transação — mesmo padrão do handle_delete()
+         * (0ba8f8c). Antes eram dois passos independentes: medido em 25/09, com o
+         * rebaixamento falhando, as perguntas JÁ tinham sido apagadas e a
+         * instância ficava em `review` com zero perguntas, sob uma mensagem que
+         * não dizia isso.
+         *
+         * Depende de as duas tabelas serem InnoDB. Em MyISAM o START TRANSACTION
+         * é aceito e o ROLLBACK não desfaz nada — sem erro e sem aviso.
+         *
+         * $wpdb->query() devolve 0 em sucesso para START/COMMIT/ROLLBACK, então
+         * só `false` é falha, como nas escritas.
+         */
+        if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+            self::abortar_limpeza( 'o início da transação' );
+        }
+
         $deleted = $wpdb->delete(
             $wpdb->prefix . 'newsgame_dilemas',
             array( 'instance_id' => $instance_id ),
@@ -483,19 +501,63 @@ class Newsgame_Review {
         // Mesma razão do lote acima: `(int) false` viraria 0 no payload, e 0 é
         // o valor legítimo de "a instância já estava vazia". Sem owns() aqui
         // também, e também sem precisar dele.
-        self::abort_on_db_error( $deleted, 'a remoção das perguntas' );
+        if ( false === $deleted ) {
+            self::abortar_limpeza( 'o DELETE no banco' );
+        }
 
+        // 0 também é legítimo aqui: a instância já estava em rascunho.
         $rebaixada = $wpdb->update(
             $wpdb->prefix . 'newsgame_instances',
             array( 'status' => 'draft' ),
             array( 'id'     => $instance_id ),
             array( '%s' ), array( '%d' )
         );
-        self::abort_on_db_error( $rebaixada, 'o rebaixamento da instância para rascunho' );
+        if ( false === $rebaixada ) {
+            self::abortar_limpeza( 'o rebaixamento da instância para rascunho' );
+        }
+
+        if ( false === $wpdb->query( 'COMMIT' ) ) {
+            self::abortar_limpeza( 'a confirmação da transação' );
+        }
 
         wp_send_json_success( array(
             'msg'     => 'Todas as perguntas foram removidas.',
             'deleted' => (int) $deleted,
+        ) );
+    }
+
+    /**
+     * Desfaz a transação do ajax_clear_instance() e responde com o erro.
+     *
+     * O last_error é lido ANTES do ROLLBACK: o $wpdb o zera a cada query, e
+     * depois do ROLLBACK ele diria "sem erro".
+     *
+     * A mensagem só afirma "nada foi apagado" se o ROLLBACK voltou sem erro.
+     * Se nem ele funcionou, o estado é desconhecido e a mensagem diz isso, em
+     * vez de prometer o que não pode garantir.
+     *
+     * Não retorna: wp_send_json_error() encerra o request.
+     *
+     * @param string $etapa Qual passo falhou ("o DELETE no banco").
+     */
+    private static function abortar_limpeza( $etapa ) {
+        global $wpdb;
+
+        $erro     = $wpdb->last_error ?: 'o banco não informou a causa.';
+        $desfeita = false !== $wpdb->query( 'ROLLBACK' );
+
+        error_log( "[Newsgame] ajax_clear_instance: {$etapa} falhou, "
+            . ( $desfeita ? 'transação desfeita' : 'ROLLBACK TAMBÉM FALHOU' )
+            . " — MySQL: {$erro}" );
+
+        wp_send_json_error( array(
+            'msg' => $desfeita
+                ? "Não foi possível remover as perguntas: {$etapa} falhou e a operação"
+                    . ' inteira foi desfeita. Nenhuma pergunta foi apagada e a instância'
+                    . " manteve o status. Erro do banco: {$erro}"
+                : "Não foi possível remover as perguntas: {$etapa} falhou, e desfazer a"
+                    . ' operação também falhou. Recarregue a página para ver o estado'
+                    . " real antes de tentar de novo. Erro do banco: {$erro}",
         ) );
     }
 
