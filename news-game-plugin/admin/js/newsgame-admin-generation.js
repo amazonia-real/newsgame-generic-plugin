@@ -39,6 +39,13 @@
   // condicional de verdade, e tem guarda própria lá embaixo.
   if (!genBtn) { return; }
 
+  // Tetos do lote — decididos em 02/10. O plano gratuito do Gemini tem 20
+  // requisições por DIA, então cada chamada desperdiçada é cara.
+  var MAX_TENTATIVAS  = 3;  // por posição: a 1ª chamada + 2 retentativas
+  var FOLGA_CHAMADAS  = 3;  // teto global de chamadas do lote = déficit + 3
+  var MAX_ESPERAS_429 = 3;  // esperas de 60 s por lote; na 4ª, o lote para
+  var CHAVE_RELATORIO = 'ngGenRelatorio:' + instId;
+
   function setBar(cur, tot) {
     var pct = tot > 0 ? Math.min(100, Math.round(cur / tot * 100)) : 0;
     pBar.style.width = pct + '%';
@@ -51,20 +58,12 @@
     genBtn.disabled = false;
   }
 
-  function setDone(count) {
-    wrap.style.display = 'block';
-    setBar(count, count);
-    pLabel.textContent    = '✓ Geração concluída!';
-    pLast.textContent     = count + ' dilemas salvos.';
-    genStatus.style.color = '#2d7a2d';
-    genStatus.textContent = '✓ Concluído. Recarregando…';
-    genBtn.disabled = false;
-    setTimeout(function () { window.location.reload(); }, 2500);
-  }
-
-  /* ── Clique no botão: obtém config do WP e inicia loop ── */
+  /* ── Clique: o WP devolve déficit, posições livres e fontes já usadas ── */
+  // O botão fica desabilitado do clique até o fim do lote: só setError() e
+  // concluir() o reabilitam — e concluir() não o reabilita quando vai recarregar.
   genBtn.addEventListener('click', function () {
     genBtn.disabled = true;
+    esconderRelatorio();
     genStatus.style.color = '#666';
     genStatus.textContent = 'Iniciando…';
     wrap.style.display = 'none';
@@ -81,125 +80,254 @@
           setError(r.data && r.data.msg ? r.data.msg : JSON.stringify(r));
           return;
         }
-        var total = r.data.payload.density || 1;
+        var posicoes = r.data.posicoes_livres || [];
+        if (!posicoes.length) {
+          setError('O servidor não devolveu posições livres.');
+          return;
+        }
         wrap.style.display = 'block';
-        setBar(0, total);
-        pLabel.textContent = 'Iniciando geração…';
+        setBar(0, posicoes.length);
         genStatus.textContent = 'Conectando ao backend…';
-        startBatchLoop(r.data.payload, total);
+        iniciarLote(r.data.payload, posicoes, r.data.fontes_usadas || []);
       })
       .catch(function (e) { setError(e.message); });
   });
 
-  /* ── Loop assíncrono: 1 chamada por dilema, via proxy PHP ── */
-  function startBatchLoop(basePayload, total) {
-    var dilemas = [];
-    var slot    = 0;
-    var historico_fontes = [];
+  /* ── Lote: um estado só, um passo por chamada ao proxy ── */
+  function novoEstado(posicoes, fontes) {
+    return {
+      fila:         posicoes.slice(),   // posições ainda por gerar, na ordem
+      alvo:         posicoes.length,
+      tentativas:   {},                 // posição → chamadas que falharam
+      chamadas:     0,                  // chamadas que chegaram ao provedor
+      teto:         posicoes.length + FOLGA_CHAMADAS,
+      esperas:      0,                  // esperas de 60 s após 429
+      dilemas:      [],
+      fontes:       fontes.slice(),     // semeadas pelo servidor, crescem no lote
+      falhas:       [],                 // { posicao, motivo } — vão para o relatório
+      interrompido: ''                  // motivo da parada antecipada, se houve
+    };
+  }
 
-    function generateNext() {
-      if (slot >= total) {
-        pLabel.textContent = 'Salvando no banco de dados…';
-        saveMatrix(dilemas);
-        return;
-      }
+  function iniciarLote(basePayload, posicoes, fontes) {
+    var st = novoEstado(posicoes, fontes);
 
-      pLabel.textContent = 'Gerando dilema ' + (slot + 1) + ' de ' + total + '…';
-      setBar(slot, total);
-
-      // nivel_padrao vem fixo em basePayload; slot_index só rotaciona personagens no RAG
-      var payload = Object.assign({}, basePayload, {
-          slot_index: slot,
-          fontes_usadas: historico_fontes
-      });
-
-      // Proxy PHP (admin-ajax) → backend Python. action/nonce na query
-      // string porque o body carrega o payload JSON cru.
-      fetch(ajaxurl + '?action=' + encodeURIComponent(cfg.actionGenerateOne) + '&nonce=' + encodeURIComponent(nonce), {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
-      })
-      .then(function (response) {
-        // 429 — Rate limit: aguarda 60 s e retenta o mesmo slot sem avançar
-        if (response.status === 429) {
-          pLabel.textContent = 'Rate limit — aguardando 60 s…';
-          setTimeout(generateNext, 60000);
-          return null;
-        }
-        // 422 — Gemini não gerou dilema válido: pula slot, continua o lote
-        if (response.status === 422) {
-          pLast.textContent = 'Dilema ' + (slot + 1) + ' inválido — pulando.';
-          slot++;
-          setBar(slot, total);
-          setTimeout(generateNext, 600);
-          return null;
-        }
-        if (!response.ok) {
-          return response.text().then(function (t) {
-            throw new Error('HTTP ' + response.status + ': ' + t.substring(0, 200));
-          });
-        }
-        return response.json();
-      })
-      .then(function (dilema) {
-        if (dilema === null) return; // 429 ou 422 já tratados acima
-        dilemas.push(dilema);
-        if (dilema.titulo) {
-          pLast.textContent = 'Último: "' + dilema.titulo + '"';
-        }
-        if (dilema.info_contextual && dilema.info_contextual.link_original) {
-          historico_fontes.push(dilema.info_contextual.link_original);
-        } else if (dilema.source_url) {
-          historico_fontes.push(dilema.source_url);
-        }
-        slot++;
-        setBar(slot, total);
-        // Pausa mínima entre chamadas para não saturar a API Gemini
-        setTimeout(generateNext, 600);
-      })
-      .catch(function (e) {
-        // Erro de rede ou HTTP inesperado: loga, pula slot e continua
-        console.warn('[generator] slot=' + slot + ' falhou:', e.message);
-        slot++;
-        setBar(slot, total);
-        setTimeout(generateNext, 600);
+    function passo() {
+      var pos = proximaPosicao(st);
+      if (pos === null) { finalizarLote(st); return; }
+      var feitas = st.alvo - st.fila.length;
+      setBar(feitas, st.alvo);
+      pLabel.textContent = 'Gerando a pergunta da posição ' + pos +
+        ' (' + (feitas + 1) + ' de ' + st.alvo + ')…';
+      chamarPosicao(basePayload, st, pos).then(function (res) {
+        setTimeout(passo, aplicarResultado(st, pos, res));
       });
     }
 
-    generateNext();
+    passo();
   }
 
-  /* ── Salva matriz completa no WordPress via AJAX ──────── */
-  function saveMatrix(dilemas) {
-    if (!dilemas.length) { setDone(0); return; }
+  // Próxima posição da fila, ou null quando o lote acabou. Teto de chamadas
+  // atingido move o resto da fila para as falhas: o relatório diz o que faltou.
+  function proximaPosicao(st) {
+    if (st.interrompido || !st.fila.length) { return null; }
+    if (st.chamadas < st.teto) { return st.fila[0]; }
+    st.fila.forEach(function (p) {
+      st.falhas.push({ posicao: p, motivo: 'teto de ' + st.teto + ' chamadas do lote atingido' });
+    });
+    st.fila = [];
+    return null;
+  }
 
-    pLabel.textContent = 'Salvando ' + dilemas.length + ' dilemas…';
+  function chamarPosicao(basePayload, st, pos) {
+    // slot_index = posição − 1: o backend grava position = slot_index + 1 (rota
+    // /generate-one em main.py), e a rotação de personagens segue a posição.
+    var payload = Object.assign({}, basePayload, {
+      slot_index:    pos - 1,
+      fontes_usadas: st.fontes
+    });
+
+    // Proxy PHP (admin-ajax) → backend Python. action/nonce na query
+    // string porque o body carrega o payload JSON cru.
+    return fetch(ajaxurl + '?action=' + encodeURIComponent(cfg.actionGenerateOne) + '&nonce=' + encodeURIComponent(nonce), {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    })
+      .then(classificarResposta)
+      .catch(function (e) {
+        return { tipo: 'retentavel', motivo: 'falha de rede (' + e.message + ')' };
+      });
+  }
+
+  // Traduz a resposta HTTP do proxy num tipo que aplicarResultado() entende.
+  // ⚠️ 502 é RECUSA e para o lote: o backend usa 502 para chave rejeitada,
+  // crédito esgotado e cota longa, e o proxy usa 502 para backend inalcançável.
+  // Em nenhum dos quatro a próxima posição teria sorte melhor.
+  function classificarResposta(response) {
+    if (response.status === 429) { return { tipo: 'espera' }; }
+    if (response.status === 422) { return { tipo: 'retentavel', motivo: 'pergunta inválida' }; }
+    if (response.status === 502) {
+      return response.json()
+        .catch(function () { return {}; })
+        .then(function (b) {
+          return { tipo: 'recusa', motivo: (b && b.detail) || 'o provedor de IA recusou a chamada' };
+        });
+    }
+    if (!response.ok) { return { tipo: 'retentavel', motivo: 'HTTP ' + response.status }; }
+    return response.json().then(function (d) { return { tipo: 'ok', dilema: d }; });
+  }
+
+  // Aplica o resultado ao estado e devolve a espera, em ms, até o próximo passo.
+  function aplicarResultado(st, pos, res) {
+    if (res.tipo === 'espera') { return registrarEspera(st); }
+    if (res.tipo === 'recusa') { st.interrompido = res.motivo; return 0; }
+    st.chamadas++;
+    if (res.tipo === 'ok') { registrarSucesso(st, res.dilema); return 600; }
+    registrarFalha(st, pos, res.motivo);
+    return 600;
+  }
+
+  // 429 é o throttle do proxy e não chega ao provedor, então não conta no teto
+  // de chamadas — mas tem teto próprio, para o lote não esperar para sempre.
+  function registrarEspera(st) {
+    st.esperas++;
+    if (st.esperas > MAX_ESPERAS_429) {
+      st.interrompido = 'limite de uso do provedor (' + MAX_ESPERAS_429 +
+        ' esperas de 60 s no mesmo lote)';
+      return 0;
+    }
+    pLabel.textContent = 'Limite de requisições — aguardando 60 s (' +
+      st.esperas + ' de ' + MAX_ESPERAS_429 + ')…';
+    return 60000;
+  }
+
+  function registrarSucesso(st, dilema) {
+    st.dilemas.push(dilema);
+    st.fila.shift();
+    var fonte = (dilema.info_contextual && dilema.info_contextual.link_original) || dilema.source_url;
+    if (fonte) { st.fontes.push(fonte); }
+    if (dilema.titulo) { pLast.textContent = 'Último: "' + dilema.titulo + '"'; }
+  }
+
+  // Falha retentável: a posição fica na frente da fila até MAX_TENTATIVAS.
+  function registrarFalha(st, pos, motivo) {
+    st.tentativas[pos] = (st.tentativas[pos] || 0) + 1;
+    if (st.tentativas[pos] < MAX_TENTATIVAS) {
+      pLast.textContent = 'Posição ' + pos + ': ' + motivo + ' — tentando de novo (' +
+        st.tentativas[pos] + ' de ' + MAX_TENTATIVAS + ').';
+      return;
+    }
+    st.fila.shift();
+    st.falhas.push({ posicao: pos, motivo: motivo + ' após ' + MAX_TENTATIVAS + ' tentativas' });
+  }
+
+  function finalizarLote(st) {
+    // Fila com sobra só existe quando o lote foi interrompido.
+    st.fila.forEach(function (p) { st.falhas.push({ posicao: p, motivo: 'não gerada (lote interrompido)' }); });
+    st.fila = [];
+    setBar(st.alvo, st.alvo);
+    if (!st.dilemas.length) { concluir(st, 0, 0); return; }
+    saveMatrix(st);
+  }
+
+  /* ── Salva o lote no WordPress via AJAX ──────────────── */
+  function saveMatrix(st) {
+    pLabel.textContent = 'Salvando ' + st.dilemas.length + ' pergunta(s)…';
 
     var fd = new FormData();
     fd.append('action',      cfg.actionSave);
     fd.append('nonce',       nonce);
     fd.append('instance_id', instId);
-    fd.append('dilemas',     JSON.stringify(dilemas));
+    fd.append('dilemas',     JSON.stringify(st.dilemas));
 
     fetch(ajaxurl, { method: 'POST', body: fd })
       .then(function (r) { return r.json(); })
       .then(function (r) {
-        if (r.success) {
-          var saved  = r.data && r.data.saved  != null ? r.data.saved  : dilemas.length;
-          var failed = r.data && r.data.failed != null ? r.data.failed : 0;
-          if (failed > 0) {
-            pLast.textContent = '⚠ ' + failed + ' pergunta(s) não salva(s). Verifique o log do servidor (error_log).';
-          }
-          setDone(saved);
-        } else {
+        if (!r.success) {
           setError('Erro ao salvar: ' + (r.data && r.data.msg ? r.data.msg : 'verifique o log do servidor.'));
+          return;
         }
+        var saved  = r.data && r.data.saved  != null ? r.data.saved  : st.dilemas.length;
+        var failed = r.data && r.data.failed != null ? r.data.failed : 0;
+        concluir(st, saved, failed);
       })
       .catch(function (e) {
         setError('Falha de rede ao salvar: ' + e.message);
       });
   }
+
+  /* ── Relatório: fica na tela até a próxima ação ──────── */
+  // Quando algo foi salvo, a tela recarrega — a Mesa Editorial está nela e
+  // precisa mostrar as pendentes novas. O relatório atravessa o reload pelo
+  // sessionStorage e é apagado de lá assim que aparece.
+  function concluir(st, saved, failed) {
+    var rel = montarRelatorio(st, saved, failed);
+    pLabel.textContent = rel.faltam > 0 ? 'Geração concluída com pendências.' : '✓ Geração concluída!';
+    if (saved > 0) {
+      guardarRelatorio(rel);
+      genStatus.style.color = '#2d7a2d';
+      genStatus.textContent = '✓ ' + saved + ' salva(s). Recarregando…';
+      setTimeout(function () { window.location.reload(); }, 2500);
+      return; // botão segue desabilitado até o reload
+    }
+    genStatus.textContent = '';
+    mostrarRelatorio(rel, true);
+    genBtn.disabled = false;
+  }
+
+  function montarRelatorio(st, saved, failed) {
+    var linhas = ['Salvas ' + saved + ' de ' + st.alvo + ' pergunta(s) que faltavam para a meta.'];
+    if (failed > 0) {
+      linhas.push(failed + ' gerada(s) não foram gravadas no banco — veja o log do servidor (error_log).');
+    }
+    if (st.interrompido) { linhas.push('Lote interrompido: ' + st.interrompido); }
+    st.falhas.forEach(function (f) { linhas.push('Posição ' + f.posicao + ': ' + f.motivo + '.'); });
+    return { linhas: linhas, faltam: st.alvo - saved, alerta: saved < st.alvo || failed > 0 };
+  }
+
+  // `atualizarBotao` só no relatório sem reload: depois do reload o rótulo do
+  // botão já vem do PHP, contado no banco, que é a fonte de verdade.
+  function mostrarRelatorio(rel, atualizarBotao) {
+    var box = document.getElementById('ng-gen-report');
+    if (!box) { return; }
+    box.className = 'notice inline ' + (rel.alerta ? 'notice-warning' : 'notice-success');
+    box.textContent = '';
+    rel.linhas.forEach(function (t) {
+      var p = document.createElement('p');
+      p.textContent = t; // textContent: o `detail` do backend nunca vira HTML
+      box.appendChild(p);
+    });
+    box.style.display = 'block';
+    if (atualizarBotao && rel.faltam > 0) {
+      genBtn.textContent = '▶ Gerar as que faltam (' + rel.faltam + ')';
+    }
+  }
+
+  function esconderRelatorio() {
+    var box = document.getElementById('ng-gen-report');
+    if (box) { box.style.display = 'none'; }
+    try { sessionStorage.removeItem(CHAVE_RELATORIO); } catch (e) { /* storage indisponível */ }
+  }
+
+  function guardarRelatorio(rel) {
+    try {
+      sessionStorage.setItem(CHAVE_RELATORIO, JSON.stringify(rel));
+    } catch (e) { /* sem storage, o relatório só não sobrevive ao reload */ }
+  }
+
+  // No carregamento: mostra uma vez o relatório do lote que provocou o reload.
+  function restaurarRelatorio() {
+    var bruto = null;
+    try {
+      bruto = sessionStorage.getItem(CHAVE_RELATORIO);
+      sessionStorage.removeItem(CHAVE_RELATORIO);
+    } catch (e) { return; }
+    if (!bruto) { return; }
+    try { mostrarRelatorio(JSON.parse(bruto), false); } catch (e) { /* JSON corrompido: ignora */ }
+  }
+
+  restaurarRelatorio();
 
   /* ── Botão de Reset ──────────────────────────────────── */
   if (resetBtn) {
