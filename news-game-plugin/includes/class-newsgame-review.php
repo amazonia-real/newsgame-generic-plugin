@@ -216,15 +216,64 @@ class Newsgame_Review {
             wp_send_json_error( array( 'msg' => 'Pergunta não encontrada.' ) );
         }
 
+        // A posição original pode ter sido ocupada enquanto a pergunta estava
+        // descartada — pela substituta que herdou a vaga, ou por um "Gerar as que
+        // faltam". Devolver por cima repetia a posição: medido em 02/10 na
+        // instância 9 (97 e 99 na 3, e a 4 vazia). Em vez de recusar, a devolvida
+        // assume a menor posição livre, e a Mesa avisa.
+        $original = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT position FROM {$wpdb->prefix}newsgame_dilemas WHERE id = %d", $id
+        ) );
+        $destino = self::posicao_para_devolver( $instance_id, $id, $original );
+        if ( null === $destino ) {
+            wp_send_json_error( array( 'msg' => 'Não foi possível conferir a posição da pergunta. Verifique o log do servidor.' ) );
+        }
+
         $gravado = $wpdb->update(
             $wpdb->prefix . 'newsgame_dilemas',
-            array( 'review_status' => 'pending' ),
+            array( 'review_status' => 'pending', 'position' => $destino ),
             array( 'id' => $id ),
-            array( '%s' ), array( '%d' )
+            array( '%s', '%d' ), array( '%d' )
         );
         self::abort_on_db_error( $gravado, 'a devolução para revisão' );
 
-        wp_send_json_success( array( 'msg' => 'Devolvida para revisão.' ) );
+        $mudou = $destino !== $original;
+        wp_send_json_success( array(
+            'msg'            => $mudou
+                ? "Devolvida para revisão na posição {$destino} — a posição {$original} já estava ocupada."
+                : 'Devolvida para revisão.',
+            'position'       => $destino,
+            'position_mudou' => $mudou,
+        ) );
+    }
+
+    /**
+     * Posição que a pergunta devolvida ocupa: a original, se nenhuma OUTRA viva
+     * (aprovada ou pendente) estiver nela; senão a menor livre. Posição < 1 (as
+     * substitutas antigas, gravadas com 0) também vai para a menor livre.
+     *
+     * O `id <> %d` é o que permite devolver uma APROVADA: a vaga que ela mesma
+     * ocupa não conta como ocupada. Devolve null em erro de SELECT.
+     */
+    private static function posicao_para_devolver( int $instance_id, int $id, int $original ): ?int {
+        global $wpdb;
+        if ( $original >= 1 ) {
+            $ocupada = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}newsgame_dilemas
+                  WHERE instance_id = %d AND position = %d AND id <> %d
+                    AND review_status IN ('approved', 'pending')",
+                $instance_id, $original, $id
+            ) );
+            if ( $wpdb->last_error ) {
+                error_log( '[Newsgame] posicao_para_devolver: ' . $wpdb->last_error );
+                return null;
+            }
+            if ( 0 === $ocupada ) {
+                return $original;
+            }
+        }
+        $livres = Newsgame_Generator::posicoes_livres( $instance_id, 1 );
+        return $livres ? $livres[0] : null;
     }
 
     /* ── 5. Pedir Substituta — chama /regenerate no backend ── */
@@ -331,6 +380,22 @@ class Newsgame_Review {
         // rate_limited() no topo deste handler já fez o seu próprio INSERT em
         // wp_options no mesmo request — o valor remanescente pode ser não-zero e
         // apontar para nada. save_dilema() já loga a causa no error_log.
+        //
+        // A substituta herda a posição da original, descartada logo abaixo: a
+        // vaga troca de dono. A rota /regenerate não devolve `position`, e
+        // save_dilema() caía no default 0 — a substituta aprovada virava a
+        // PRIMEIRA pergunta do jogo (id 68 da instância 3, em 16/09). Original
+        // com posição < 1 (resíduo desse defeito) dá a menor posição livre.
+        //
+        // ⚠️ Se o descarte abaixo falhar, original e substituta ficam vivas na
+        // MESMA posição — o "resíduo visível" que o desenho do C15 aceita, agora
+        // também como posição repetida.
+        $posicao = (int) $original->position;
+        if ( $posicao < 1 ) {
+            $livres  = Newsgame_Generator::posicoes_livres( $instance_id, 1 );
+            $posicao = $livres ? $livres[0] : 0;
+        }
+        $body['position'] = $posicao;
         $inserida = Newsgame_Generator::save_dilema( $body, $instance_id );
         if ( false === $inserida ) {
             $erro = $wpdb->last_error ?: 'o banco não informou a causa.';

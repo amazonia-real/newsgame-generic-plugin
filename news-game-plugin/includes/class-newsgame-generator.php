@@ -131,8 +131,11 @@ class Newsgame_Generator {
      *
      * ⚠️ Não corrige posições JÁ duplicadas — elas contam como uma posição
      * ocupada. Renumerar é outro passo (levantamento de 02/10, instâncias 4 e 8).
+     *
+     * Pública desde 02/10: a Mesa (Newsgame_Review) usa a mesma regra para a
+     * pergunta devolvida e para a substituta, em vez de reimplementá-la.
      */
-    private static function posicoes_livres( int $instance_id, int $quantas ): ?array {
+    public static function posicoes_livres( int $instance_id, int $quantas ): ?array {
         global $wpdb;
         $ocupadas = $wpdb->get_col( $wpdb->prepare(
             "SELECT DISTINCT position FROM {$wpdb->prefix}newsgame_dilemas

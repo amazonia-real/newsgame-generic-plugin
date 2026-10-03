@@ -479,8 +479,11 @@
       question_id: row.dataset.id,
     }, function (r) {
       if (r.success) {
-        msg(row, '↩ Devolvida para revisão.', false);
-        setTimeout(function () { fadeOut(row); refreshCounts(); }, 700);
+        // O servidor diz se a posição mudou (a original estava ocupada por outra
+        // viva). Nesse caso o aviso fica 4 s na tela, para o editor conseguir ler.
+        msg(row, '↩ ' + ((r.data && r.data.msg) || 'Devolvida para revisão.'), false);
+        setTimeout(function () { fadeOut(row); refreshCounts(); },
+          r.data && r.data.position_mudou ? 4000 : 700);
       } else {
         msg(row, '✗ ' + ((r.data && r.data.msg) || 'Erro.'), true);
       }
