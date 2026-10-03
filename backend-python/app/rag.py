@@ -51,6 +51,30 @@ def get_collection(site_id: str):
 
 import random
 
+
+def _buscar(db: Chroma, queries: list[str], k: int, fetch_k: int, filter_dict: dict | None) -> list:
+    """O laço de MMR por query, extraído sem mudança de mmr_search()."""
+    all_chunks = []
+    for query in queries:
+        try:
+            # Buscando o dobro (k*2 e fetch_k adaptado) para aumentar o alcance
+            results = db.max_marginal_relevance_search(
+                query,
+                k=k * 2,
+                fetch_k=fetch_k,
+                filter=filter_dict
+            )
+            all_chunks.extend(results)
+        except Exception as exc:
+            # Erro pontual de busca não interrompe as demais queries (M4)
+            logger.warning("[rag] mmr_search falhou para query %r: %r", query, exc)
+    return all_chunks
+
+
+def _tem_url(chunks: list) -> bool:
+    """True se algum trecho tem URL rastreável — o mesmo filtro do laço de montagem."""
+    return any(doc.metadata.get("source_url", "").startswith("http") for doc in chunks)
+
 def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5, fontes_usadas: list[str] | None = None) -> str:
     """
     MMR search em múltiplas queries — garante diversidade temática.
@@ -63,22 +87,23 @@ def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5, fo
     filter_dict = {"source_url": {"$nin": fontes}} if fontes else None
 
     # Acumulador temporário de blocos recuperados para posterior amostragem
-    all_chunks = []
+    all_chunks = _buscar(db, queries, k, fetch_k, filter_dict)
 
-    for query in queries:
-        try:
-            # Buscando o dobro (k*2 e fetch_k adaptado) para aumentar o alcance
-            results = db.max_marginal_relevance_search(
-                query, 
-                k=k * 2, 
-                fetch_k=fetch_k, 
-                filter=filter_dict
-            )
-            all_chunks.extend(results)
-        except Exception as exc:
-            # Erro pontual de busca não interrompe as demais queries (M4)
-            logger.warning("[rag] mmr_search falhou para query %r: %r", query, exc)
-            
+    # Exclusão que esgota o acervo RELAXA em vez de falhar o slot: num acervo
+    # pequeno, repetir uma fonte é melhor que perder a pergunta. Sem isto o
+    # contexto volta vazio, generate_one_dilema() devolve None e a rota dá 422 —
+    # e retentar não adianta, porque a exclusão só cresce. Decidido em 02/10.
+    #
+    # O critério é "algum trecho com URL rastreável", e não "algum resultado":
+    # o laço abaixo descarta os trechos sem `http`, e esvaziaria o contexto mesmo
+    # com resultados.
+    if filter_dict and not _tem_url(all_chunks):
+        logger.warning(
+            "[rag] a exclusão de %d fonte(s) esgotou o acervo; buscando sem exclusão.",
+            len(fontes),
+        )
+        all_chunks = _buscar(db, queries, k, fetch_k, None)
+
     # Amostragem estocástica (Random Sampling)
     # Garante orgânica na recuperação reduzida
     if len(all_chunks) > k:
