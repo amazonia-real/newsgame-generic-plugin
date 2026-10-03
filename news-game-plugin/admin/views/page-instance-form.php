@@ -572,11 +572,21 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           $id
       )
   );
-  $deficit = $density - $approved_count;
+  $pending_count = (int) $GLOBALS['wpdb']->get_var(
+      $GLOBALS['wpdb']->prepare(
+          "SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}newsgame_dilemas WHERE instance_id = %d AND review_status = 'pending'",
+          $id
+      )
+  );
+  // Mesma conta de Newsgame_Generator::ajax_start(): aprovadas + pendentes contra
+  // a meta. Se as duas divergirem, a tela promete um número e o lote gera outro.
+  $deficit = $density - $approved_count - $pending_count;
   ?>
   <?php if ( $dilema_count > 0 ) : ?>
     <div class="notice notice-info inline" style="margin:0 0 1rem">
-      <p>Esta instância já possui <strong><?php echo esc_html( $dilema_count ); ?> perguntas</strong> geradas. Gerar novamente adicionará ao conjunto existente.</p>
+      <p>Esta instância já possui <strong><?php echo esc_html( $dilema_count ); ?> perguntas</strong>.
+         Gerar de novo só completa a meta: gera as que faltam para aprovadas + pendentes
+         chegarem a <strong><?php echo (int) $density; ?></strong>.</p>
     </div>
   <?php endif; ?>
 
@@ -585,16 +595,30 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     enviará à IA e salvará as perguntas em <code>wp_newsgame_dilemas</code>.
     Meta: <strong><?php echo (int) $density; ?> perguntas</strong>
     com <strong><?php echo (int) $num_options; ?> opções de resposta</strong><?php echo $enable_levels ? ', níveis ativados' : ''; ?>.
-    <?php if ( $approved_count > 0 ) : ?>
-      Aprovadas até agora: <strong><?php echo $approved_count; ?></strong>.
-      Serão geradas apenas as <strong><?php echo max( 0, $deficit ); ?></strong> perguntas em déficit.
+    <?php if ( $approved_count + $pending_count > 0 ) : ?>
+      Aprovadas: <strong><?php echo (int) $approved_count; ?></strong>,
+      pendentes: <strong><?php echo (int) $pending_count; ?></strong>.
+      <?php if ( $deficit <= 0 ) : ?>
+        A meta já está preenchida.
+      <?php elseif ( 1 === $deficit ) : ?>
+        Será gerada apenas <strong>1</strong> pergunta, a que falta.
+      <?php else : ?>
+        Serão geradas apenas as <strong><?php echo (int) $deficit; ?></strong> que faltam.
+      <?php endif; ?>
     <?php endif; ?>
   </p>
 
   <button type="button" id="ng-generate-btn" class="button button-primary button-large">
-    &#9654; Gerar Perguntas Agora
+    <?php if ( $dilema_count > 0 && $deficit > 0 ) : ?>
+      &#9654; Gerar as que faltam (<?php echo (int) $deficit; ?>)
+    <?php else : ?>
+      &#9654; Gerar Perguntas Agora
+    <?php endif; ?>
   </button>
   <span id="ng-gen-status" style="margin-left:12px;font-size:13px;font-weight:600"></span>
+  <?php /* Relatório do último lote. Preenchido pelo JS — inclusive depois do reload,
+           via sessionStorage — e nunca pelo PHP. */ ?>
+  <div id="ng-gen-report" class="notice inline" style="display:none;margin:1rem 0 0;max-width:600px"></div>
 
   <?php if ( $dilema_count > 0 ) : ?>
   <button type="button" id="ng-reset-btn" class="button"

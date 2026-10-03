@@ -52,28 +52,41 @@ class Newsgame_Generator {
 
         $characters = json_decode( $instance->characters ?? '[]', true ) ?: array();
 
-        // Cálculo de déficit: só gera o que falta para atingir a density alvo
-        global $wpdb;
-        $approved_count = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}newsgame_dilemas
-             WHERE instance_id = %d AND review_status = 'approved'",
-            $instance_id
-        ) );
+        // Déficit = meta − (aprovadas + pendentes). Descartadas não contam: não vão
+        // ao jogo. Antes só as aprovadas contavam, e cada clique com pendentes na
+        // Mesa gerava a meta inteira de novo — medido em 02/10 na instância 8:
+        // 3 pendentes, 4 chamadas na segunda rodada, posição 1 repetida.
+        $contagem = self::contar_vivas( $instance_id );
+        if ( null === $contagem ) {
+            wp_send_json_error( array( 'msg' => 'Não foi possível ler as perguntas da instância. Verifique o log do servidor.' ) );
+        }
         $density = (int) $instance->density;
-        $deficit = $density - $approved_count;
+        $deficit = $density - $contagem['approved'] - $contagem['pending'];
 
         if ( $deficit <= 0 ) {
             wp_send_json_error( array(
-                'msg' => "Meta já atingida: {$approved_count} de {$density} perguntas aprovadas. Aumente a densidade ou descarte algumas para gerar mais.",
+                'msg' => "Meta já preenchida: {$contagem['approved']} aprovadas + {$contagem['pending']} pendentes de {$density}. Revise na Mesa Editorial ou aumente a meta.",
             ) );
+        }
+
+        // As duas listas saem do banco e não do browser. Lista vazia por erro de
+        // SELECT faria o lote reusar posições ocupadas e repetir fontes — por isso
+        // o null aborta, em vez de virar array() em silêncio.
+        $posicoes = self::posicoes_livres( $instance_id, $deficit );
+        $fontes   = self::fontes_da_instancia( $instance_id );
+        if ( null === $posicoes || null === $fontes ) {
+            wp_send_json_error( array( 'msg' => 'Não foi possível ler as perguntas da instância. Verifique o log do servidor.' ) );
         }
 
         // Devolve o payload ao browser; o JS chama ajax_generate_one() em loop.
         // backend_url e api_key NÃO saem do servidor — o proxy resolve ambos.
         wp_send_json_success( array(
-            'approved_count' => $approved_count,
-            'deficit'        => $deficit,
-            'payload'        => array(
+            'approved_count'  => $contagem['approved'],
+            'pending_count'   => $contagem['pending'],
+            'deficit'         => $deficit,
+            'posicoes_livres' => $posicoes,
+            'fontes_usadas'   => $fontes,
+            'payload'         => array(
                 'site_id'       => home_url(),
                 'instance_id'   => $instance_id,
                 'theme_prompt'  => $instance->theme_prompt,
@@ -87,6 +100,79 @@ class Newsgame_Generator {
                                        : null,
             ),
         ) );
+    }
+
+    /**
+     * Aprovadas e pendentes da instância — as que contam para a meta.
+     * Devolve null em erro de SELECT, para o chamador abortar.
+     */
+    private static function contar_vivas( int $instance_id ): ?array {
+        global $wpdb;
+        $linhas = $wpdb->get_results( $wpdb->prepare(
+            "SELECT review_status, COUNT(*) AS n FROM {$wpdb->prefix}newsgame_dilemas
+              WHERE instance_id = %d AND review_status IN ('approved', 'pending')
+              GROUP BY review_status",
+            $instance_id
+        ) );
+        if ( $wpdb->last_error ) {
+            error_log( '[Newsgame] contar_vivas: ' . $wpdb->last_error );
+            return null;
+        }
+        $contagem = array( 'approved' => 0, 'pending' => 0 );
+        foreach ( $linhas as $l ) {
+            $contagem[ $l->review_status ] = (int) $l->n;
+        }
+        return $contagem;
+    }
+
+    /**
+     * As $quantas menores posições (≥ 1) sem aprovada nem pendente: preenche os
+     * buracos primeiro e depois continua depois da última. Descartada não ocupa.
+     *
+     * ⚠️ Não corrige posições JÁ duplicadas — elas contam como uma posição
+     * ocupada. Renumerar é outro passo (levantamento de 02/10, instâncias 4 e 8).
+     */
+    private static function posicoes_livres( int $instance_id, int $quantas ): ?array {
+        global $wpdb;
+        $ocupadas = $wpdb->get_col( $wpdb->prepare(
+            "SELECT DISTINCT position FROM {$wpdb->prefix}newsgame_dilemas
+              WHERE instance_id = %d AND review_status IN ('approved', 'pending') AND position > 0",
+            $instance_id
+        ) );
+        if ( $wpdb->last_error ) {
+            error_log( '[Newsgame] posicoes_livres: ' . $wpdb->last_error );
+            return null;
+        }
+        $ocupadas = array_map( 'intval', $ocupadas );
+        $livres   = array();
+        for ( $p = 1; count( $livres ) < $quantas; $p++ ) {
+            if ( ! in_array( $p, $ocupadas, true ) ) {
+                $livres[] = $p;
+            }
+        }
+        return $livres;
+    }
+
+    /**
+     * Fontes já usadas pela instância, em TODOS os status — descartadas incluídas,
+     * para a pergunta rejeitada pelo editor não voltar da mesma matéria. Semeia o
+     * `fontes_usadas` do lote; antes ele começava vazio a cada clique.
+     *
+     * ⚠️ É o `source_url` que o modelo CITOU, comparado no backend com o do
+     * ChromaDB. URL alterada pelo modelo não é excluída.
+     */
+    private static function fontes_da_instancia( int $instance_id ): ?array {
+        global $wpdb;
+        $fontes = $wpdb->get_col( $wpdb->prepare(
+            "SELECT DISTINCT source_url FROM {$wpdb->prefix}newsgame_dilemas
+              WHERE instance_id = %d AND source_url <> ''",
+            $instance_id
+        ) );
+        if ( $wpdb->last_error ) {
+            error_log( '[Newsgame] fontes_da_instancia: ' . $wpdb->last_error );
+            return null;
+        }
+        return array_values( $fontes );
     }
 
     /* ── 2. Proxy server-to-server para /generate-one ────────── */
