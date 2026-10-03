@@ -387,7 +387,7 @@ def _invoke_llm(llm, messages, rota: str, provedor: str) -> str:
     `detail`, que é a decisão do C2/FLAG 003.
     """
     try:
-        return llm.invoke(messages).content
+        content = llm.invoke(messages).content
     except Exception as exc:
         logger.exception("[%s] Chamada ao provedor de IA falhou.", rota)
         # `provedor` entra só para a MENSAGEM: sem ele o ramo de chave rejeitada
@@ -397,6 +397,10 @@ def _invoke_llm(llm, messages, rota: str, provedor: str) -> str:
         raise HTTPException(
             status_code=502, detail=generator.detail_de_provedor(exc, provedor)
         ) from exc
+    # Fora do `try` de propósito: o helper não levanta exceção, e se um dia
+    # levantar, não pode virar 502 "o provedor recusou". Cobre os seis
+    # raw_text/raw_text2 das três rotas e os AIMessage(content=raw_text).
+    return generator.texto_da_resposta(content, rota)
 
 
 def _extract_json(text: str) -> dict:

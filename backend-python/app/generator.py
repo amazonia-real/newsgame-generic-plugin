@@ -396,6 +396,55 @@ def _nivel_nome(nivel: int, modo_geral: bool, personagem_tipo: str) -> str:
     return "LÚDICO"
 
 
+# ── Normalização da resposta do provedor ──────────────────
+
+def texto_da_resposta(content, contexto: str) -> str:
+    """Devolve o `.content` de uma resposta de LLM SEMPRE como string.
+
+    ⚠️ `.content` NÃO é garantido string. A `langchain-google-genai` 2.1.12
+    devolve LISTA quando a resposta tem mais de uma parte de texto (lista de
+    `str`) ou uma parte de raciocínio (dict `{"type": "thinking"}`) —
+    `chat_models.py:572-588` e `:600-618` da versão instalada. Medido em
+    2026-10-02: 3 de 8 `/generate-one` e as 2 tentativas de um
+    `/analyze-domain` quebraram no `.replace`/`.strip` seguinte.
+
+    Regra: `str` passa intacta; lista junta, sem separador, os itens `str` e
+    os blocos `{"type": "text"}`, e descarta o resto (thinking, reasoning,
+    signature, código). Nunca devolve lista. É a mesma regra do
+    `BaseMessage.text()` do langchain-core 0.3.86 (`messages/base.py:99-118`);
+    existe à parte para registrar a ocorrência, e para não amarrar os pontos
+    de leitura à assinatura do `text()` entre versões (FLAG 012).
+
+    Cada lista encontrada vira UM warning com o tipo original e os tipos dos
+    blocos — nunca o texto, que pode carregar trecho do acervo.
+    """
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        logger.warning(
+            "[texto_da_resposta] %s: content de tipo inesperado %s, tratado como vazio.",
+            contexto, type(content).__name__,
+        )
+        return ""
+    tipos, partes = [], []
+    for bloco in content:
+        if isinstance(bloco, str):
+            tipos.append("str")
+            partes.append(bloco)
+        elif isinstance(bloco, dict):
+            tipo = str(bloco.get("type", "?"))
+            tipos.append(tipo)
+            if tipo == "text" and isinstance(bloco.get("text"), str):
+                partes.append(bloco["text"])
+        else:
+            tipos.append(type(bloco).__name__)
+    logger.warning(
+        "[texto_da_resposta] %s: content veio como %s com %d bloco(s), tipos=%s; %d usado(s).",
+        contexto, type(content).__name__, len(content), tipos, len(partes),
+    )
+    return "".join(partes)
+
+
 # ── Validação de dilema pós-Gemini ────────────────────────
 
 def _extract_json_dilema(text: str) -> dict:
@@ -480,7 +529,29 @@ MARCADORES_CHAVE = (
 
 # Crédito esgotado. Já era tratado como fatal no laço de geração (bare `raise`),
 # mas o `raise` cru virava 500 "Erro interno" na rota — agora vira 502 com causa.
-MARCADORES_CREDITO = ("prepayment", "credits are depleted", "billing")
+#
+# ⚠️ "billing" SAIU em 2026-10-02. A mensagem de COTA do Google — "You exceeded
+# your current quota, please check your plan and billing details" — casava com
+# ele, e o editor lia "falta de crédito" para o limite diário do plano gratuito.
+# Medido no uvicorn.log de 02/10, 22:13. Era o falso positivo registrado em 04/09.
+#
+# "insufficient_quota" é o código da OpenAI para conta SEM CRÉDITO. O texto que o
+# acompanha é o mesmo da cota do Google ("exceeded your current quota… billing"),
+# então sem este marcador ele seria lido como limite que renova — o oposto do real.
+# Vem com status 429, e por isso vale também no ramo de status (ver
+# `_credito_em_429()`).
+MARCADORES_CREDITO = ("prepayment", "credits are depleted", "insufficient_quota")
+
+# Cota / limite de uso. NÃO é crédito: a conta pode ter saldo e bater no teto de
+# requisições. Fatal só quando o próprio provedor diz que a renovação passa de
+# TETO_ESPERA_COTA_S — a cota diária do plano gratuito pede "retry in 22h46m".
+# Limite por minuto continua no caminho de sleep + retry do laço.
+MARCADORES_COTA = (
+    "exceeded your current quota", "quota exceeded",
+    "resource_exhausted", "resourceexhausted",
+)
+STATUS_COTA = (429,)
+TETO_ESPERA_COTA_S = 120
 
 
 # Códigos HTTP que significam "retentar não resolve". São padrão e não dependem
@@ -542,6 +613,61 @@ def _status_por_code(exc: Exception) -> int | None:
     return int(valor) if isinstance(valor, int) else None
 
 
+def _credito_em_429(exc: Exception) -> bool:
+    """True quando um 429 é, na verdade, conta sem crédito.
+
+    Dois provedores mandam crédito esgotado como 429: o Gemini ("prepayment") e a
+    OpenAI ("insufficient_quota"). Nos dois o status, sozinho, diria "limite que
+    renova" — por isso aqui o texto complementa o status, em vez de ser só reserva.
+    """
+    status = _status_http(exc)
+    if status is None:
+        status = _status_por_code(exc)
+    if status not in STATUS_COTA:
+        return False
+    texto = str(exc).lower()
+    return any(m in texto for m in MARCADORES_CREDITO)
+
+
+def erro_de_cota(exc: Exception) -> bool:
+    """True quando o provedor recusou por LIMITE DE USO, e não por crédito."""
+    status = _status_http(exc)
+    if status is not None:
+        return status in STATUS_COTA
+    if _status_por_code(exc) in STATUS_COTA:
+        return True
+    texto = str(exc).lower()
+    return any(m in texto for m in MARCADORES_COTA)
+
+
+def espera_sugerida_s(exc: Exception) -> float | None:
+    """Segundos que o provedor pede antes de tentar de novo, se ele disser.
+
+    O Gemini escreve das duas formas na mesma exceção: "Please retry in
+    22h46m4.68s" e "retry_delay { seconds: 81964 }". Lido no log de 02/10.
+    """
+    texto = str(exc)
+    m = re.search(r"retry_delay\s*\{\s*seconds:\s*(\d+)", texto)
+    if m:
+        return float(m.group(1))
+    m = re.search(r"retry in\s+(?:(\d+)h)?(?:(\d+)m(?!s))?(?:([\d.]+)s)?", texto, re.I)
+    if not m or not any(m.groups()):
+        return None
+    h, mi, s = (float(g) if g else 0.0 for g in m.groups())
+    return h * 3600 + mi * 60 + s
+
+
+def cota_longa(exc: Exception) -> bool:
+    """Cota que não renova durante o lote: retentar só gasta tempo do editor."""
+    if not erro_de_cota(exc):
+        return False
+    texto = str(exc).lower()
+    if "perday" in texto or "per_day" in texto:
+        return True
+    espera = espera_sugerida_s(exc)
+    return espera is not None and espera > TETO_ESPERA_COTA_S
+
+
 class ErroDeProvedor(Exception):
     """
     O provedor RECUSOU a chamada — chave rejeitada, crédito esgotado ou
@@ -588,8 +714,11 @@ def erro_fatal_de_provedor(exc: Exception) -> bool:
 
     Status primeiro (401/403/402), texto como reserva.
 
-    NÃO inclui rate limit (429/quota), que continua no caminho de sleep+retry,
-    nem erro de rede transitório — este último segue caindo no `break` que
+    NÃO inclui rate limit que renova logo (429 por minuto), que continua no
+    caminho de sleep+retry. Inclui a cota LONGA — quando o provedor diz que a
+    renovação passa de TETO_ESPERA_COTA_S, como a diária do plano gratuito do
+    Gemini (2026-10-02) —, porque esperar 60 s por slot contra ela só gasta o
+    tempo do editor. Também não inclui erro de rede transitório — este último segue caindo no `break` que
     devolve None e faz a rota responder 422, porque num lote de 15 slots pular
     um slot é melhor que abortar o lote inteiro. Escopo estreito de propósito:
     trata "o provedor recusou", e não constrói taxonomia de erro.
@@ -599,6 +728,11 @@ def erro_fatal_de_provedor(exc: Exception) -> bool:
     fatal. É o preço de não decidir por substring quando existe informação
     melhor — e resolve o falso positivo do marcador "billing", largo demais.
     """
+    # Crédito disfarçado de 429 vem ANTES da precedência do status: é a única
+    # exceção a ela, e só para os marcadores de crédito (ver `_credito_em_429()`).
+    if _credito_em_429(exc):
+        return True
+
     status = _status_http(exc)
     if status is not None:
         return status in STATUS_CHAVE + STATUS_CREDITO + STATUS_CONFIG
@@ -607,7 +741,11 @@ def erro_fatal_de_provedor(exc: Exception) -> bool:
         return True
 
     texto = str(exc).lower()
-    return erro_de_chave(exc) or any(m in texto for m in MARCADORES_CREDITO)
+    # Crédito ANTES de cota: o Gemini também manda o crédito esgotado como 429
+    # ("prepayment"), e ele não pode ser lido como limite que renova.
+    if erro_de_chave(exc) or any(m in texto for m in MARCADORES_CREDITO):
+        return True
+    return cota_longa(exc)
 
 
 def detail_de_provedor(exc: Exception, provedor: str) -> str:
@@ -661,10 +799,27 @@ def detail_de_provedor(exc: Exception, provedor: str) -> str:
             % (onde, str(exc)[:200])
         )
 
-    if status in STATUS_CREDITO or (status is None and any(m in texto for m in MARCADORES_CREDITO)):
+    if (
+        status in STATUS_CREDITO
+        or _credito_em_429(exc)
+        or (status is None and any(m in texto for m in MARCADORES_CREDITO))
+    ):
         return (
             "O provedor de IA recusou a chamada por falta de crédito na conta "
             "da chave de API. Nenhuma retentativa resolve isso."
+        )
+
+    if erro_de_cota(exc):
+        espera = espera_sugerida_s(exc)
+        plano = " O limite é do plano gratuito." if "free_tier" in texto else ""
+        quando = (
+            " O provedor indica nova tentativa em cerca de %dh%02dm."
+            % (espera // 3600, espera % 3600 // 60) if espera else ""
+        )
+        return (
+            "O provedor de IA recusou a chamada por limite de uso (cota) da chave "
+            "de API, e não por falta de crédito." + plano + quando
+            + " Aguarde a renovação ou use uma chave de um projeto com faturamento ativo."
         )
 
     # Quota estourada, timeout e indisponibilidade caem aqui: mensagem truncada,
@@ -1239,8 +1394,8 @@ def generate_one_dilema(
         try:
             res = llm.invoke([SystemMessage(system), HumanMessage(user)])
 
-            # --- ADICIONE ESTAS LINHAS DE LIMPEZA LOGO APÓS RECEBER O TEXTO DA IA ---
-            response_text = res.content # (Esta linha já existe no seu código)
+            # --- Limpeza logo após receber o texto da IA ---
+            response_text = texto_da_resposta(res.content, f"generate-one slot={req.slot_index}")
             
             # Remove aspas triplas de markdown se o Gemini teimar em enviar
             response_text = response_text.replace("```json", "").replace("```", "").strip()

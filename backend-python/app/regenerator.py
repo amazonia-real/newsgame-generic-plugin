@@ -13,6 +13,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from app.config import get_settings
 from app.generator import (
     _get_llm, _build_prompt, _is_valid_dilema, _nivel_nome, _extract_json_dilema,
+    texto_da_resposta,
     ErroDeProvedor, erro_fatal_de_provedor, detail_de_provedor,
     PROVEDOR_DEFAULT,
 )
@@ -91,7 +92,7 @@ def generate_one(
             res = llm.invoke(
                 [SystemMessage(system), HumanMessage(user)]
             )
-            data_dict = _extract_json_dilema(res.content)
+            data_dict = _extract_json_dilema(texto_da_resposta(res.content, "regenerate"))
             dilema: DilemaNg = DilemaNg(**data_dict)
             
             if req.num_options == 2 and len(dilema.alternativas) > 2:
