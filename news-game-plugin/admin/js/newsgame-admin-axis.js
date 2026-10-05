@@ -70,6 +70,74 @@
       document.querySelector('[name="acervo"]');
   }
 
+  /* Erros de "Analisar Acervo", por família — o `tipo` vem do handler PHP
+     (handle_analyze_domain). O roteiro de três itens só aparece em 'conexao':
+     nos outros ele mandaria conferir uvicorn, token e URL que estão bons.
+     Erro sem tipo é falha antes de chegar ao PHP do plugin — rede do navegador,
+     resposta não-JSON de um fatal —, e tem caixa própria. */
+  var TITULOS_ERRO = {
+    validacao: '⚠️ Não foi possível analisar:',
+    conexao:   '❌ Erro ao conectar com o servidor Python:',
+    backend:   '❌ O servidor Python recusou a análise:',
+    navegador: '❌ Falha na comunicação entre o navegador e o WordPress:'
+  };
+  var ESTILO_CAIXA = 'padding:12px; border-radius:4px; margin-top:8px;' +
+    'font-family:monospace; font-size:12px;';
+  // Texto fixo, sem dado externo: é o único trecho que entra por innerHTML.
+  var ROTEIRO_CONEXAO =
+    'Verifique, nesta ordem:<br>' +
+    '1. O backend Python (uvicorn) está rodando?<br>' +
+    '2. O <em>Token do Backend</em> em News-Game › Configurações é ' +
+    'igual ao <code>API_SECRET_TOKEN</code> do <code>.env</code>?<br>' +
+    '3. A <em>URL do Backend Python</em> em News-Game › Configurações ' +
+    'está correta e acessível a partir deste servidor WordPress?';
+
+  function erroTipado(msg, tipo) {
+    var e = new Error(msg);
+    e.tipo = tipo;
+    return e;
+  }
+
+  // A mensagem entra por textContent: ela pode trazer o corpo cru do backend.
+  function mostrarErro(container, err) {
+    var tipo = TITULOS_ERRO[err.tipo] ? err.tipo : 'navegador';
+    var box  = document.createElement('div');
+    box.style.cssText = ESTILO_CAIXA + (tipo === 'validacao'
+      ? 'background:#fff3cd; border:1px solid #ffc107;'
+      : 'background:#fdf0f0; border:1px solid #dc3232;');
+
+    var titulo = document.createElement('div');
+    titulo.textContent = TITULOS_ERRO[tipo];
+    var msg = document.createElement('strong');
+    msg.style.cssText = 'display:block; margin:8px 0;';
+    msg.textContent = err.message;
+    box.appendChild(titulo);
+    box.appendChild(msg);
+
+    if (tipo === 'conexao') {
+      var roteiro = document.createElement('div');
+      roteiro.innerHTML = ROTEIRO_CONEXAO;
+      box.appendChild(roteiro);
+    }
+    container.innerHTML = '';
+    container.appendChild(box);
+  }
+
+  // 403 é o check_ajax_referer() recusando o nonce: a resposta é "-1", não
+  // JSON de erro, e sem este ramo viraria "Erro desconhecido".
+  async function lerResposta(res) {
+    if (res.status === 403) {
+      throw erroTipado('O WordPress recusou o pedido (HTTP 403) — a sessão pode ' +
+        'ter expirado. Recarregue a página.', 'validacao');
+    }
+    var json = await res.json();
+    if (!json || !json.success) {
+      var d = (json && json.data) || {};
+      throw erroTipado(d.msg || 'Erro desconhecido no servidor.', d.tipo || 'validacao');
+    }
+    return json.data;
+  }
+
   // Anexa o handler de save ao #btn-salvar-matriz.
   // Chamada tanto no DOMContentLoaded (botão pré-renderizado pelo PHP)
   // quanto após o fetch de /analyze-domain criar o botão dinamicamente.
@@ -173,12 +241,7 @@
         formData.append('context_text', campoAcervo.value.trim());
 
         var res  = await fetch(ajaxurl, { method: 'POST', body: formData });
-        var json = await res.json();
-        if (!json.success) {
-          throw new Error((json.data && json.data.msg) || 'Erro desconhecido no servidor.');
-        }
-
-        var data = json.data;
+        var data = await lerResposta(res);
 
         container.innerHTML =
           '<div style="' +
@@ -201,21 +264,7 @@
         ngBindSalvarBtn();
 
       } catch (err) {
-        container.innerHTML =
-          '<div style="' +
-            'background:#fdf0f0; border:1px solid #dc3232;' +
-            'padding:12px; border-radius:4px; margin-top:8px;' +
-            'font-family:monospace; font-size:12px;' +
-          '">' +
-            '❌ Erro ao conectar com o servidor Python:<br><br>' +
-            '<strong>' + err.message + '</strong><br><br>' +
-            'Verifique, nesta ordem:<br>' +
-            '1. O backend Python (uvicorn) está rodando?<br>' +
-            '2. O <em>Token do Backend</em> em News-Game › Configurações é ' +
-            'igual ao <code>API_SECRET_TOKEN</code> do <code>.env</code>?<br>' +
-            '3. A <em>URL do Backend Python</em> em News-Game › Configurações ' +
-            'está correta e acessível a partir deste servidor WordPress?' +
-          '</div>';
+        mostrarErro(container, err);
       } finally {
         btn.disabled = false;
         btn.textContent = '🔍 Analisar Acervo e Propor Eixos';

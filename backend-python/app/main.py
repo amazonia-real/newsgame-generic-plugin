@@ -45,6 +45,11 @@ get_settings()  # falha aqui se API_SECRET_TOKEN não estiver definido
 
 
 def _verify_token(x_api_key: str = Header(default="")) -> None:
+    # ⚠️ O texto "Invalid API key" do 401 abaixo é CONTRATO com o plugin: o
+    # erro_do_backend() do PHP (DETAIL_TOKEN_INVALIDO) o compara por igualdade
+    # para separar este 401 do 401 de chave de provedor ausente. Mudar o texto
+    # exige mudar a constante lá — tests/test_verify_token_contrato.py falha se
+    # as duas pontas divergirem.
     cfg = get_settings()
     if not cfg.api_secret_token:
         raise HTTPException(503, "API_SECRET_TOKEN não configurado.")

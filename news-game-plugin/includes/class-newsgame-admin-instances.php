@@ -1064,22 +1064,34 @@ class Newsgame_Admin_Instances {
 
     public static function handle_analyze_domain() {
         check_ajax_referer( self::NONCE_ANALYZE, 'nonce' );
+        /*
+         * Todo erro desta rota leva um `tipo`, e é ele que decide a caixa na tela
+         * (newsgame-admin-axis.js, `mostrarErro`):
+         *   validacao — o pedido nem saiu do WordPress (permissão, throttle, sem
+         *               ID, acervo vazio). Nada de servidor Python a conferir;
+         *   conexao   — o WordPress não alcançou o backend, ou o backend recusou
+         *               o token. Só aqui aparece o roteiro uvicorn/token/URL;
+         *   backend   — o backend respondeu e recusou, com `detail` próprio.
+         * Erro sem `tipo` (outro handler, resposta não-JSON) cai no genérico do JS.
+         */
         if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array( 'msg' => 'Permissão insuficiente.' ) );
+            wp_send_json_error( array( 'tipo' => 'validacao', 'msg' => 'Permissão insuficiente.' ) );
         }
         // Um clique por instância no uso normal — teto baixo basta.
         if ( Newsgame_Settings::rate_limited( 'analyze_domain', 10 ) ) {
-            wp_send_json_error( array( 'msg' => 'Muitas análises em sequência. Aguarde um minuto — cada análise consome cota da chave do provedor configurado.' ) );
+            wp_send_json_error( array( 'tipo' => 'validacao', 'msg' => 'Muitas análises em sequência. Aguarde um minuto — cada análise consome cota da chave do provedor configurado.' ) );
         }
 
         $instance_id  = (int) ( $_POST['instance_id'] ?? 0 );
         $context_text = sanitize_textarea_field( wp_unslash( $_POST['context_text'] ?? '' ) );
 
+        // O botão já nasce desabilitado sem ID (page-instance-form.php). Esta
+        // guarda fica para o POST que não passa pela tela.
         if ( ! $instance_id ) {
-            wp_send_json_error( array( 'msg' => 'ID de instância inválido.' ) );
+            wp_send_json_error( array( 'tipo' => 'validacao', 'msg' => 'Salve o rascunho da instância antes de analisar o acervo.' ) );
         }
         if ( ! $context_text ) {
-            wp_send_json_error( array( 'msg' => 'context_text não pode estar vazio.' ) );
+            wp_send_json_error( array( 'tipo' => 'validacao', 'msg' => 'Preencha a Descrição do Acervo antes de analisar.' ) );
         }
 
         $backend_url = rtrim( Newsgame_Settings::backend_url(), '/' );
@@ -1106,21 +1118,62 @@ class Newsgame_Admin_Instances {
         );
 
         if ( is_wp_error( $response ) ) {
-            wp_send_json_error( array( 'msg' => 'Falha de conexão com o backend: ' . $response->get_error_message() ) );
+            wp_send_json_error( array( 'tipo' => 'conexao', 'msg' => 'Falha de conexão com o backend: ' . $response->get_error_message() ) );
         }
 
         $status_code = (int) wp_remote_retrieve_response_code( $response );
         if ( $status_code !== 200 ) {
-            $body = wp_remote_retrieve_body( $response );
-            wp_send_json_error( array( 'msg' => "Backend retornou HTTP {$status_code}: " . substr( $body, 0, 300 ) ) );
+            wp_send_json_error( self::erro_do_backend( $status_code, wp_remote_retrieve_body( $response ) ) );
         }
 
         $result = json_decode( wp_remote_retrieve_body( $response ), true );
         if ( ! is_array( $result ) ) {
-            wp_send_json_error( array( 'msg' => 'Resposta inesperada do backend.' ) );
+            wp_send_json_error( array( 'tipo' => 'backend', 'msg' => 'Resposta inesperada do backend.' ) );
         }
 
         wp_send_json_success( $result );
+    }
+
+    /**
+     * Texto EXATO do 401 do `_verify_token()` em backend-python/app/main.py.
+     *
+     * ⚠️ DEPENDÊNCIA DE CONTRATO POR TEXTO. É ele que separa os dois 401 do
+     * backend, e não há outro sinal: os dois chegam com o mesmo código. Se o
+     * texto mudar lá e não aqui, o 401 de token passa a cair em 'backend' — a
+     * tela mostra o `detail`, mas perde o roteiro uvicorn/token/URL. Degrada,
+     * não quebra. A ponta do backend está travada por
+     * `tests/test_verify_token_contrato.py`, que falha se o texto mudar.
+     */
+    const DETAIL_TOKEN_INVALIDO = 'Invalid API key';
+
+    /**
+     * Classifica a resposta não-200 do backend para a tela do editor.
+     *
+     * O backend tem DOIS 401 com causas diferentes: o do `_verify_token()`
+     * (o Token do Backend não bate com o API_SECRET_TOKEN) e o de chave do
+     * PROVEDOR ausente, cujo `detail` já diz qual chave falta. Só o primeiro é
+     * problema de conexão e merece o roteiro; mandar conferir uvicorn/token/URL
+     * no segundo apontaria para o lugar errado. Ver DETAIL_TOKEN_INVALIDO.
+     *
+     * O `detail` vem do JSON do FastAPI quando é string. Quando não é (o 422 de
+     * validação do Pydantic devolve lista) ou o corpo não é JSON, vai o começo
+     * do corpo cru, como antes.
+     *
+     * @param  int    $status_code
+     * @param  string $body
+     * @return array{tipo:string, msg:string}
+     */
+    private static function erro_do_backend( $status_code, $body ) {
+        $json   = json_decode( (string) $body, true );
+        $detail = ( is_array( $json ) && isset( $json['detail'] ) && is_string( $json['detail'] ) )
+            ? $json['detail']
+            : substr( (string) $body, 0, 300 );
+
+        if ( 401 === $status_code && self::DETAIL_TOKEN_INVALIDO === $detail ) {
+            return array( 'tipo' => 'conexao', 'msg' => 'O backend recusou o Token do Backend (HTTP 401).' );
+        }
+
+        return array( 'tipo' => 'backend', 'msg' => "O backend respondeu HTTP {$status_code}: {$detail}" );
     }
 
     /** Gera um slug único para a instância, evitando colisão no DB. */
