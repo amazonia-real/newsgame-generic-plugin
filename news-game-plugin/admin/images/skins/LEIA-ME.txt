@@ -18,6 +18,7 @@ O <slug> é o mesmo da whitelist `Newsgame_Admin_Instances::SKINS`. Hoje:
     skin-colorido.webp
     skin-futurista.webp
     skin-pixel.webp
+    skin-drama.webp
 
 Qualquer outro nome é ignorado em silêncio, e o cartão daquela skin continua
 mostrando o placeholder tracejado — que é estado válido, não erro. A skin segue
@@ -27,7 +28,7 @@ FORMATO E TAMANHO
 -----------------
     WebP, 480 x 270 px (16:9, o dobro dos 240x135 exibidos)
 
-O WebP é FIXO para as seis. A resolução do arquivo é por EXTENSÃO, na ordem
+O WebP é FIXO para todas. A resolução do arquivo é por EXTENSÃO, na ordem
 declarada em `Newsgame_Admin_Instances::SKIN_THUMB_EXTS` — hoje `webp` e depois
 `png`. Ou seja: trocar UMA skin para PNG é soltar o `.png` e apagar o `.webp`
 daquela skin, sem tocar em código.
@@ -36,7 +37,8 @@ A EXCEÇÃO PREVISTA É A `pixel`, e ela é um teste de aceite, não uma decisã
 tomada: pixel art tem transição de 1px entre cores chapadas, e é exatamente o
 tipo de borda que a compressão com perda do WebP costuma sujar. Se a miniatura
 da `pixel` mostrar serrilhado sujo ou halo em volta dos blocos, só ELA vira
-`skin-pixel.png`. As outras cinco são fotografia/degradê e não têm esse risco.
+`skin-pixel.png`. As outras são fotografia/degradê e não têm esse risco — a
+`drama` inclusive: ilustração vetorial, e a miniatura dela é WebP SEM perda.
 
 Enquanto não houver miniatura real, o teste do serrilhado não pode ser feito —
 o que existe é o caminho pronto para ele.
@@ -45,5 +47,5 @@ COMO CONFERIR
 -------------
     admin.php?page=newsgame-instances&action=edit&id=<ID>
 
-O aviso abaixo da grade conta quantas das seis estão sem miniatura em disco e
+O aviso abaixo da grade conta quantas skins estão sem miniatura em disco e
 lista os slugs.

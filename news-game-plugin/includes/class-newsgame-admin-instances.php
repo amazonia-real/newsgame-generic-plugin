@@ -32,7 +32,7 @@ class Newsgame_Admin_Instances {
      * Estava DEFASADO desde 27/08, quando as quatro folhas e o mecanismo de
      * enfileiramento entraram. Corrigido de passagem, não em silêncio.
      */
-    const SKINS = array( 'default', 'neutro', 'mono', 'colorido', 'futurista', 'pixel' );
+    const SKINS = array( 'default', 'neutro', 'mono', 'colorido', 'futurista', 'pixel', 'drama' );
 
     /** Valor de queda quando a skin recebida não está na whitelist acima. */
     const SKIN_DEFAULT = 'default';
@@ -45,7 +45,7 @@ class Newsgame_Admin_Instances {
      *
      * ⚠️ A ORDEM DE `SKIN_THUMB_EXTS` É A REGRA DE RESOLUÇÃO, e é ela que faz a
      * troca de formato de UMA skin ser um arquivo solto no disco em vez de uma
-     * mudança de código. O formato de fábrica é WebP para as seis (arte de 16:9
+     * mudança de código. O formato de fábrica é WebP para todas (arte de 16:9
      * comprime bem e o arquivo fica pequeno).
      *
      * A exceção PREVISTA — e não tomada — é a `pixel`: pixel art tem transição de

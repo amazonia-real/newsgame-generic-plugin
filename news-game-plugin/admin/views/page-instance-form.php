@@ -36,6 +36,7 @@ $rotulos_skin  = array(
     'colorido'  => 'Colorido — vibrante e lúdico',
     'futurista' => 'Futurista — digital, ciano',
     'pixel'     => 'Pixel — videogame 16 bits, amarelo',
+    'drama'     => 'Drama — palco de teatro, vermelho e ouro',
 );
 /*
  * Resumo de uma linha por skin, para o painel de conferência ao lado da grade.
@@ -51,9 +52,10 @@ $resumos_skin  = array(
     'default'   => 'Verde terra sobre fundo escuro, raios 12/8/3. Não carrega folha extra: é a própria base do plugin.',
     'neutro'    => 'Terra queimada e cinzas quentes, raios 8/6/2. Muda só cor e raio — canto mais fechado lê como impresso.',
     'mono'      => 'Preto e branco de fundo escuro, ênfase por peso e não por cor, tipografia serifada. Muda cor, raio e tipografia.',
-    'colorido'  => 'Índigo com magenta e amarelo, raios 16/12/4. Muda só cor e raio — a mais lúdica das seis.',
+    'colorido'  => 'Índigo com magenta e amarelo, raios 16/12/4. Muda só cor e raio — a mais lúdica das sete.',
     'futurista' => 'Azul-preto e ciano, raios 2/2/0 (quase retos). Muda só cor e raio.',
-    'pixel'     => 'Amarelo de caixa de diálogo, fonte de arcade no cromo e três cenários de fábrica em pixel art — capa, dilemas e resultado. É a única com imagem própria.',
+    'pixel'     => 'Amarelo de caixa de diálogo, fonte de arcade no cromo e três cenários de fábrica em pixel art — capa, dilemas e resultado. Uma das duas com imagem própria, ao lado da Drama.',
+    'drama'     => 'Veludo vermelho e ouro de marquise, raios 12/8/3 (os do base), títulos em Pacifico e três cenários de teatro — capa, dilemas e resultado. Cartão escuro.',
 );
 /*
  * Miniaturas resolvidas UMA VEZ, antes da grade, porque o mesmo resultado alimenta
@@ -510,13 +512,13 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           <p class="description">
             Paleta de cores e cantos do jogo publicado. <strong>Padrão</strong> usa
             apenas a folha base, sem arquivo extra.<br>
-            <strong>Cinco das seis skins mudam só cor, raio e tipografia</strong> —
-            não trocam texto, layout nem imagem do jogo. A <strong>Pixel</strong> é a
-            única que também traz <strong>cenários de fábrica</strong> em pixel art —
+            <strong>Cinco das sete skins mudam só cor, raio e tipografia</strong> —
+            não trocam texto, layout nem imagem do jogo. A <strong>Pixel</strong> e a
+            <strong>Drama</strong> também trazem <strong>cenários de fábrica</strong> —
             um para a capa, um para os dilemas e um para o resultado.<br>
             A imagem escolhida dilema a dilema na Mesa Editorial
-            <strong>continua vencendo</strong> em qualquer skin: na Pixel, o
-            cenário aparece só nos dilemas que não têm imagem própria.<br>
+            <strong>continua vencendo</strong> em qualquer skin: na Pixel e na Drama,
+            o cenário aparece só nos dilemas que não têm imagem própria.<br>
             O gráfico do veredito mantém verde/vermelho em todas as skins: essas
             cores significam resultado do jogador, não identidade do veículo.
           </p>

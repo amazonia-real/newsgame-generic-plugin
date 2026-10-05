@@ -1,0 +1,110 @@
+/*
+ * SKIN "DRAMA" — palco de teatro: cortina de veludo vermelho, marquise de
+ * lâmpadas, poltronas. A segunda skin com fundo e fonte de fábrica, depois da
+ * `pixel` — e a primeira que chega SÓ por tokens, sem regra de componente.
+ *
+ * ── O QUE ELA DECLARA ─────────────────────────────────────────────────
+ *   · os 6 canais `-rgb`, e nada de token derivado
+ *   · `--ng-font-title` (token do base desde fc452af) com a Pacifico
+ *   · três regras de `background-image`, uma por momento do jogo
+ * Raios, escala de fonte e o canal `--ng-on-primary-rgb` ficam os do base: a
+ * primária é escura o bastante para o texto creme em cima (5,13:1).
+ *
+ * ── COR — amostrada nas próprias cenas (05/10) ────────────────────────
+ * Destaque e texto vêm da arte (ouro da moldura, creme das lâmpadas); fundo e
+ * cartão do tecido no escuro. A primária é DOIS degraus mais clara que o
+ * vermelho das poltronas (192,24,36): com ele, o botão "Iniciar jogo" contra a
+ * cena ao redor dava 2,89:1, abaixo do mínimo de 3:1 para componente.
+ *
+ * CONTRASTE MEDIDO (WCAG; véu de 42%; percentil 5 por pixel nas cenas WebP
+ * finais, no centro e na faixa de celular, onde o conteúdo assenta com
+ * background-size: cover):
+ *   texto/cena 6,2–14,0 · destaque/cena 5,8–13,5 · texto creme/primária 5,13 ·
+ *   botão/cena 3,24 · texto/cartão-vidro 14,4–14,7 · título/cartão-vidro
+ *   13,9–14,2 · ícone de tela cheia (glifo/placa) ≥ 4,49.
+ * ⚠️ A linha "N perguntas" (`--ng-muted`, 55%) cai a 3,2 na faixa de celular.
+ * É a FLAG 009, do token do base, e não desta skin.
+ *
+ * ── SELETOR ───────────────────────────────────────────────────────────
+ * `.ng-game-wrap.ng-skin-drama` (0-2-0), pelas razões escritas na
+ * `skin-pixel.css`: duas skins na mesma página e imunidade à ordem do CSS.
+ *
+ * ⚠️ CARTÃO ESCURO, por decisão. Um cartão creme com texto escuro não cabe na
+ * regra dos canais (GEMINI.md §5.4, regra 11): `--ng-on-rgb` pinta o texto
+ * dentro do cartão E sobre a cena. Fazer o claro pediria regras de componente,
+ * que o cabeçalho da `pixel` manda tokenizar no base antes de copiar.
+ */
+
+/*
+ * ── Fonte: Pacifico, AUTO-HOSPEDADA, só nos títulos ───────────────────
+ *
+ * Mesma regra da Press Start 2P: nada de Google Fonts por <link> ou @import
+ * (rede de terceiro e IP do leitor). Arquivo em `public/fonts/`, licença SIL
+ * OFL 1.1 ao lado, em `OFL-pacifico.txt` — o `OFL.txt` sem sufixo é o da Press
+ * Start 2P, e as duas licenças têm de acompanhar o pacote.
+ *
+ * Só o subconjunto `latin`, com o `unicode-range` original do Google Fonts:
+ * cobre ã ç é õ e as maiúsculas acentuadas (conferido em 05/10). Fora dele, o
+ * navegador cai para `cursive`.
+ *
+ * Usada SÓ pelo `--ng-font-title`: capa, "Jogo concluído!" e nome do perfil. O
+ * título da pergunta e o corpo seguem na fonte do base.
+ */
+@font-face {
+  font-family: 'Pacifico';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../fonts/pacifico-v23-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+.ng-game-wrap.ng-skin-drama {
+  /* Canais — fonte única de cor. Ver o bloco de tokens do arquivo base. */
+  --ng-bg-rgb:       58, 0, 8;        /* vinho do tecido no escuro */
+  --ng-card-rgb:     40, 0, 6;        /* vinho quase preto */
+  --ng-primary-rgb:  204, 32, 44;     /* vermelho teatro, dois degraus acima das poltronas */
+  --ng-accent-rgb:   255, 222, 120;   /* ouro da moldura e das lâmpadas */
+  --ng-on-rgb:       255, 246, 229;   /* creme: texto e superfície clara */
+  --ng-shadow-rgb:   20, 0, 3;        /* quase preto — mantém o véu escuro */
+
+  --ng-font-title:   'Pacifico', cursive;
+}
+
+/*
+ * ── Fundos de fábrica — o DEGRAU 2 da cascata ──────────────────────────
+ *
+ * Uma cena por momento, como na `pixel`: o JS só marca a classe do momento
+ * (`ng-bg-capa`, `ng-bg-dilema`, `ng-bg-fim`), e esta folha decide a arte. A
+ * imagem escolhida na Mesa Editorial continua vencendo, por estilo inline.
+ *
+ * As `url()` ficam NESTA folha, e não em token, pela razão escrita na `pixel`
+ * (base de resolução de `url()` em custom property diverge entre motores).
+ *
+ * Cenas em WebP com perda, q90, sem canal alfa: a arte é vetorial com degradês,
+ * não pixel art. Conferido em 05/10 no feixe de luz do `fim`: o q90 não cria
+ * bandas, só alisa o pontilhado fino do original.
+ *
+ *   CAPA      · marquise alongada no alto, centro livre para o conteúdo
+ *   DILEMA    · marquise pequena, palco vazio
+ *   RESULTADO · três estrelas e dois feixes de luz sobre o palco
+ */
+.ng-game-wrap.ng-skin-drama.ng-bg-capa {
+  background-image:
+    linear-gradient(var(--ng-overlay), var(--ng-overlay)),
+    url('../../images/skins/drama/capa.webp');
+}
+
+.ng-game-wrap.ng-skin-drama.ng-bg-dilema {
+  background-image:
+    linear-gradient(var(--ng-overlay), var(--ng-overlay)),
+    url('../../images/skins/drama/dilema.webp');
+}
+
+.ng-game-wrap.ng-skin-drama.ng-bg-fim {
+  background-image:
+    linear-gradient(var(--ng-overlay), var(--ng-overlay)),
+    url('../../images/skins/drama/fim.webp');
+}
