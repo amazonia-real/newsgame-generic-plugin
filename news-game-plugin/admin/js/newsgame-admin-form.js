@@ -25,14 +25,12 @@
   var tpl        = document.getElementById('ng-char-tpl');
   var addBtn     = document.getElementById('ng-add-char');
   var jsonInput  = document.getElementById('ng-chars-json');
-  var statusInput= document.getElementById('ng-status-input');
-  var btnDraft   = document.getElementById('ng-btn-draft');
-  var btnReview  = document.getElementById('ng-btn-review');
+  var btnSalvar  = document.getElementById('ng-btn-salvar');
   var btnBack    = document.getElementById('ng-btn-back');
   var afterInput = document.getElementById('ng-after-input');
 
   // Âncora única da tela: #ng-form só existe na criação/edição de instância. Se
-  // ele está no DOM, os outros nove elementos também estão — são irmãos no
+  // ele está no DOM, os outros sete elementos também estão — são irmãos no
   // mesmo bloco de markup. A guarda existe porque o enfileiramento é por hook
   // de tela: sem ela, um dia em que o markup mudar isto vira exceção no console
   // em vez de no-op.
@@ -164,29 +162,26 @@
 
   /* ── Botões de ação ─────────────────────────────────────── */
   /*
-   * Um caminho só para os três botões. `status` vazio mantém o que está no
-   * campo (o status gravado) — é o caso do "Salvar e voltar à lista", que não
-   * tem opinião sobre status. `destino` vai para o handle_save(): 'stay' volta ao
-   * formulário com "Salvo ✓", 'list' volta à listagem.
+   * Um caminho só para os dois botões. Desde 05/10 o formulário não manda
+   * status: ele é DERIVADO no servidor (Newsgame_Status). `destino` vai para o
+   * handle_save(): 'stay' volta ao formulário com "Salvo ✓", 'list' volta à
+   * listagem.
    *
-   * A checagem do título vale agora para os três. Antes só o "Preparar" a fazia,
-   * e o "Rascunho" sem título ia ao servidor, voltava com `title_required` e
-   * perdia tudo o que tinha sido digitado.
+   * O título é checado nos dois, com foco no campo — sem isso o servidor
+   * devolveria `title_required` e o que foi digitado se perderia.
    */
-  function enviar(status, destino) {
+  function enviar(destino) {
     var title = document.getElementById('ng-title');
     if (!title.value.trim()) {
       title.focus();
       title.reportValidity();
       return;
     }
-    if (status) { statusInput.value = status; }
     afterInput.value = destino;
     serialize();
     form.submit();
   }
 
-  btnDraft.addEventListener('click',  function () { enviar('draft', 'stay'); });
-  btnReview.addEventListener('click', function () { enviar('review', 'stay'); });
-  btnBack.addEventListener('click',   function () { enviar('', 'list'); });
+  btnSalvar.addEventListener('click', function () { enviar('stay'); });
+  btnBack.addEventListener('click',   function () { enviar('list'); });
 }());

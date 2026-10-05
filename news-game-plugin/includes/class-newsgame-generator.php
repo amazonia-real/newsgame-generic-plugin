@@ -303,33 +303,9 @@ class Newsgame_Generator {
             ) );
         }
 
-        global $wpdb;
-        $promovida = $wpdb->update(
-            $wpdb->prefix . 'newsgame_instances',
-            array( 'status' => 'review' ),
-            array( 'id'     => $instance_id ),
-            array( '%s' ),
-            array( '%d' )
-        );
-
-        // Retorno conferido — C13, a terceira escrita. Só `false` é falha: 0 é a
-        // instância que já estava em 'review' (segunda geração seguida).
-        //
-        // A mensagem diz que as perguntas FORAM salvas porque foram: os inserts
-        // acima já estão no banco, e "nada foi salvo" seria mentira no sentido
-        // oposto. O que ficou errado é só o status, recuperável salvando o
-        // formulário — mesmo critério do reset de peso no ajax_approve().
-        if ( false === $promovida ) {
-            $erro = $wpdb->last_error ?: 'o banco não informou a causa.';
-            error_log( "[Newsgame] ajax_save_matrix: promoção da instância {$instance_id} para review falhou — MySQL: {$erro}" );
-            wp_send_json_error( array(
-                'msg'    => "As $saved pergunta(s) FORAM salvas, mas o status da instância não passou para"
-                    . ' "Em Revisão". Recarregue a página e use "Salvar e Preparar para Geração ›". Erro do banco: ' . $erro,
-                'saved'  => $saved,
-                'failed' => $failed,
-            ) );
-        }
-
+        // Sem promoção de status desde 05/10: o status é derivado
+        // (Newsgame_Status) e passa a "Em revisão" sozinho quando houver
+        // perguntas e matriz. Com isso saiu a terceira escrita do C13.
         wp_send_json_success( array( 'saved' => $saved, 'failed' => $failed ) );
     }
 

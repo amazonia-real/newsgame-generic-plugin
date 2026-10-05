@@ -322,7 +322,6 @@ class Newsgame_Admin_Instances {
         $nivel_padrao  = in_array( $_POST['nivel_padrao'] ?? '', array( 'ludico', 'pedagogico', 'complexo' ), true )
                             ? sanitize_key( $_POST['nivel_padrao'] )
                             : 'pedagogico';
-        $status        = sanitize_key( $_POST['status'] ?? 'draft' );
         $characters    = self::sanitize_characters( wp_unslash( $_POST['characters_json'] ?? '[]' ) );
 
         if ( ! $title ) {
@@ -337,18 +336,14 @@ class Newsgame_Admin_Instances {
 
         $slug = self::unique_slug( $title, $id );
 
-        // Publicar com aprovados sem peso entregaria veredito genérico ao jogador,
-        // em silêncio. Em vez de rejeitar o save inteiro — que descartaria as demais
-        // edições do formulário —, rebaixa o status para 'review' e avisa. O editor
-        // não perde trabalho e a publicação não acontece.
-        $pendentes_sem_peso = 0;
-        if ( $id && 'published' === $status ) {
-            $pendentes_sem_peso = self::count_unweighted_approved( $id );
-            if ( $pendentes_sem_peso > 0 ) {
-                $status = 'review';
-            }
-        }
-
+        /*
+         * SEM `status` no write, desde 05/10: o status é DERIVADO
+         * (Newsgame_Status), calculado na leitura. A coluna fica no schema como
+         * legado — o INSERT cai no DEFAULT dela e nada a lê. Saiu junto a trava
+         * "publicar com aprovadas sem peso": sem 'published' não há o que travar,
+         * e a pendência de peso virou item do "o que falta".
+         * `$fmt` é posicional: o '%s' do status saiu da mesma posição.
+         */
         $row = array(
             'title'         => $title,
             'slug'          => $slug,
@@ -357,10 +352,9 @@ class Newsgame_Admin_Instances {
             'num_options'   => $num_options,
             'enable_levels' => $enable_levels,
             'nivel_padrao'  => $nivel_padrao,
-            'status'        => $status,
             'characters'    => wp_json_encode( $characters, JSON_UNESCAPED_UNICODE ),
         );
-        $fmt = array( '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s', '%s' );
+        $fmt = array( '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' );
 
         /*
          * A skin entra no write SÓ quando o formulário enviou o campo.
@@ -417,19 +411,6 @@ class Newsgame_Admin_Instances {
                 'action' => $id ? 'edit' : 'new',
                 'id'     => $id ?: null,
                 'error'  => 'db_write',
-            ), admin_url( 'admin.php' ) ) );
-            exit;
-        }
-
-        // Com pendência de pesos, volta para o formulário mesmo com 'list': é onde
-        // estão o aviso e o botão que resolve. Sem pendência, decide o `ng_after`.
-        if ( $pendentes_sem_peso > 0 ) {
-            wp_safe_redirect( add_query_arg( array(
-                'page'   => 'newsgame-instances',
-                'action' => 'edit',
-                'id'     => $id,
-                'saved'  => 1,
-                'error'  => 'unweighted_approved',
             ), admin_url( 'admin.php' ) ) );
             exit;
         }
@@ -560,7 +541,12 @@ class Newsgame_Admin_Instances {
     public static function get_all() {
         global $wpdb;
         return $wpdb->get_results(
-            "SELECT i.*, COUNT(d.id) AS dilema_count
+            // As três últimas contagens alimentam Newsgame_Status::avaliar() na
+            // listagem — o selo sai desta query, sem uma consulta por linha.
+            "SELECT i.*, COUNT(d.id) AS dilema_count,
+                    COALESCE(SUM(d.review_status = 'approved'), 0)                          AS aprovadas,
+                    COALESCE(SUM(d.review_status = 'pending'), 0)                           AS pendentes,
+                    COALESCE(SUM(d.review_status = 'approved' AND d.axis_weights IS NULL), 0) AS sem_peso
              FROM {$wpdb->prefix}newsgame_instances i
              LEFT JOIN {$wpdb->prefix}newsgame_dilemas d ON d.instance_id = i.id
              GROUP BY i.id
@@ -754,8 +740,8 @@ class Newsgame_Admin_Instances {
      *
      * É a pendência que faz o jogo entregar veredito genérico: o gate de
      * newsgame-game.js:342 exige pesoCount > 0 e degrada em silêncio sem ele.
-     * Usado pelo aviso persistente da tela de edição e pelo bloqueio de
-     * publicação em handle_save().
+     * Usado pelo aviso persistente da tela de edição. O bloqueio de publicação
+     * que também o usava saiu em 05/10, com o status derivado.
      */
     public static function count_unweighted_approved( $instance_id ) {
         global $wpdb;

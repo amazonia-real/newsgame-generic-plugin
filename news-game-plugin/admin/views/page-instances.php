@@ -4,8 +4,12 @@ defined( 'ABSPATH' ) || exit;
 $instances = Newsgame_Admin_Instances::get_all();
 $new_url   = add_query_arg( array( 'page' => 'newsgame-instances', 'action' => 'new' ), admin_url( 'admin.php' ) );
 
-$status_labels = array( 'draft' => 'Rascunho', 'review' => 'Em Revisão', 'published' => 'Publicado' );
-$status_colors = array( 'draft' => '#777',     'review' => '#b8860b',     'published' => '#2d7a2d' );
+// Status DERIVADO (Newsgame_Status), não a coluna `status`. Cores de selo.
+$status_colors = array(
+    Newsgame_Status::RASCUNHO => '#777',
+    Newsgame_Status::REVISAO  => '#b8860b',
+    Newsgame_Status::PRONTO   => '#2d7a2d',
+);
 ?>
 <div class="wrap">
   <h1 class="wp-heading-inline">News-Game &mdash; Instâncias</h1>
@@ -52,8 +56,8 @@ $status_colors = array( 'draft' => '#777',     'review' => '#b8860b',     'publi
             add_query_arg( array( 'action' => 'newsgame_delete_instance', 'id' => $inst->id ), admin_url( 'admin-post.php' ) ),
             "newsgame_delete_{$inst->id}"
           );
-          $color = $status_colors[ $inst->status ] ?? '#777';
-          $label = $status_labels[ $inst->status ] ?? $inst->status;
+          $st    = Newsgame_Status::avaliar( $inst, (int) $inst->aprovadas, (int) $inst->pendentes, (int) $inst->sem_peso );
+          $color = $status_colors[ $st['estado'] ];
           $chars = json_decode( $inst->characters ?? '[]', true );
           $chars_preview = $chars ? implode( ', ', array_column( $chars, 'label' ) ) : '—';
         ?>
@@ -65,6 +69,11 @@ $status_colors = array( 'draft' => '#777',     'review' => '#b8860b',     'publi
             </strong>
             <div style="margin-top:3px">
               <code style="font-size:11px">[news-game id="<?php echo (int) $inst->id; ?>"]</code>
+              <?php if ( Newsgame_Status::PRONTO !== $st['estado'] ) : ?>
+                <div style="font-size:11px;color:#b8860b">
+                  ⚠ Ainda não está Pronto — o jogo aparece mesmo assim se o shortcode estiver numa página.
+                </div>
+              <?php endif; ?>
             </div>
             <?php if ( $chars_preview !== '—' ) : ?>
               <div style="font-size:12px;color:#888;margin-top:2px">
@@ -74,8 +83,13 @@ $status_colors = array( 'draft' => '#777',     'review' => '#b8860b',     'publi
           </td>
           <td>
             <span style="color:<?php echo esc_attr( $color ); ?>;font-weight:600">
-              <?php echo esc_html( $label ); ?>
+              <?php echo esc_html( $st['rotulo'] ); ?>
             </span>
+            <?php if ( $st['falta'] ) : ?>
+              <div style="font-size:11px;color:#666;margin-top:2px">
+                <?php echo esc_html( 'Falta: ' . implode( '; ', $st['falta'] ) ); ?>
+              </div>
+            <?php endif; ?>
           </td>
           <td>
             <?php echo (int) $inst->dilema_count; ?> / <?php echo (int) $inst->density; ?>

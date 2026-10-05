@@ -72,7 +72,9 @@ foreach ( Newsgame_Admin_Instances::SKINS as $slug_skin ) {
         $skin_sem_thumb[] = $slug_skin;
     }
 }
-$status        = $is_edit ? $inst->status       : 'draft';
+// Status DERIVADO, calculado na carga da tela (Newsgame_Status). Não se
+// atualiza sozinho depois de ações na Mesa — o selo é da carga.
+$st_inst       = $is_edit ? Newsgame_Status::calcular( $id ) : null;
 $chars         = $is_edit ? (array) json_decode( $inst->characters ?? '[]', true ) : array();
 $axis_matrix   = $is_edit ? ( $inst->axis_matrix ?? '' ) : '';
 
@@ -195,6 +197,15 @@ $page_title = $is_edit
     &larr; Voltar para lista
   </a>
 
+  <?php if ( $st_inst ) : ?>
+    <p id="ng-status-selo" style="margin:0 0 1rem">
+      Status: <strong><?php echo esc_html( $st_inst['rotulo'] ); ?></strong>
+      <?php if ( $st_inst['falta'] ) : ?>
+        &mdash; falta: <?php echo esc_html( implode( '; ', $st_inst['falta'] ) ); ?>.
+      <?php endif; ?>
+    </p>
+  <?php endif; ?>
+
   <?php if ( isset( $_GET['saved'] ) && $is_edit ) : ?>
     <div class="notice notice-success is-dismissible"><p>Salvo ✓</p></div>
   <?php endif; ?>
@@ -225,9 +236,6 @@ $page_title = $is_edit
         gráfico de perfil — e nada avisa o jogador.
         Use <strong>&ldquo;⚖ Pesar os que faltam&rdquo;</strong> na Mesa Editorial, abaixo
         &mdash; ele processa só estas, sem recalcular as que já têm peso.
-        <?php if ( isset( $_GET['error'] ) && 'unweighted_approved' === $_GET['error'] ) : ?>
-          <br><em>A publicação foi bloqueada por isso — o status voltou para &ldquo;Em Revisão&rdquo;.</em>
-        <?php endif; ?>
       </p>
     </div>
   <?php endif; ?>
@@ -237,7 +245,6 @@ $page_title = $is_edit
     <?php if ( $is_edit ) : ?>
       <input type="hidden" name="instance_id" value="<?php echo (int) $id; ?>">
     <?php endif; ?>
-    <input type="hidden" id="ng-status-input" name="status" value="<?php echo esc_attr( $status ); ?>">
     <?php // 'stay' ou 'list' — preenchido pelo botão clicado. Ver handle_save(). ?>
     <input type="hidden" id="ng-after-input" name="ng_after" value="stay">
 
@@ -256,6 +263,10 @@ $page_title = $is_edit
           <p class="description">
             Aparece no painel e gera o shortcode
             <code>[news-game id="<?php echo $is_edit ? (int) $id : 'X'; ?>"]</code>.
+            <?php if ( $st_inst && Newsgame_Status::PRONTO !== $st_inst['estado'] ) : ?>
+              <br><span style="color:#b8860b">⚠ Ainda não está Pronto — o shortcode já
+              mostra o jogo em qualquer página onde estiver, no estado atual.</span>
+            <?php endif; ?>
           </p>
         </td>
       </tr>
@@ -557,13 +568,10 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
 
     <!-- ── Ações ─────────────────────────────────────────── -->
     <div id="ng-sticky-actions">
-      <button type="button" class="button button-secondary" id="ng-btn-draft">
-        Salvar como Rascunho
+      <button type="button" class="button button-primary" id="ng-btn-salvar">
+        Salvar
       </button>
-      <button type="button" class="button button-primary" id="ng-btn-review">
-        Salvar e Preparar para Geração ›
-      </button>
-      <button type="button" class="button-link" id="ng-btn-back">
+      <button type="button" class="button button-secondary" id="ng-btn-back">
         Salvar e voltar à lista
       </button>
       <span id="ng-action-feedback" style="color:#555;font-size:13px"></span>

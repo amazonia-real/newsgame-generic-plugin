@@ -125,6 +125,14 @@ class Newsgame_DB {
         $charset = $wpdb->get_charset_collate();
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
+        /*
+         * ⚠️ A coluna `status` abaixo é LEGADO desde 05/10: nada a lê e nada a
+         * escreve. O status da instância é DERIVADO, calculado na leitura por
+         * Newsgame_Status. Ela fica no schema porque removê-la não traria ganho e
+         * exigiria migração; o INSERT cai no DEFAULT. Os valores que sobraram
+         * nas linhas antigas (draft/review) não significam nada.
+         * Comentário em PHP, e não COMMENT de SQL, para não mudar a definição.
+         */
         dbDelta( "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}newsgame_instances (
             id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             slug         VARCHAR(200)    NOT NULL DEFAULT '',

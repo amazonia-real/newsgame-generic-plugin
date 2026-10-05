@@ -541,7 +541,8 @@ class Newsgame_Review {
         }
 
         /*
-         * Remoção e rebaixamento numa transação — mesmo padrão do handle_delete()
+         * Remoção numa transação (até 05/10, junto com o rebaixamento do status,
+         * que saiu com o status derivado) — mesmo padrão do handle_delete()
          * (0ba8f8c). Antes eram dois passos independentes: medido em 25/09, com o
          * rebaixamento falhando, as perguntas JÁ tinham sido apagadas e a
          * instância ficava em `review` com zero perguntas, sob uma mensagem que
@@ -570,16 +571,10 @@ class Newsgame_Review {
             self::abortar_limpeza( 'o DELETE no banco' );
         }
 
-        // 0 também é legítimo aqui: a instância já estava em rascunho.
-        $rebaixada = $wpdb->update(
-            $wpdb->prefix . 'newsgame_instances',
-            array( 'status' => 'draft' ),
-            array( 'id'     => $instance_id ),
-            array( '%s' ), array( '%d' )
-        );
-        if ( false === $rebaixada ) {
-            self::abortar_limpeza( 'o rebaixamento da instância para rascunho' );
-        }
+        // O rebaixamento para 'draft' que ficava aqui saiu em 05/10: o status é
+        // derivado (Newsgame_Status), e sem perguntas ele já é "Rascunho". A
+        // transação fica: com um só DELETE ela é redundante, mas é o caminho
+        // validado em 25/09, e removê-la não traria ganho.
 
         if ( false === $wpdb->query( 'COMMIT' ) ) {
             self::abortar_limpeza( 'a confirmação da transação' );
@@ -618,8 +613,8 @@ class Newsgame_Review {
         wp_send_json_error( array(
             'msg' => $desfeita
                 ? "Não foi possível remover as perguntas: {$etapa} falhou e a operação"
-                    . ' inteira foi desfeita. Nenhuma pergunta foi apagada e a instância'
-                    . " manteve o status. Erro do banco: {$erro}"
+                    . ' inteira foi desfeita. Nenhuma pergunta foi apagada.'
+                    . " Erro do banco: {$erro}"
                 : "Não foi possível remover as perguntas: {$etapa} falhou, e desfazer a"
                     . ' operação também falhou. Recarregue a página para ver o estado'
                     . " real antes de tentar de novo. Erro do banco: {$erro}",
