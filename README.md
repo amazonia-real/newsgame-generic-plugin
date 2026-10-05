@@ -39,12 +39,17 @@ Corpus de textos do editor
 | `/ingest` | POST | Indexa artigos no ChromaDB |
 | `/analyze-domain` | POST | Infere 3 eixos de tensão do corpus + perfis de jogador |
 | `/assign-weights` | POST | Atribui pesos (-20 a +20) por eixo a cada alternativa |
-| `/generate-verdict` | POST | Seleciona perfil mais próximo e gera texto narrativo |
+| `/generate-verdict` | POST | Seleciona perfil mais próximo e gera texto narrativo — disponível, **não usada pelo jogo** |
 | `/generate-one` | POST | Gera 1 dilema de forma síncrona (chamada por slot) |
 | `/regenerate` | POST | Substitui 1 dilema inválido |
 
-Resolução da chave Gemini em todas as rotas:
-`X-Gemini-Api-Key` (header) → `gemini_api_key` (body) → `GEMINI_API_KEY` (env)
+Todas as rotas, exceto `/health`, exigem o header `X-Api-Key` com o valor de
+`API_SECRET_TOKEN`.
+
+Nas rotas que chamam IA, o **provedor** é resolvido por
+`X-LLM-Provider` (header) → `LLM_PROVIDER` (env) → `gemini`, e a **chave** do
+provedor resolvido por header próprio → campo no body → variável de ambiente
+(tabela em [Provedores de IA](#provedores-de-ia)). O provedor não viaja no body.
 
 ---
 
@@ -53,7 +58,43 @@ Resolução da chave Gemini em todas as rotas:
 - PHP 8.1+ / WordPress 6.x
 - Python 3.11+
 - [ChromaDB](https://www.trychroma.com/) (local ou containerizado)
-- Chave de API [Google Gemini](https://aistudio.google.com/)
+- Chave de API de **um** dos quatro provedores suportados — ver abaixo
+
+---
+
+## Provedores de IA
+
+O plugin funciona com quatro provedores. O editor escolhe o ativo em
+**News-Game → Configurações → Provedor de IA**, e o plugin manda o provedor e a
+chave dele em cada chamada. As variáveis de ambiente do backend são o padrão
+usado quando o painel não manda nada.
+
+| Provedor | `LLM_PROVIDER` | Chave (env) | Header da chave | Modelo (env) | Modelo padrão |
+|---|---|---|---|---|---|
+| Google Gemini | `gemini` | `GEMINI_API_KEY` | `X-Gemini-Api-Key` | `LLM_MODEL` | `gemini-3.6-flash` |
+| DeepSeek | `deepseek` | `DEEPSEEK_API_KEY` | `X-DeepSeek-Api-Key` | `LLM_MODEL_DEEPSEEK` | `deepseek-v4-flash` |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `X-OpenAI-Api-Key` | `LLM_MODEL_OPENAI` | `gpt-5.6-luna` |
+| Anthropic Claude | `claude` | `CLAUDE_API_KEY` | `X-Claude-Api-Key` | `LLM_MODEL_CLAUDE` | `claude-sonnet-5` |
+
+Modelos padrão do código; confirme na lista de modelos do provedor, porque mudam.
+
+- A chave do Claude é **`CLAUDE_API_KEY`**, e não `ANTHROPIC_API_KEY`: o segundo
+  nome é lido pelo próprio SDK da Anthropic e criaria um caminho de autenticação
+  fora do controle do backend.
+- `LLM_MODEL`, sem sufixo, é o modelo do **Gemini**, por compatibilidade.
+- Sem chave no painel e sem chave no `.env`, as rotas de IA respondem 401.
+- Erro de provedor que retentar não resolve (chave recusada, falta de crédito,
+  modelo inexistente, cota que só renova depois de 2 minutos) chega ao editor
+  como recusa com a causa nomeada, e não como "pergunta inválida".
+
+> ⚠️ **O plano gratuito do Gemini não comporta a geração de um jogo.** A cota dele
+> é de **20 requisições por dia** (`generate_content_free_tier_requests, limit: 20`),
+> e pode se esgotar no meio de uma geração. Um jogo de meta *N* gasta, no mínimo,
+> *N* + 2 chamadas: uma para analisar o acervo, uma por pergunta e uma para
+> atribuir os pesos. A isso somam-se
+> a segunda tentativa da análise quando a primeira resposta não valida, as
+> retentativas do lote (até *N* + 3 chamadas) e cada "Pedir Substituta". Use uma
+> chave de projeto com faturamento ativo. O limite é do Google e pode mudar.
 
 ---
 
@@ -66,36 +107,94 @@ cd backend-python
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 pip install -r requirements.txt
-cp .env.example .env          # editar GEMINI_API_KEY, CHROMA_DB_DIR e demais vars
-uvicorn app.main:app --reload --port 8000
+cp .env.example .env          # API_SECRET_TOKEN, CHROMA_DB_DIR e a chave do provedor
+python -m uvicorn app.main:app --port 8000
 ```
+
+- **Use `python -m uvicorn`, e não o executável `uvicorn`.** No Windows com o
+  **Smart App Control** ligado, o `uvicorn.exe` que o pip instala em `Scripts\` não
+  é assinado e pode ser bloqueado. Com `python -m`, quem roda é o `python.exe`, que
+  é assinado.
+- `--reload` é opcional. No Windows ele aceita dois servidores na mesma porta sem
+  erro — ver a **FLAG 013** em `TECH_FLAGS.md` antes de usar.
 
 ### Plugin WordPress
 
 Copie (ou crie link simbólico de) `news-game-plugin/` para
 `wp-content/plugins/news-game-plugin/` e ative pelo painel do WordPress.
 
-Configure a URL do backend em **News Game → Configurações**.
+Em **News-Game → Configurações**:
+
+- **URL do Backend Python** — o endereço onde o uvicorn responde, visto **do
+  servidor WordPress** (por exemplo `http://localhost:8000`). O navegador do
+  jogador nunca fala com o backend: todas as chamadas passam pelo PHP.
+- **Token do Backend** — o mesmo valor de `API_SECRET_TOKEN` do `.env`. O plugin o
+  manda no header `X-Api-Key` em toda chamada; diferente, o backend responde 401.
+- **Provedor de IA** e a **chave** do provedor escolhido.
+
+> ⚠️ **As chaves ficam em texto claro no banco do WordPress** (`wp_options`), sem
+> criptografia — ver a **FLAG 011**, que segue sem decisão. Elas aparecem no HTML da
+> tela de configurações (o campo é do tipo senha, mas o valor está no código-fonte da
+> página), e a chave do Gemini e o Token do Backend são carregados em todo request
+> (`autoload`). O plugin **não** oferece mitigação técnica hoje. Na operação:
+> restrinja a chave no console do provedor à API de geração e com teto de gasto;
+> mantenha poucas contas com permissão de administrador; trate backups do banco
+> como material sensível; e, se o banco vazar, rotacione as chaves e o token.
 
 ---
 
 ## Fluxo do editor
 
-1. Cria uma instância em **News Game → Instâncias**
-2. Cola o corpus de textos (reportagens, artigos) na aba de ingestão
-3. Clica em **Analisar domínio** — a IA propõe 3 eixos de tensão e 4–6 perfis de jogador
-4. Edita/aprova os eixos e perfis no textarea
-5. Clica em **Gerar dilemas** — o backend produz dilemas calibrados pelo corpus
-6. Revisa dilema a dilema; substitui os insatisfatórios com **Regenerar**
-7. Publica — o shortcode `[news-game id="1"]` renderiza o jogo em qualquer página (ID numérico da instância)
+1. **Acervo** — em **News-Game → Configurações**, "Sincronizar Acervo" extrai os
+   posts e páginas publicados do próprio site, e "Indexar Acervo no Backend" os
+   envia ao ChromaDB.
+2. **Instância** — em **News-Game → Instâncias**, cria a instância: nome,
+   descrição do acervo, meta de perguntas (4 a 15), 2 ou 3 opções, perfil do jogo,
+   skin e personagens. **Salvar** fica na tela; **Salvar e voltar à lista** volta à
+   listagem.
+3. **Eixos** — "Analisar Acervo e Propor Eixos" (liberado depois do primeiro
+   salvamento): a IA propõe 3 eixos de tensão e os perfis de jogador. O editor
+   ajusta o JSON e clica em "Confirmar e Salvar Matriz de Eixos".
+4. **Perguntas** — "Gerar Perguntas Agora" (ou "Gerar as que faltam (N)", quando já
+   há perguntas) gera só o que falta para aprovadas + pendentes chegarem à meta. As
+   novas entram como **pendentes**.
+5. **Mesa Editorial** — abas Pendentes, Aprovadas e Descartadas:
+   - **Aprovar** (com as edições feitas nos campos) e **Aprovar Todas as Pendentes**;
+   - **Descartar**;
+   - **Pedir Substituta** — gera uma pergunta nova no lugar; a original vai para
+     Descartadas só depois que a substituta é gravada;
+   - **Devolver para Revisão** — leva uma aprovada ou descartada de volta a pendente,
+     na menor posição livre.
+6. **Pesos** — cada alternativa recebe um peso de -20 a +20 em cada eixo; é o que
+   alimenta o perfil do jogador. "Aprovar Todas" já pede os pesos das que aprova,
+   numa chamada só, quando a instância tem matriz de eixos; a aprovação uma a uma
+   não pede. "⚖ Pesar os que faltam" cobre o resto, e "reatribuir todos" refaz
+   todos — necessário depois de trocar a matriz de eixos. Aprovar ou salvar uma
+   pergunta com o texto alterado apaga o peso dela, que passa a faltar.
+7. **Status** — calculado sozinho, nunca escolhido:
+   - **Rascunho** — falta a matriz de eixos e perfis, ou não há pergunta;
+   - **Em revisão** — tem matriz e perguntas, mas ainda não está Pronto;
+   - **Pronto** — aprovadas ≥ meta e todas com peso: o jogo entrega o veredito
+     completo.
+
+   A listagem e o formulário mostram **o que falta**. O status volta de Pronto
+   para Em revisão sozinho se o editor devolver ou descartar uma aprovada, ou
+   aumentar a meta.
+8. **Publicar** — o shortcode `[news-game id="1"]` (ID numérico da instância)
+   renderiza o jogo em qualquer página. ⚠️ **O status não bloqueia o shortcode:**
+   ele mostra o jogo no estado atual em qualquer página onde estiver, Pronto ou não.
 
 ## Fluxo do jogador
 
 1. Responde dilemas apresentados sequencialmente
 2. Cada escolha acumula pesos nos 3 eixos da instância
-3. Ao final, `/generate-verdict` calcula o vetor do jogador e seleciona o perfil
-   mais próximo por distância euclidiana
-4. Exibe: nome do perfil + força dominante + ponto cego + chamada de compartilhamento
+3. Ao final, o próprio navegador calcula o vetor do jogador e escolhe o perfil mais
+   próximo por distância euclidiana — sem chamada ao backend nem à IA
+4. Exibe: gráfico dos 3 eixos + nome do perfil + descrição do perfil + botões
+   "Compartilhar" (copia o endereço) e "Jogar novamente"
+
+Sem eixos, sem perfis ou sem nenhuma resposta com peso, o jogo mostra um fim
+genérico, sem perfil.
 
 ---
 
@@ -130,10 +229,17 @@ news-game/
 
 | Variável | Obrigatória | Padrão | Descrição |
 |----------|-------------|--------|-----------|
-| `GEMINI_API_KEY` | Sim* | — | Chave da API Google Gemini |
-| `CHROMA_DB_DIR` | Sim | `/data/chroma_db` | Caminho do banco vetorial (ajustar no Windows) |
 | `API_SECRET_TOKEN` | Sim | — | Token para autenticar chamadas do plugin WP. Obrigatório e sem valor padrão: a aplicação se recusa a subir sem ele |
-| `LLM_MODEL` | Não | `gemini-3.6-flash` | Modelo Gemini usado na geração |
+| `CHROMA_DB_DIR` | Sim | `/data/chroma_db` | Caminho do banco vetorial (ajustar no Windows) |
+| `LLM_PROVIDER` | Não | `gemini` | Provedor quando o painel não manda `X-LLM-Provider`: `gemini`, `deepseek`, `openai` ou `claude` |
+| `GEMINI_API_KEY` | Não* | — | Chave do Gemini |
+| `DEEPSEEK_API_KEY` | Não* | — | Chave do DeepSeek |
+| `OPENAI_API_KEY` | Não* | — | Chave da OpenAI |
+| `CLAUDE_API_KEY` | Não* | — | Chave do Claude (não `ANTHROPIC_API_KEY`) |
+| `LLM_MODEL` | Não | `gemini-3.6-flash` | Modelo do **Gemini** |
+| `LLM_MODEL_DEEPSEEK` | Não | `deepseek-v4-flash` | Modelo do DeepSeek |
+| `LLM_MODEL_OPENAI` | Não | `gpt-5.6-luna` | Modelo da OpenAI |
+| `LLM_MODEL_CLAUDE` | Não | `claude-sonnet-5` | Modelo do Claude |
 | `LLM_TEMPERATURE` | Não | `0.3` | Temperatura do modelo |
 | `EMBED_MODEL` | Não | `paraphrase-multilingual-MiniLM-L12-v2` | Modelo de embeddings |
 | `RAG_FETCH_K` | Não | `20` | Documentos buscados antes do MMR |
@@ -142,7 +248,11 @@ news-game/
 | `MAX_RETRIES_BATCH` | Não | `5` | Tentativas por dilema antes de desistir |
 | `RATE_LIMIT_SLEEP` | Não | `60` | Segundos de espera ao atingir rate limit |
 
-*Pode ser fornecida por header ou body em vez de variável de ambiente.
+*Todas opcionais no `.env`: a chave pode chegar por header (é o que o painel faz)
+ou pelo body. Preencha só a do provedor que o backend deve atender sozinho.
+
+⚠️ O backend **recusa subir** com variável no `.env` que não exista em
+`config.py` (`extra='forbid'`). Não acrescente nomes por conta própria.
 
 ---
 

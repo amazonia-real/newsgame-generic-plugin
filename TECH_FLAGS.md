@@ -1259,6 +1259,22 @@ quarto em 2026-09-14:
 mesma forma: estado de ambiente esquecido ligado, que depois contamina a
 interpretação de um teste.
 
+### Nota de 2026-10-05 — o executável `uvicorn.exe` bloqueado pelo Smart App Control
+
+Outra armadilha de subir o uvicorn no Windows, medida nesta máquina, só lendo:
+- **Smart App Control ligado** — `HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy`,
+  `VerifiedAndReputablePolicyState = 1`
+- **Bloqueio registrado** — log `Microsoft-Windows-CodeIntegrity/Operational`, evento
+  **3077** em 02/10/2026 às 17:14: o `powershell.exe` tentou carregar
+  `C:\Program Files\Python314\Scripts\uvicorn.exe`, que não atendeu ao nível de
+  assinatura exigido
+- **A saída é `python -m uvicorn`**: quem roda passa a ser o `python.exe`, que é
+  assinado. É o que o README recomenda desde 05/10, sem as medições, que ficam aqui
+
+O bloqueio medido foi do `uvicorn.exe` do Python do **sistema**. O do `.venv` é o mesmo
+tipo de executável gerado pelo pip, mas **não foi visto bloqueado** — o README diz
+"pode ser bloqueado" por isso.
+
 ---
 
 ## FLAG 014 — Impacto zerado em 24 de 24 dilemas: restrição declarada onde o LLM não lê
@@ -1668,6 +1684,44 @@ de modelo inválido (a saída 3 citava "404/400") segue sem degrau próprio — 
 distingue modelo inválido de payload malformado. E qualquer erro sem status e sem
 marcador continua caindo no 422, que segue sendo o destino padrão.
 
+### Atualização de 2026-10-02 — cota separada de crédito (`852daaf`)
+
+**O falso positivo do `"billing"` aconteceu de verdade.** Em 02/10, às 22:13, no
+`uvicorn.log`: a cota diária do plano gratuito do Gemini — 429, *"You exceeded your
+current quota, please check your plan and **billing** details"*,
+`generate_content_free_tier_requests, limit: 20`, *"Please retry in 22h46m"* — chegou
+ao editor como **falta de crédito**, porque `"billing"` estava em `MARCADORES_CREDITO`.
+Era o marcador "largo demais" que a saída 1 desta flag já citava como precedente.
+
+**A correção:**
+- `"billing"` **saiu** de `MARCADORES_CREDITO`. Entrou `"insufficient_quota"`, o código
+  da OpenAI para conta **sem crédito**, que vem com status 429 e com o mesmo texto da
+  cota do Google — sem ele, crédito esgotado na OpenAI seria lido como limite que
+  renova. Vale também no ramo de status (`_credito_em_429()`).
+- Cota ganhou classificação própria, separada de crédito: `MARCADORES_COTA`
+  (`"exceeded your current quota"`, `"quota exceeded"`, `"resource_exhausted"`,
+  `"resourceexhausted"`) e `STATUS_COTA = (429,)`.
+- Cota só é **fatal** quando não renova durante o lote (`cota_longa()`): a mensagem
+  traz `perday`/`per_day`, ou o provedor pede espera maior que `TETO_ESPERA_COTA_S`
+  (**120 s**), lida do "retry in …". Limite por minuto continua no caminho de espera e
+  retentativa do laço.
+- Mensagem própria em `detail_de_provedor()`: *"recusou a chamada por limite de uso
+  (cota) da chave de API, e não por falta de crédito"*, com "O limite é do plano
+  gratuito" quando o texto traz `free_tier`, e o prazo de renovação quando o provedor
+  o informa.
+
+✅ *Teste unitário:* `tests/test_classificador_cota.py`, **5 testes, OK** (rodados de
+novo em 05/10), com as exceções **reais** de `google.api_core` e `openai`. Contra o
+`generator.py` anterior ao `852daaf`, 3 dos 5 falham. **Rótulo de cada texto, como
+está no teste:** só a mensagem de cota do Gemini é **real** (copiada do log de 02/10); a
+de crédito do Gemini é **fragmento** (o único registro é o commit `06449b0`); as duas da
+OpenAI são **sintéticas**.
+
+⚠️ **NÃO REPRODUZIDO em runtime depois da correção.** Nenhuma chamada real com cota
+esgotada passou pelo classificador novo: a chave trocada às 22:38 do mesmo dia não bateu
+no limite. A mensagem nova nunca foi vista pelo editor. E a prova dependeria do log do
+backend, que não é escrito em arquivo desde 03/10 (ver a FLAG 019).
+
 **Onde está:**
 - `backend-python/app/generator.py` — `_status_http()` (`:495`), `MARCADORES_CHAVE`
   (`:472`), `MARCADORES_CREDITO` (`:485`), `erro_de_chave()` (`:540`),
@@ -1827,6 +1881,76 @@ veredito original). ⚠️ **`%TEMP%` é volátil:** mover para fora de lá se p
 **Ver também:** item "substituta id 68" no bloco de 16/09 da §10 do `CLAUDE.md`, e a
 família das escritas que regravam campo não enviado — o `image_id` já é tratado com
 `isset()` em `edited_fields()` justamente para não apagar o que o chamador não mandou.
+
+---
+
+## FLAG 019 — Gemini devolve `.content` como LISTA, e não como string, de forma intermitente
+
+**Status:** 🟡 **Mitigado no código, NÃO REPRODUZIDO depois da mitigação.** Registrado
+em 2026-10-05, sobre medições de 2026-10-02. O helper `texto_da_resposta()` entrou no
+`852daaf` e **nunca foi exercitado em runtime contra uma lista real**.
+
+### O que foi medido (02/10, `uvicorn.log`)
+
+| Rota | Quando | Erro | Resposta |
+|---|---|---|---|
+| `/analyze-domain` | 17:27:12 → 17:28:04 (**52 s**), e a tentativa 2 às 17:28:11 | `'list' object has no attribute 'strip'` nas duas tentativas | **422** — o erro saiu do `try` de validação da rota (o `text.strip()` do `_extract_json`), e não de dentro do `llm.invoke` |
+| `/generate-one` | 17:47:05, 17:50:34 e 17:52:15 — **3 de 8 chamadas** | `AttributeError("'list' object has no attribute 'replace'")` | **422** cada. Não é rate limit, então cai no `break`: o slot teve **uma** tentativa, embora `max_retries_batch=5` |
+
+**Na fonte instalada** (`langchain-google-genai` 2.1.12, `chat_models.py:572-588` e
+`:600-618`, conferido de novo em 05/10), o `content` vira lista em dois casos: resposta
+com **mais de uma parte de texto** (lista de `str`) ou com uma parte `thought` (dict
+`{"type": "thinking"}`). **Qual dos dois aconteceu em 02/10 NÃO está medido.**
+
+### A mitigação (`852daaf`)
+
+`generator.texto_da_resposta()`, aplicado nos três pontos que leem `.content`:
+`generate_one_dilema`, `regenerator.generate_one` e `main._invoke_llm` (o ponto único
+das rotas de `main.py`, auto-reparo incluído). Para lista, junta os itens `str` e os
+blocos `type == "text"`, descarta o resto e registra **um** warning
+`[texto_da_resposta]` com os **tipos** de bloco, nunca o texto.
+
+✅ *Teste unitário:* `tests/test_texto_da_resposta.py`, 6 testes. O controle sem o
+helper reproduz o defeito (5 tentativas e `None`); com o helper, 1 tentativa e o dilema
+válido. *Isto é teste de unidade com `content` montado à mão, não resposta real do
+provedor.*
+
+### Não reproduzido
+
+Sonda em runtime em 02/10, às 22:38, **com outra chave e outro projeto do Google**: 8
+`/generate-one` e 2 `/analyze-domain` direto no backend, **10/10 com HTTP 200**,
+`/generate-one` em 3–4 s e `/analyze-domain` em 9 s, e **zero** linhas
+`[texto_da_resposta]` — todas as respostas vieram como string.
+
+- **A causa não foi isolada:** a chave e o projeto mudaram juntos.
+- **Hipótese, não medição:** os ~50 s com lista à tarde, contra 3–4 s com string à
+  noite, batem com a latência de raciocínio ligado da **FLAG 017** (~56 s contra ~4 s).
+  Raciocínio ligado apesar do `thinking_budget=0` explicaria a parte `thought` e, com
+  ela, a lista. Nada disso foi medido.
+
+### Como reabrir
+
+A linha `[texto_da_resposta]` no log do backend traz os tipos de bloco e decide sozinha
+entre "várias partes de texto" (`str`) e "raciocínio" (`thinking`).
+
+⚠️ **O sinal de reabertura depende de um log que hoje não existe.** O
+`backend-python/uvicorn.log` não é escrito desde 03/10, às 00:08: o uvicorn em execução
+loga só no terminal. Um warning `[texto_da_resposta]` emitido agora **se perde** quando
+o terminal fecha. Um log próprio do backend em arquivo foi pedido em 05/10 como
+proposta, e ainda não foi entregue nem aplicado.
+
+**Onde está:**
+- `backend-python/app/generator.py` — `texto_da_resposta()` e o ponto de leitura em
+  `generate_one_dilema()`
+- `backend-python/app/regenerator.py` — `generate_one()`
+- `backend-python/app/main.py` — `_invoke_llm()`
+- `backend-python/tests/test_texto_da_resposta.py`
+
+**Ver também:** **FLAG 001** (o auto-reparo reenvia a resposta anterior e o
+`_extract_json` faz `.strip()` sobre ela: é o laço que quebrava, e o helper fica
+**antes** dele), **FLAG 012** (o formato de `.content` não é garantido por contrato
+entre SDKs, e o upgrade para `google-genai` precisa revalidar este helper junto com a
+FLAG 001), **FLAG 017** (a hipótese do raciocínio ligado).
 
 ---
 
