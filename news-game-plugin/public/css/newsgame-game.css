@@ -167,6 +167,19 @@
 
   /* Tipografia — ver a nota "NÃO são uma escala" acima */
   --ng-font:         -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /*
+   * Fonte dos TÍTULOS de tela — capa, "Jogo concluído!" e nome do perfil no
+   * veredito (`.ng-screen h2` e `.ng-verdict-result h2`). Padrão = --ng-font, o
+   * que torna o token invisível para quem não o sobrescreve: prova de 05/10,
+   * estilo computado idêntico antes e depois nas 6 skins de então.
+   *
+   * O título da PERGUNTA (`.ng-dilema-title`) NÃO usa este token, por decisão:
+   * fica na fonte do corpo. Fonte de título é ornamento, e a pergunta é leitura.
+   *
+   * Declarado no mesmo elemento que --ng-font, então o `var()` resolve com o
+   * --ng-font da skin — a `mono` mantém a serifada no título sem declarar nada.
+   */
+  --ng-font-title:   var(--ng-font);
   --ng-fs-1:         0.68rem;
   --ng-fs-2:         0.7rem;
   --ng-fs-3:         12px;  /* px de propósito: não controlamos a raiz do tema hospedeiro */
@@ -753,6 +766,7 @@
 }
 
 .ng-screen h2 {
+  font-family:     var(--ng-font-title);
   font-size:       var(--ng-fs-12);
   color:           var(--ng-accent);
   margin:          0 0 0.75rem;
@@ -842,6 +856,7 @@
 }
 
 .ng-verdict-result h2 {
+  font-family:     var(--ng-font-title);
   font-size:       var(--ng-fs-11);
   color:           var(--ng-accent);
   margin:          0 0 1.5rem;
