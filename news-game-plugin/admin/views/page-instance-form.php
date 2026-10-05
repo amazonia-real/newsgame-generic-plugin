@@ -195,6 +195,10 @@ $page_title = $is_edit
     &larr; Voltar para lista
   </a>
 
+  <?php if ( isset( $_GET['saved'] ) && $is_edit ) : ?>
+    <div class="notice notice-success is-dismissible"><p>Salvo ✓</p></div>
+  <?php endif; ?>
+
   <?php if ( isset( $_GET['error'] ) && 'title_required' === $_GET['error'] ) : ?>
     <div class="notice notice-error"><p>O nome do jogo é obrigatório.</p></div>
   <?php endif; ?>
@@ -234,6 +238,8 @@ $page_title = $is_edit
       <input type="hidden" name="instance_id" value="<?php echo (int) $id; ?>">
     <?php endif; ?>
     <input type="hidden" id="ng-status-input" name="status" value="<?php echo esc_attr( $status ); ?>">
+    <?php // 'stay' ou 'list' — preenchido pelo botão clicado. Ver handle_save(). ?>
+    <input type="hidden" id="ng-after-input" name="ng_after" value="stay">
 
     <!-- ── Identificação ─────────────────────────────────── -->
     <h2 class="ng-section-title">Identificação</h2>
@@ -278,9 +284,20 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
             id="btn-analisar-eixos"
             class="button button-secondary"
             style="margin-top: 8px;"
+            <?php
+            // Sem ID não há onde gravar a matriz — o handler recusaria com erro.
+            // Desabilitado no PHP, e não no JS, para não piscar habilitado.
+            disabled( ! $is_edit );
+            if ( ! $is_edit ) : ?>aria-describedby="ng-analisar-dica"<?php endif; ?>
           >
             🔍 Analisar Acervo e Propor Eixos
           </button>
+          <?php if ( ! $is_edit ) : ?>
+            <p class="description" id="ng-analisar-dica">
+              Salve o rascunho antes — a análise grava os eixos nesta instância,
+              e ela só passa a existir no primeiro salvamento.
+            </p>
+          <?php endif; ?>
 
           <div id="container-eixos-dinamicos" style="margin-top: 16px;"><?php if ( $axis_matrix ) : ?>
             <div style="background:#f0f7f0; border:1px solid #00a32a; padding:16px; border-radius:4px;">
@@ -545,6 +562,9 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
       </button>
       <button type="button" class="button button-primary" id="ng-btn-review">
         Salvar e Preparar para Geração ›
+      </button>
+      <button type="button" class="button-link" id="ng-btn-back">
+        Salvar e voltar à lista
       </button>
       <span id="ng-action-feedback" style="color:#555;font-size:13px"></span>
     </div>

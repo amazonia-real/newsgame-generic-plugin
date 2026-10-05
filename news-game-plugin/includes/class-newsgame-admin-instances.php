@@ -418,8 +418,8 @@ class Newsgame_Admin_Instances {
             exit;
         }
 
-        // Com pendência de pesos, volta para o formulário: é onde estão o aviso e o
-        // botão que resolve. Sem pendência, mantém o destino histórico (a listagem).
+        // Com pendência de pesos, volta para o formulário mesmo com 'list': é onde
+        // estão o aviso e o botão que resolve. Sem pendência, decide o `ng_after`.
         if ( $pendentes_sem_peso > 0 ) {
             wp_safe_redirect( add_query_arg( array(
                 'page'   => 'newsgame-instances',
@@ -431,11 +431,32 @@ class Newsgame_Admin_Instances {
             exit;
         }
 
-        wp_safe_redirect( add_query_arg( array(
-            'page'  => 'newsgame-instances',
-            'saved' => 1,
-            'id'    => $id,
-        ), admin_url( 'admin.php' ) ) );
+        /*
+         * Destino do save: só 'stay' ou 'list', padrão 'stay'. 'stay' volta ao
+         * formulário com `saved=1` — o editor segue trabalhando, e na criação a
+         * tela volta já com o ID recém-inserido, o que libera "Analisar Acervo"
+         * e a seção de geração. 'list' é o "Salvar e voltar à lista", o destino
+         * histórico. Valor ausente ou fora da lista vale 'stay'.
+         *
+         * `saved` e `error` estão em wp_removable_query_args(): o core os tira da
+         * barra de endereço depois da carga, e um F5 não repete o aviso.
+         */
+        $ng_after = sanitize_key( $_POST['ng_after'] ?? '' );
+        if ( ! in_array( $ng_after, array( 'stay', 'list' ), true ) ) {
+            $ng_after = 'stay';
+        }
+
+        $destino = array(
+            'page'   => 'newsgame-instances',
+            'action' => 'edit',
+            'id'     => $id,
+            'saved'  => 1,
+        );
+        if ( 'list' === $ng_after ) {
+            unset( $destino['action'] );
+        }
+
+        wp_safe_redirect( add_query_arg( $destino, admin_url( 'admin.php' ) ) );
         exit;
     }
 
