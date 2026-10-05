@@ -329,6 +329,35 @@
 
   restaurarRelatorio();
 
+  /* ── Painel em dia sem F5, depois de ações na Mesa Editorial ── */
+  // A Mesa já reconta as abas a cada ação e avisa por `ng:contagens`. Aqui se
+  // refaz a conta do PHP (page-instance-form.php): meta − aprovadas − pendentes.
+  // A meta é a gravada (cfg.meta), a mesma do ajax_start().
+  function textoMeta(deficit) {
+    if (deficit <= 0) { return 'A meta já está preenchida.'; }
+    if (deficit === 1) { return 'Será gerada apenas 1 pergunta, a que falta.'; }
+    return 'Serão geradas apenas as ' + deficit + ' que faltam.';
+  }
+
+  function pintarPainel(c) {
+    var deficit = (parseInt(cfg.meta, 10) || 0) - c.approved - c.pending;
+    var linha   = document.getElementById('ng-gen-contagem');
+    if (linha) {
+      linha.textContent = c.approved + c.pending > 0
+        ? 'Aprovadas: ' + c.approved + ', pendentes: ' + c.pending + '. ' + textoMeta(deficit)
+        : '';
+    }
+    genBtn.textContent = c.approved + c.pending + c.discarded > 0 && deficit > 0
+      ? '▶ Gerar as que faltam (' + deficit + ')'
+      : '▶ Gerar Perguntas Agora';
+  }
+
+  document.addEventListener('ng:contagens', function (ev) {
+    // Lote em curso, ou recarga agendada: o rótulo é do lote, não da Mesa.
+    if (genBtn.disabled) { return; }
+    pintarPainel(ev.detail);
+  });
+
   /* ── Botão de Reset ──────────────────────────────────── */
   if (resetBtn) {
     resetBtn.addEventListener('click', function () {

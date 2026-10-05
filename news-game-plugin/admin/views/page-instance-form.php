@@ -615,6 +615,11 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     enviará à IA e salvará as perguntas em <code>wp_newsgame_dilemas</code>.
     Meta: <strong><?php echo (int) $density; ?> perguntas</strong>
     com <strong><?php echo (int) $num_options; ?> opções de resposta</strong><?php echo $enable_levels ? ', níveis ativados' : ''; ?>.
+    <?php
+    // O span existe sempre, mesmo vazio: o JS o reescreve depois de ações na
+    // Mesa Editorial (evento `ng:contagens`, newsgame-admin-generation.js).
+    ?>
+    <span id="ng-gen-contagem">
     <?php if ( $approved_count + $pending_count > 0 ) : ?>
       Aprovadas: <strong><?php echo (int) $approved_count; ?></strong>,
       pendentes: <strong><?php echo (int) $pending_count; ?></strong>.
@@ -626,6 +631,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
         Serão geradas apenas as <strong><?php echo (int) $deficit; ?></strong> que faltam.
       <?php endif; ?>
     <?php endif; ?>
+    </span>
   </p>
 
   <button type="button" id="ng-generate-btn" class="button button-primary button-large">

@@ -543,8 +543,14 @@
   }
 
   /* ── Atualiza contagens nas abas ────────────────────────── */
+  /* Depois das três contagens, avisa a tela por evento `ng:contagens` — quem
+     escuta é o painel de geração (newsgame-admin-generation.js). Só com as três:
+     o ajaxCall não chama o callback em falha, e um painel pintado com contagem
+     parcial mostraria um déficit que não existe. */
   function refreshCounts() {
-    ['pending', 'approved', 'discarded'].forEach(function (tab) {
+    var totais = {};
+    var abas   = ['pending', 'approved', 'discarded'];
+    abas.forEach(function (tab) {
       ajaxCall({
         action:      cfg.actionLoad,
         nonce:       nonce,
@@ -552,9 +558,12 @@
         status:      tab,
         page:        1,
       }, function (r) {
-        if (r.success) {
-          var el = document.getElementById('ng-count-' + tab);
-          if (el) el.textContent = r.data.total;
+        if (!r.success) { return; }
+        var el = document.getElementById('ng-count-' + tab);
+        if (el) el.textContent = r.data.total;
+        totais[tab] = parseInt(r.data.total, 10) || 0;
+        if (Object.keys(totais).length === abas.length) {
+          document.dispatchEvent(new CustomEvent('ng:contagens', { detail: totais }));
         }
       });
     });
