@@ -21,6 +21,7 @@ require_once NEWSGAME_DIR . 'includes/class-newsgame-shortcodes.php';
 require_once NEWSGAME_DIR . 'includes/class-newsgame-admin-instances.php';
 require_once NEWSGAME_DIR . 'includes/class-newsgame-generator.php';
 require_once NEWSGAME_DIR . 'includes/class-newsgame-review.php';
+require_once NEWSGAME_DIR . 'includes/class-newsgame-status.php';
 
 // Instalação do zero: cria tabelas no activation hook
 register_activation_hook( __FILE__, array( 'Newsgame_DB', 'create_tables' ) );

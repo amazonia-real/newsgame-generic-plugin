@@ -264,7 +264,9 @@ class Newsgame_Shortcodes {
             $dilemas[] = $item;
         }
 
-        $axis_matrix = $instance->axis_matrix ? json_decode( $instance->axis_matrix, true ) : null;
+        // Mesma extração que decide o selo "Pronto" no painel — ver
+        // Newsgame_Status::matriz_do_jogo(). Uma fonte só para os dois lados.
+        $matriz = Newsgame_Status::matriz_do_jogo( $instance->axis_matrix ?? '' );
 
         /*
          * Skin da instância, normalizada na leitura pelo mesmo helper que
@@ -283,8 +285,8 @@ class Newsgame_Shortcodes {
                 'dilemas'             => $dilemas,
                 'num_options'         => (int) ( $instance->num_options   ?? 2 ),
                 'enable_levels'       => (bool) ( $instance->enable_levels ?? false ),
-                'perfis'              => $axis_matrix['perfis_sugeridos'] ?? null,
-                'eixos'               => $axis_matrix['eixos_principais']  ?? null,
+                'perfis'              => $matriz['perfis'],
+                'eixos'               => $matriz['eixos'],
             ),
             JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
         );
