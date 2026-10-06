@@ -1954,6 +1954,73 @@ FLAG 001), **FLAG 017** (a hipótese do raciocínio ligado).
 
 ---
 
+## FLAG 020 — Painel de contexto (`.ng-feedback`) reprovava o AA no pior caso
+
+**Status:** 🟡 **Resolvido nas skins que declaram o próprio painel; a Padrão reprova e
+fica como está, por decisão.** Registrado em 2026-10-05, a partir do defeito achado
+pelo editor em partida real na skin `drama` ("cartão de contexto", 2,7:1 e 4,0:1).
+
+### O mecanismo
+
+O painel que aparece depois da resposta é o `.ng-feedback`: fundo
+`--ng-feedback-glass` (o texto da skin a **30%**, com `backdrop-filter: blur(25px)
+saturate(1.8)`) e os três textos — consequência, texto e a trava "Leia antes de
+avançar", esta com `opacity: 0.7` — em **`var(--ng-bg)`**, ou seja escuros. Vidro
+claro e fraco sobre uma cena escura dá **texto escuro sobre fundo quase escuro**. O
+defeito era do **arquivo base**, não da drama: atingia toda skin que usava o padrão.
+
+### O que foi medido
+
+Chrome headless, desktop, página real da instância 2 (cena de teste), painel aberto
+por clique com **timers reais**. O fundo exato atrás de cada texto foi recortado com o
+texto transparente; o número é o texto contra o pixel **mais escuro / mais claro**
+dele (percentis 1 e 99 de luminância) — o pior caso de cada elemento. Mínimo AA: 4,5.
+
+| Skin | Pior caso ANTES | DEPOIS | Situação |
+|---|---|---|---|
+| `default` (Padrão) | **2,16** (trava; texto 2,78; consequência 3,58) | 2,16 — **sem mudança** | reprova; **fica como está, por decisão** |
+| `pixel` | 7,15 | 7,15 — sem mudança | passa: regra de componente própria, painel escuro a 94% |
+| `drama` | 2,23 (texto 2,62) | **6,91** (trava); consequência e texto **16,53** | passa — caixa chapada |
+| `mono` | 2,07 (texto 2,42) | **6,94** (trava); consequência e texto **16,16** | passa — caixa chapada |
+| `neutro`, `colorido`, `futurista` | 2,07 a 2,17 | — | **deixam de contar**: removidas em `7b48807` |
+
+O defeito atingia **6 das 7** skins de então — todas menos a `pixel`, que já tinha
+painel próprio (a contagem "5" que circulou em 05/10 era das seis **outras** além da
+drama, sem a pixel). Os 2,7 e 4,0 do editor na drama batem com o pior caso escuro e
+claro medido (2,59 e 3,99).
+
+### A resolução (`a489b16`)
+
+- **Base:** par `--ng-feedback-bg` / `--ng-feedback-ink`, com padrão **igual ao
+  comportamento de hoje** (vidro claro + `--ng-bg`), e a caixa opaca pronta
+  `--ng-feedback-chapado` (`rgb(var(--ng-on-rgb))`, sem uso no padrão)
+- **`drama` e `mono`** declaram o par na própria folha: caixa chapada e tinta escura
+- **Prova com os arquivos reais:** estilo computado do painel e dos três textos
+  **IDÊNTICO** antes e depois na `default` e na `pixel`
+- Contrato na **regra 13** da §5.4 do `GEMINI.md`: skin que precisa de outro painel
+  sobrescreve o par, declarando os dois tokens
+
+### Por que a Padrão fica reprovando
+
+**Decisão do editor:** o padrão do par é o comportamento atual da Padrão e não muda
+por causa de outra skin; alinhar a Padrão ao Jogo da Amazônia original é tarefa
+própria, registrada junto ao H3 do roadmap. ⚠️ **O 2,16 foi medido numa cena de
+teste** — a página da instância 2 com a Padrão aplicada —, e o pior caso depende das
+imagens que estiverem atrás do painel no jogo real. Não é número do JDA.
+
+**Onde está:**
+- `news-game-plugin/public/css/newsgame-game.css` — os tokens do par e
+  `--ng-feedback-chapado` (junto dos de vidro); `.ng-feedback`,
+  `.ng-feedback-consequence`, `.ng-feedback-text`, `.ng-feedback-hint`
+- `news-game-plugin/public/css/skins/skin-drama.css` e `skin-mono.css` — o par
+- `news-game-plugin/public/css/skins/skin-pixel.css` — a regra de componente anterior
+
+**Ver também:** **FLAG 009** (contraste de tokens de alpha baixo no base — mesma
+família de defeito, outro token), a regra 13 da §5.4 do `GEMINI.md` e a tarefa de
+alinhar a Padrão ao JDA, junto ao H3 no roadmap.
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.
