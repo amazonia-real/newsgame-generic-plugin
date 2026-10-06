@@ -16,6 +16,8 @@ O <slug> é o mesmo da whitelist `Newsgame_Admin_Instances::SKINS`. Hoje:
     skin-mono.webp
     skin-pixel.webp
     skin-drama.webp
+    skin-games.webp
+    skin-popart.webp
 
 Qualquer outro nome é ignorado em silêncio, e o cartão daquela skin continua
 mostrando o placeholder tracejado — que é estado válido, não erro. A skin segue
@@ -35,7 +37,8 @@ tomada: pixel art tem transição de 1px entre cores chapadas, e é exatamente o
 tipo de borda que a compressão com perda do WebP costuma sujar. Se a miniatura
 da `pixel` mostrar serrilhado sujo ou halo em volta dos blocos, só ELA vira
 `skin-pixel.png`. As outras são fotografia/degradê e não têm esse risco — a
-`drama` inclusive: ilustração vetorial, e a miniatura dela é WebP SEM perda.
+`drama` inclusive: ilustração vetorial, e a miniatura dela é WebP SEM perda —
+como as da `games` e da `popart` (05/10).
 
 Enquanto não houver miniatura real, o teste do serrilhado não pode ser feito —
 o que existe é o caminho pronto para ele.
