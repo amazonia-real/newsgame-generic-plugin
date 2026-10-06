@@ -13,10 +13,7 @@ NOME DO ARQUIVO
 O <slug> é o mesmo da whitelist `Newsgame_Admin_Instances::SKINS`. Hoje:
 
     skin-default.webp
-    skin-neutro.webp
     skin-mono.webp
-    skin-colorido.webp
-    skin-futurista.webp
     skin-pixel.webp
     skin-drama.webp
 

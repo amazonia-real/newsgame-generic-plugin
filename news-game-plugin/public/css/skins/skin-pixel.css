@@ -8,7 +8,8 @@
  * matéria interativa.
  *
  * ⚠️ ESTA SKIN É A EXCEÇÃO DECLARADA À REGRA "skin é camada de tokens".
- * As outras quatro são paleta e nada mais. Esta tem, além dos canais:
+ * A `mono` é paleta e nada mais; a `drama` tem fundos e fonte, mas só por
+ * tokens. Esta tem, além dos canais:
  *   · três regras de `background-image` (os cenários por momento)
  *   · um `@font-face`, a fonte auto-hospedada e um token `--ng-font-display`
  *   · regras de componente nos botões de alternativa e no painel de feedback
@@ -623,7 +624,7 @@
  * breakpoints do base é o que mantém as duas folhas descrevendo a mesma
  * viewport. Consequência a saber: 1024px exato — iPad em paisagem — recebe a
  * escala de TABLET abaixo, que também subiu. Mover a fronteira é decisão no
- * arquivo BASE, porque afeta as cinco skins.
+ * arquivo BASE, porque afeta todas as skins.
  */
 
 /* ── Tablet ─────────────────────────────────────────────

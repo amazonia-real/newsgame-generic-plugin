@@ -454,8 +454,8 @@
    * Os valores vêm dos CANAIS, e não literais: na skin `default`
    * `--ng-on-rgb` é 255,255,255 e `--ng-shadow-rgb` é 0,0,0, então isto é
    * pixel-idêntico a `rgba(255,255,255,0.25)` / `#fff` / `rgba(0,0,0,0.3)`. Nas
-   * outras skins os dois canais são sobrescritos — off-white quente na
-   * `neutro`, branco frio na `futurista` —, e o botão acompanha, que é
+   * outras skins o canal do texto é sobrescrito — cinza-claro na `mono`, creme
+   * na `drama` —, e o botão acompanha, que é
    * exatamente o que a fase 1 do H2 comprou. Na `pixel` os dois coincidem com
    * os do base, e lá o botão fica idêntico ao da `default`.
    *

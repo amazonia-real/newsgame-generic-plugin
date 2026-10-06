@@ -32,7 +32,7 @@ class Newsgame_Admin_Instances {
      * Estava DEFASADO desde 27/08, quando as quatro folhas e o mecanismo de
      * enfileiramento entraram. Corrigido de passagem, não em silêncio.
      */
-    const SKINS = array( 'default', 'neutro', 'mono', 'colorido', 'futurista', 'pixel', 'drama' );
+    const SKINS = array( 'default', 'mono', 'pixel', 'drama' );
 
     /** Valor de queda quando a skin recebida não está na whitelist acima. */
     const SKIN_DEFAULT = 'default';

@@ -31,10 +31,7 @@ $skin          = $is_edit
  */
 $rotulos_skin  = array(
     'default'   => 'Padrão — verde terra',
-    'neutro'    => 'Neutro — terroso sóbrio',
     'mono'      => 'Mono — preto e branco editorial',
-    'colorido'  => 'Colorido — vibrante e lúdico',
-    'futurista' => 'Futurista — digital, ciano',
     'pixel'     => 'Pixel — videogame 16 bits, amarelo',
     'drama'     => 'Drama — palco de teatro, vermelho e ouro',
 );
@@ -50,10 +47,7 @@ $rotulos_skin  = array(
  */
 $resumos_skin  = array(
     'default'   => 'Verde terra sobre fundo escuro, raios 12/8/3. Não carrega folha extra: é a própria base do plugin.',
-    'neutro'    => 'Terra queimada e cinzas quentes, raios 8/6/2. Muda só cor e raio — canto mais fechado lê como impresso.',
     'mono'      => 'Preto e branco de fundo escuro, ênfase por peso e não por cor, tipografia serifada. Muda cor, raio e tipografia.',
-    'colorido'  => 'Índigo com magenta e amarelo, raios 16/12/4. Muda só cor e raio — a mais lúdica das sete.',
-    'futurista' => 'Azul-preto e ciano, raios 2/2/0 (quase retos). Muda só cor e raio.',
     'pixel'     => 'Amarelo de caixa de diálogo, fonte de arcade no cromo e três cenários de fábrica em pixel art — capa, dilemas e resultado. Uma das duas com imagem própria, ao lado da Drama.',
     'drama'     => 'Veludo vermelho e ouro de marquise, raios 12/8/3 (os do base), títulos em Pacifico e três cenários de teatro — capa, dilemas e resultado. Cartão escuro.',
 );
@@ -408,7 +402,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
            * SELETOR VISUAL — fieldset com RADIO NATIVO, um por skin.
            *
            * Substitui um <select> de seis opções. O ganho não é enfeite: skin é
-           * escolha visual, e um nome de lista ("Futurista — digital, ciano") pede
+           * escolha visual, e um nome de lista ("Mono — preto e branco editorial") pede
            * que o editor imagine o resultado, publique e volte para conferir.
            *
            * ⚠️ RADIO NATIVO, E O REQUISITO CENTRAL ESTÁ AQUI: num grupo de radios o
@@ -512,9 +506,10 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           <p class="description">
             Paleta de cores e cantos do jogo publicado. <strong>Padrão</strong> usa
             apenas a folha base, sem arquivo extra.<br>
-            <strong>Cinco das sete skins mudam só cor, raio e tipografia</strong> —
-            não trocam texto, layout nem imagem do jogo. A <strong>Pixel</strong> e a
-            <strong>Drama</strong> também trazem <strong>cenários de fábrica</strong> —
+            A <strong>Padrão</strong> e a <strong>Mono</strong> mudam só cor, raio e
+            tipografia — não trocam texto, layout nem imagem do jogo. A
+            <strong>Pixel</strong> e a <strong>Drama</strong> também trazem
+            <strong>cenários de fábrica</strong> —
             um para a capa, um para os dilemas e um para o resultado.<br>
             A imagem escolhida dilema a dilema na Mesa Editorial
             <strong>continua vencendo</strong> em qualquer skin: na Pixel e na Drama,
