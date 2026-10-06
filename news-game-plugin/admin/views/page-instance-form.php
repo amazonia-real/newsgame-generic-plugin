@@ -36,6 +36,7 @@ $rotulos_skin  = array(
     'drama'     => 'Drama — palco de teatro, vermelho e ouro',
     'games'     => 'Games — caderno pontilhado, preto e branco',
     'popart'    => 'Pop Art — quadrinho, cores vivas e preto',
+    'minimal'   => 'Minimal — azul e cinza, linhas e quadrados',
 );
 /*
  * Resumo de uma linha por skin, para o painel de conferência ao lado da grade.
@@ -50,10 +51,11 @@ $rotulos_skin  = array(
 $resumos_skin  = array(
     'default'   => 'Verde terra sobre fundo escuro, raios 12/8/3. Não carrega folha extra: é a própria base do plugin.',
     'mono'      => 'Preto e branco de fundo escuro, ênfase por peso e não por cor, tipografia serifada. Muda cor, raio e tipografia.',
-    'pixel'     => 'Amarelo de caixa de diálogo, fonte de arcade no cromo e três cenários de fábrica em pixel art — capa, dilemas e resultado. Com imagem própria, como a Drama, a Games e a Pop Art.',
+    'pixel'     => 'Amarelo de caixa de diálogo, fonte de arcade no cromo e três cenários de fábrica em pixel art — capa, dilemas e resultado. Com imagem própria, como a Drama, a Games, a Pop Art e a Minimal.',
     'drama'     => 'Veludo vermelho e ouro de marquise, raios 12/8/3 (os do base), títulos em Pacifico e três cenários de teatro — capa, dilemas e resultado. Cartão escuro.',
     'games'     => 'Skin CLARA: fundo de caderno branco, tinta preta, cartão branco com contorno grosso e sombra dura (raios 12/8/3, os do base), títulos em Orbitron, corpo em Rajdhani e três cenários desenhados a nanquim.',
     'popart'    => 'Skin CLARA: raios de quadrinho — capa amarela, dilemas azuis, resultado rosa —, tinta preta, cartão creme com contorno grosso e sombra dura, escolhida em amarelo (raios 12/8/3), títulos em Bungee e corpo em Montserrat.',
+    'minimal'   => 'Skin CLARA e PLANA: fundo cinza-claro, tinta azul, cartão branco com contorno azul e sem sombra, cantos retos (raios 0/0/0), escolhida cheia de azul, a fonte do jogo e três cenários de linhas e quadrados.',
 );
 /*
  * Miniaturas resolvidas UMA VEZ, antes da grade, porque o mesmo resultado alimenta
@@ -512,15 +514,16 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
             apenas a folha base, sem arquivo extra.<br>
             A <strong>Padrão</strong> e a <strong>Mono</strong> mudam só cor, raio e
             tipografia — não trocam texto, layout nem imagem do jogo. A
-            <strong>Pixel</strong>, a <strong>Drama</strong>, a <strong>Games</strong> e a
-            <strong>Pop Art</strong> também trazem <strong>cenários de fábrica</strong> —
+            <strong>Pixel</strong>, a <strong>Drama</strong>, a <strong>Games</strong>, a
+            <strong>Pop Art</strong> e a <strong>Minimal</strong> também trazem
+            <strong>cenários de fábrica</strong> —
             um para a capa, um para os dilemas e um para o resultado.<br>
             A imagem escolhida dilema a dilema na Mesa Editorial
             <strong>continua vencendo</strong> em qualquer skin: nas que têm cenário,
             ele aparece só nos dilemas que não têm imagem própria.<br>
-            A <strong>Games</strong> e a <strong>Pop Art</strong> são <strong>claras</strong>,
-            com texto preto: a imagem da Mesa recebe um véu branco, e não escuro, para o
-            texto continuar legível sobre ela.<br>
+            A <strong>Games</strong>, a <strong>Pop Art</strong> e a <strong>Minimal</strong>
+            são <strong>claras</strong>, com texto escuro: a imagem da Mesa recebe um véu
+            branco, e não escuro, para o texto continuar legível sobre ela.<br>
             O gráfico do veredito mantém verde/vermelho em todas as skins: essas
             cores significam resultado do jogador, não identidade do veículo.
           </p>
