@@ -179,6 +179,25 @@
   --ng-option-escolhida-ink: var(--ng-text);
   --ng-on-accent:            var(--ng-bg);
   /*
+   * Os PAPÉIS do destaque, separados (05/10). O `--ng-accent` servia a três
+   * consumidores que divergem numa skin clara: FUNDO (hover do CTA e do
+   * "Continuar" — continua nele), TEXTO (títulos de tela, título da pergunta,
+   * "Opção A", "Contexto", link do modal) e CONTORNO (foco, borda da
+   * alternativa no hover e na escolhida, arco do spinner), mais o
+   * PREENCHIMENTO da barra de progresso. Amarelo serve de fundo e não serve
+   * de texto nem de traço sobre creme ou azul (1,45:1 e 1,39:1). Padrão =
+   * `var(--ng-accent)` em todos, então nada muda em quem não os declara.
+   *
+   * `--ng-option-escolhida-rotulo` é o "Opção A" DENTRO da escolhida: a
+   * escolhida cheia e escura de uma skin clara apagaria um rótulo escuro.
+   * Chega ao rótulo pelo revezamento `--ng-option-rotulo`, que a própria
+   * regra `.is-chosen` declara — não é token de skin, não declarar.
+   */
+  --ng-accent-texto:            var(--ng-accent);
+  --ng-accent-contorno:         var(--ng-accent);
+  --ng-progresso-cor:           var(--ng-accent);
+  --ng-option-escolhida-rotulo: var(--ng-accent);
+  /*
    * Sombra do cartão em GEOMETRIA (05/10), para a skin declarar só números —
    * sem redeclarar o token derivado (regra 1). Padrão = a sombra de sempre,
    * 0 18px 50px a 45% da sombra. Uma sombra DURA, de skin clara, é desfoque 0
@@ -346,7 +365,7 @@
 
 .ng-progress-fill {
   height:          100%;
-  background:      var(--ng-accent);
+  background:      var(--ng-progresso-cor);
   border-radius:   var(--ng-radius-sm);
   transition:      width 0.4s ease;
 }
@@ -403,7 +422,7 @@
 .ng-dilema-title {
   font-size:       var(--ng-fs-dilema);
   font-weight:     700;
-  color:           var(--ng-accent);
+  color:           var(--ng-accent-texto);
   margin:          0 0 1rem;
   line-height:     1.3;
   letter-spacing:  0.01em;
@@ -533,7 +552,7 @@
 }
 
 .ng-btn-fullscreen:focus-visible {
-  outline:        2px solid var(--ng-accent);
+  outline:        2px solid var(--ng-accent-contorno);
   outline-offset: 2px;
 }
 
@@ -610,7 +629,7 @@
    Substitui a URL crua que aparecia na tela de feedback até aqui. */
 .ng-modal-link {
   display:         inline-block;
-  color:           var(--ng-accent);
+  color:           var(--ng-accent-texto);
   font-size:       var(--ng-fs-4);
   font-weight:     700;
   letter-spacing:  0.08em;
@@ -626,7 +645,7 @@
 .ng-modal-close:focus-visible,
 .ng-modal-link:focus-visible,
 .ng-btn-next:focus-visible {
-  outline:        2px solid var(--ng-accent);
+  outline:        2px solid var(--ng-accent-contorno);
   outline-offset: 2px;
 }
 
@@ -666,7 +685,7 @@
 
 .ng-btn-option:hover:not(:disabled) {
   background:      var(--ng-primary-hover);
-  border-color:    var(--ng-accent);
+  border-color:    var(--ng-accent-contorno);
   transform:       translateY(-2px);
 }
 
@@ -674,8 +693,9 @@
 
 .ng-btn-option.is-chosen {
   background:      var(--ng-option-escolhida-bg);
-  border-color:    var(--ng-accent);
+  border-color:    var(--ng-accent-contorno);
   color:           var(--ng-option-escolhida-ink);
+  --ng-option-rotulo: var(--ng-option-escolhida-rotulo);
 }
 
 .ng-btn-option.is-other {
@@ -686,7 +706,7 @@
   display:         block;
   font-size:       var(--ng-fs-2);
   font-weight:     700;
-  color:           var(--ng-accent);
+  color:           var(--ng-option-rotulo, var(--ng-accent-texto));
   letter-spacing:  0.1em;
   text-transform:  uppercase;
   margin-bottom:   0.4rem;
@@ -700,7 +720,7 @@
   display:         block;
   font-size:       var(--ng-fs-1);
   font-weight:     700;
-  color:           var(--ng-accent);
+  color:           var(--ng-accent-texto);
   letter-spacing:  0.12em;
   text-transform:  uppercase;
   margin-bottom:   0.3rem;
@@ -830,7 +850,7 @@
 .ng-screen h2 {
   font-family:     var(--ng-font-title);
   font-size:       var(--ng-fs-12);
-  color:           var(--ng-accent);
+  color:           var(--ng-accent-texto);
   margin:          0 0 0.75rem;
 }
 
@@ -902,7 +922,7 @@
   width:           36px;
   height:          36px;
   border:          3px solid var(--ng-spinner-track);
-  border-top-color:var(--ng-accent);
+  border-top-color:var(--ng-accent-contorno);
   border-radius:   50%;
   margin:          1.5rem auto 0;
   animation:       ng-spin 0.8s linear infinite;
@@ -920,7 +940,7 @@
 .ng-verdict-result h2 {
   font-family:     var(--ng-font-title);
   font-size:       var(--ng-fs-11);
-  color:           var(--ng-accent);
+  color:           var(--ng-accent-texto);
   margin:          0 0 1.5rem;
   text-align:      center;
   line-height:     1.3;
