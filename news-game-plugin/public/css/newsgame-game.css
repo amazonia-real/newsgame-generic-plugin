@@ -93,7 +93,16 @@
    * no `linear-gradient` que monta o fundo (`aplicarFundo`). Uma checagem de
    * "token declarado e nunca usado" vai apontá-lo como órfão. **Não é órfão.**
    */
-  --ng-overlay:      rgba(var(--ng-shadow-rgb), 0.42);
+  --ng-overlay-rgb:  var(--ng-shadow-rgb);
+  --ng-overlay-alfa: 0.42;
+  --ng-overlay:      rgba(var(--ng-overlay-rgb), var(--ng-overlay-alfa));
+  /*
+   * COR e ALFA do véu separados (05/10), com padrão IGUAL ao de sempre — preto
+   * da sombra a 42%. Skin de cena CLARA (texto escuro) declara um véu CLARO
+   * para a foto escolhida na Mesa: o JS o aplica a ela (`aplicarFundo`). As
+   * cenas de fábrica da skin não precisam de véu nenhum — basta a folha dela
+   * não pôr o `linear-gradient` nas regras de `ng-bg-*`.
+   */
 
   /*
    * Gráfico triangular. Duas naturezas diferentes, de propósito:
@@ -144,7 +153,46 @@
   --ng-feedback-chapado: rgb(var(--ng-on-rgb));
   --ng-feedback-bg:    var(--ng-feedback-glass);
   --ng-feedback-ink:   var(--ng-bg);
-  --ng-card-shadow:    0 18px 50px rgba(var(--ng-shadow-rgb), 0.45);
+  /*
+   * Cartão da pergunta, alternativas e texto secundário sobre a cena (05/10).
+   * Padrões IGUAIS ao comportamento de hoje — vidro escuro, borda fina,
+   * alternativa em vidro da primária, texto secundário a 55%. Existem para skin
+   * de cena CLARA: caixa branca chapada (`--ng-card-chapado`), contorno grosso,
+   * e texto secundário na tinta cheia, porque o de 55% não alcança o AA sobre
+   * cena clara nem sobre foto com véu. A sombra do cartão vem em geometria,
+   * mais abaixo.
+   */
+  --ng-card-chapado:       rgb(var(--ng-card-rgb));
+  --ng-card-bg:            var(--ng-card-glass);
+  --ng-card-borda-largura: 1px;
+  --ng-card-borda-cor:     var(--ng-border);
+  --ng-option-bg:          var(--ng-primary-soft);
+  --ng-option-borda:       var(--ng-primary);
+  --ng-muted-cena:         var(--ng-muted);
+  /*
+   * Alternativa ESCOLHIDA e tinta sobre o DESTAQUE (05/10). Padrões = hoje: a
+   * escolhida em destaque a 20% com a tinta do texto; o hover dos botões com
+   * --ng-bg sobre o destaque. Skin clara troca a escolhida por preenchimento
+   * cheio e a tinta do hover quando o destaque é claro.
+   */
+  --ng-option-escolhida-bg:  var(--ng-accent-soft);
+  --ng-option-escolhida-ink: var(--ng-text);
+  --ng-on-accent:            var(--ng-bg);
+  /*
+   * Sombra do cartão em GEOMETRIA (05/10), para a skin declarar só números —
+   * sem redeclarar o token derivado (regra 1). Padrão = a sombra de sempre,
+   * 0 18px 50px a 45% da sombra. Uma sombra DURA, de skin clara, é desfoque 0
+   * com deslocamento nos dois eixos.
+   */
+  --ng-card-sombra-x:            0;
+  --ng-card-sombra-y:            18px;
+  --ng-card-sombra-desfoque:     50px;
+  --ng-card-sombra-espalhamento: 0;
+  --ng-card-sombra-rgb:          var(--ng-shadow-rgb);
+  --ng-card-sombra-alfa:         0.45;
+  --ng-card-shadow:    var(--ng-card-sombra-x) var(--ng-card-sombra-y)
+                       var(--ng-card-sombra-desfoque) var(--ng-card-sombra-espalhamento)
+                       rgba(var(--ng-card-sombra-rgb), var(--ng-card-sombra-alfa));
   --ng-modal-shadow:   0 8px 40px rgba(var(--ng-shadow-rgb), 0.55);
 
   /* Geometria do card flutuante. A referência do JDA é 480px, e 560px em
@@ -252,7 +300,7 @@
   right:         0.9rem;
   bottom:        0.6rem;
   font-size:     var(--ng-fs-1);
-  color:         var(--ng-muted);
+  color:         var(--ng-muted-cena);
   letter-spacing: 0.02em;
   max-width:     60%;
   text-align:    right;
@@ -305,7 +353,7 @@
 
 .ng-progress-label {
   font-size:       var(--ng-fs-3);
-  color:           var(--ng-muted);
+  color:           var(--ng-muted-cena);
   white-space:     nowrap;
   min-width:       3.5rem;
   text-align:      right;
@@ -329,8 +377,8 @@
 /* ── Card de dilema ──────────────────────────────────── */
 .ng-card {
   position:        relative;   /* âncora do botão (i) */
-  background:      var(--ng-card-glass);
-  border:          1px solid var(--ng-border);
+  background:      var(--ng-card-bg);
+  border:          var(--ng-card-borda-largura) solid var(--ng-card-borda-cor);
   border-radius:   var(--ng-radius);
   box-shadow:      var(--ng-card-shadow);
   padding:         1.5rem 1.5rem 2.25rem;   /* folga embaixo: o (i) mora lá */
@@ -602,8 +650,8 @@
    declarar, e continua correto se uma skin trocar a fonte de um subtrecho em
    vez do wrap inteiro. */
 .ng-btn-option {
-  background:      var(--ng-primary-soft);
-  border:          2px solid var(--ng-primary);
+  background:      var(--ng-option-bg);
+  border:          2px solid var(--ng-option-borda);
   border-radius:   var(--ng-radius);
   color:           var(--ng-text);
   cursor:          pointer;
@@ -625,8 +673,9 @@
 .ng-btn-option:disabled { cursor: default; }
 
 .ng-btn-option.is-chosen {
-  background:      var(--ng-accent-soft);
+  background:      var(--ng-option-escolhida-bg);
   border-color:    var(--ng-accent);
+  color:           var(--ng-option-escolhida-ink);
 }
 
 .ng-btn-option.is-other {
@@ -676,7 +725,7 @@
 
 .ng-btn-next:hover {
   background:      var(--ng-accent);
-  color:           var(--ng-bg);
+  color:           var(--ng-on-accent);
   transform:       translateY(-1px);
 }
 
@@ -786,7 +835,7 @@
 }
 
 .ng-screen p {
-  color:           var(--ng-muted);
+  color:           var(--ng-muted-cena);
   font-size:       var(--ng-fs-8);
   margin:          0 0 2rem;
   line-height:     1.6;
@@ -807,7 +856,7 @@
 
 .ng-btn-cta:hover {
   background:      var(--ng-accent);
-  color:           var(--ng-bg);
+  color:           var(--ng-on-accent);
   transform:       translateY(-2px);
 }
 
