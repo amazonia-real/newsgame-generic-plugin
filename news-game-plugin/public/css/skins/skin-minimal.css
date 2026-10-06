@@ -1,0 +1,121 @@
+/*
+ * SKIN "MINIMAL" — linhas e quadrados azuis sobre cinza-claro, centro livre.
+ * A terceira skin CLARA e a primeira PLANA: cartão em caixa branca chapada com
+ * contorno azul, cantos retos e nenhuma sombra. Chega SÓ por tokens, sem regra
+ * de componente, como a `games` e a `popart`.
+ *
+ * ── O QUE ELA DECLARA ─────────────────────────────────────────────────
+ *   · os 6 canais `-rgb`, mais `--ng-on-primary-rgb` (a primária é escura)
+ *   · NENHUMA fonte: usa a fonte do jogo (`--ng-font` e `--ng-font-title` do
+ *     base), sem `@font-face` e sem licença a conferir
+ *   · véu CLARO só para a foto escolhida na Mesa (regra 14 do contrato)
+ *   · cartão chapado, contorno de 2px, sombra ZERADA em geometria (15 e 16)
+ *   · os três raios em 0 — cantos retos no cartão, nas alternativas, nos
+ *     botões, no painel e na barra de progresso. O (i) e o spinner continuam
+ *     redondos: o 50% deles é geometria de círculo, não token
+ *   · alternativa branca com contorno; a escolhida cheia de azul, tinta e
+ *     rótulo brancos (15 e 18)
+ *   · texto sobre a cena na tinta cheia (17), tinta branca sobre o destaque
+ *   · painel de contexto na mesma caixa branca do cartão, tinta azul (13)
+ *   · três regras de `background-image`, SEM `linear-gradient`: as cenas de
+ *     fábrica são claras e não levam véu
+ *
+ * ── COR — amostrada nas cenas e na miniatura (06/10) ──────────────────
+ * As três cenas têm DUAS cores e nenhuma outra: o fundo 239,239,239 e o azul
+ * 27,53,200 das linhas e dos quadrados. A primária, o destaque e a tinta são o
+ * mesmo azul — a skin é de uma cor só. Consequência aceita: o hover do CTA e do
+ * "Continuar" não muda de cor, só sobe 1px.
+ *
+ * CONTRASTE MEDIDO (WCAG, 06/10; as cenas são chapadas, então o pior caso
+ * fora dos traços é o próprio fundo 239):
+ *   texto e texto secundário/cena 6,53 · texto/cartão 7,41 · botão/cena 7,64
+ *   · texto branco/botão 8,79 · contorno do cartão/cena 7,64 (o branco
+ *   sozinho dá 1,15) · rótulo e tinta na escolhida 8,79 · progresso/cena
+ *   7,64 e /trilha 6,26 · ícone de tela cheia (glifo/placa) 4,92 · (i) 8,79
+ *   · painel 7,41.
+ *   ⚠️ Alternativa no HOVER: 3,31 — abaixo do AA. O fundo é o
+ *   `--ng-primary-hover` (a primária a 42%), derivado e sem token de skin;
+ *   trocar exige token novo no base. Registrado, não corrigido.
+ * Onde uma linha de texto cruza um traço do desenho, o contraste local cai a
+ * 1:1 — é tinta sobre tinta, e a arte deixa o centro livre (nenhum pixel azul
+ * em x 400–1200, y 180–720 nas três cenas).
+ *
+ * ── SELETOR ───────────────────────────────────────────────────────────
+ * `.ng-game-wrap.ng-skin-minimal` (0-2-0), pelas razões escritas na
+ * `skin-pixel.css`: duas skins na mesma página e imunidade à ordem do CSS.
+ */
+
+.ng-game-wrap.ng-skin-minimal {
+  /* Canais — fonte única de cor. Ver o bloco de tokens do arquivo base. */
+  --ng-bg-rgb:         239, 239, 239;   /* fundo das cenas */
+  --ng-card-rgb:       255, 255, 255;   /* caixa branca do cartão */
+  --ng-primary-rgb:    27, 53, 200;     /* azul das linhas */
+  --ng-accent-rgb:     27, 53, 200;     /* o mesmo azul: skin de uma cor só */
+  --ng-on-rgb:         27, 53, 200;     /* tinta azul: texto e cromo */
+  --ng-shadow-rgb:     27, 53, 200;
+  --ng-on-primary-rgb: 255, 255, 255;   /* texto branco sobre o botão azul */
+
+  /* Véu da FOTO da Mesa: claro, para a tinta azul sobreviver à foto. */
+  --ng-overlay-rgb:    255, 255, 255;
+  --ng-overlay-alfa:   0.6;
+
+  /* Plano: cantos retos em tudo o que usa os três raios. */
+  --ng-radius:         0;
+  --ng-radius-md:      0;
+  --ng-radius-sm:      0;
+
+  /* Cartão: caixa branca chapada, contorno azul, sem sombra. */
+  --ng-card-bg:                  var(--ng-card-chapado);
+  --ng-card-borda-largura:       2px;
+  --ng-card-borda-cor:           rgb(var(--ng-on-rgb));
+  --ng-card-sombra-x:            0;
+  --ng-card-sombra-y:            0;
+  --ng-card-sombra-desfoque:     0;
+  --ng-card-sombra-alfa:         0;
+
+  /* Alternativas: brancas com contorno; a escolhida cheia de azul, tinta e
+     rótulo brancos. */
+  --ng-option-bg:                var(--ng-card-chapado);
+  --ng-option-borda:             rgb(var(--ng-on-rgb));
+  --ng-option-escolhida-bg:      rgb(var(--ng-on-rgb));
+  --ng-option-escolhida-ink:     rgb(var(--ng-card-rgb));
+  --ng-option-escolhida-rotulo:  rgb(var(--ng-card-rgb));
+
+  /* Texto sobre a cena na tinta cheia; tinta branca sobre o destaque azul no
+     hover dos botões. */
+  --ng-muted-cena:               var(--ng-text);
+  --ng-on-accent:                rgb(var(--ng-card-rgb));
+
+  /* Painel de contexto: a mesma caixa branca do cartão, tinta azul. */
+  --ng-feedback-bg:              var(--ng-card-chapado);
+  --ng-feedback-ink:             var(--ng-text);
+}
+
+/*
+ * ── Fundos de fábrica — o DEGRAU 2 da cascata ──────────────────────────
+ *
+ * Uma cena por momento, SEM `linear-gradient`: as cenas são claras e a tinta
+ * é escura, então não há véu. A foto escolhida na Mesa continua vencendo, por
+ * estilo inline, e leva o véu claro declarado acima.
+ *
+ * Cenas em WebP SEM PERDA, sem canal alfa (o PNG original era RGBA opaco):
+ * são duas cores chapadas e linhas finas, e a compressão com perda sujaria a
+ * borda dos traços. Pixels idênticos ao PNG, conferido na conversão.
+ *
+ *   CAPA      · linhas e quadrados nas bordas, centro livre
+ *   DILEMA    · quase vazio
+ *   RESULTADO · linhas e quadrados nas bordas; um quadrado e uma linha
+ *               perto do topo-centro (y≈137–162) e três quadrados perto da
+ *               base-centro (y≈760–779), na escala 1600×900
+ */
+.ng-game-wrap.ng-skin-minimal.ng-bg-capa {
+  background-image: url('../../images/skins/minimal/capa.webp');
+}
+
+.ng-game-wrap.ng-skin-minimal.ng-bg-dilema {
+  background-image: url('../../images/skins/minimal/dilema.webp');
+}
+
+.ng-game-wrap.ng-skin-minimal.ng-bg-fim {
+  background-image: url('../../images/skins/minimal/fim.webp');
+}
