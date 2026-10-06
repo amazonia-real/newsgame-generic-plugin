@@ -7,6 +7,11 @@
  *   · os 6 canais `-rgb`, e nada de token derivado
  *   · `--ng-font-title` (token do base desde fc452af) com a Pacifico
  *   · três regras de `background-image`, uma por momento do jogo
+ *   · desde 05/10, o PAR do painel de contexto (`--ng-feedback-bg` /
+ *     `--ng-feedback-ink`), apontado para a CAIXA CHAPADA do base — creme opaco
+ *     com tinta vinho. O vidro claro padrão dava 2,2:1 no pior caso; a caixa,
+ *     16,5:1. O CARTÃO da pergunta continua escuro (ver mais abaixo): são
+ *     superfícies diferentes
  * Raios, escala de fonte e o canal `--ng-on-primary-rgb` ficam os do base: a
  * primária é escura o bastante para o texto creme em cima (5,13:1).
  *
@@ -71,6 +76,11 @@
   --ng-shadow-rgb:   20, 0, 3;        /* quase preto — mantém o véu escuro */
 
   --ng-font-title:   'Pacifico', cursive;
+
+  /* Painel de contexto: CAIXA CHAPADA, opaca, no texto da skin, com tinta
+     escura (regra 13 do contrato). O vidro claro do base não alcançava o AA. */
+  --ng-feedback-bg:  var(--ng-feedback-chapado);
+  --ng-feedback-ink: var(--ng-bg);
 }
 
 /*

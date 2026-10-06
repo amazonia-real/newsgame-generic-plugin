@@ -14,8 +14,11 @@
  * alterar o arquivo BASE (fazer --ng-overlay derivar de --ng-bg-rgb), o que
  * muda pixel na skin `default` e é decisão fora do escopo desta skin.
  *
- * O QUE ESTE ARQUIVO MUDA: os seis canais `-rgb`, os três raios e --ng-font.
- * Nada mais. Todo token de uso deriva no arquivo base.
+ * O QUE ESTE ARQUIVO MUDA: os seis canais `-rgb`, os três raios, --ng-font e,
+ * desde 05/10, o PAR do painel de contexto (`--ng-feedback-bg` /
+ * `--ng-feedback-ink`), apontado para a CAIXA CHAPADA do base com tinta escura
+ * — o vidro claro padrão reprovava o AA aqui (pior caso 2,1:1; com a caixa,
+ * 16,2:1). Nada mais. Todo token de uso deriva no arquivo base.
  *
  * O QUE ESTE ARQUIVO NÃO TOCA, de propósito: as cores SEMÂNTICAS do radar.
  * Numa skin sem matiz nenhum, o verde e o vermelho do resultado são a única
@@ -68,4 +71,9 @@
 
   /* Serifada de sistema. Nenhuma fonte é baixada. */
   --ng-font:         Georgia, "Times New Roman", "Nimbus Roman", "Liberation Serif", serif;
+
+  /* Painel de contexto: CAIXA CHAPADA, opaca, no texto da skin, com tinta
+     escura (regra 13 do contrato). O vidro claro do base não alcançava o AA. */
+  --ng-feedback-bg:  var(--ng-feedback-chapado);
+  --ng-feedback-ink: var(--ng-bg);
 }

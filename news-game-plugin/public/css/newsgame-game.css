@@ -131,6 +131,19 @@
   --ng-card-glass:     rgba(var(--ng-card-rgb), 0.72);
   --ng-feedback-glass: rgba(var(--ng-on-rgb), 0.30);
   --ng-modal-glass:    rgba(var(--ng-card-rgb), 0.88);
+  /*
+   * Painel de contexto (.ng-feedback): FUNDO e TINTA trocáveis em PAR. O padrão
+   * é o comportamento ATUAL da skin Padrão — vidro CLARO (--ng-feedback-glass,
+   * com backdrop-filter) e tinta ESCURA (--ng-bg), na origem uma reprodução do
+   * `.consequencia-toast` do JDA — e fica como está até a tarefa de alinhar a
+   * Padrão ao Jogo da Amazônia. NÃO muda por causa de outra skin.
+   * Skin que precisa de outro painel declara os DOIS tokens na própria folha.
+   * `--ng-feedback-chapado` é a caixa OPACA pronta, no texto da skin; com ela a
+   * tinta padrão (--ng-bg) já serve. Ver GEMINI.md §5.4, regra 13.
+   */
+  --ng-feedback-chapado: rgb(var(--ng-on-rgb));
+  --ng-feedback-bg:    var(--ng-feedback-glass);
+  --ng-feedback-ink:   var(--ng-bg);
   --ng-card-shadow:    0 18px 50px rgba(var(--ng-shadow-rgb), 0.45);
   --ng-modal-shadow:   0 8px 40px rgba(var(--ng-shadow-rgb), 0.55);
 
@@ -683,7 +696,7 @@
   overflow-y:              auto;
   padding:                 1.25rem;
   border-radius:           var(--ng-radius);
-  background:              var(--ng-feedback-glass);
+  background:              var(--ng-feedback-bg);
   -webkit-backdrop-filter: blur(25px) saturate(1.8);
   backdrop-filter:         blur(25px) saturate(1.8);
   opacity:                 0;
@@ -705,7 +718,7 @@
 
 .ng-feedback-consequence {
   margin:         0 0 1rem;
-  color:          var(--ng-bg);
+  color:          var(--ng-feedback-ink);
   /* Sobe para a fluida do dilema em 29/08, junto com o aumento do
      .ng-feedback-text: sem isso os dois ficariam do mesmo tamanho no desktop e
      a consequência perderia o destaque sobre a lição. */
@@ -720,7 +733,7 @@
    frase curta, não para dois parágrafos. */
 .ng-feedback-text {
   margin:      0 0 0.25rem;
-  color:       var(--ng-bg);
+  color:       var(--ng-feedback-ink);
   font-size:   var(--ng-fs-option);
   line-height: 1.65;
   text-align:  left;
@@ -729,7 +742,7 @@
 /* ── Trava de leitura ──────────────────────────────────── */
 .ng-feedback-hint {
   margin:     0.75rem 0 0.35rem;
-  color:      var(--ng-bg);
+  color:      var(--ng-feedback-ink);
   font-size:  var(--ng-fs-2);
   font-style: italic;
   opacity:    0.7;
