@@ -1,0 +1,157 @@
+/*
+ * SKIN "POPART" — quadrinho: raios, retícula de pontos, nuvens, estrelas e
+ * raios desenhados com contorno preto grosso. A SEGUNDA SKIN CLARA, depois da
+ * `games`, e como ela SÓ por tokens, sem regra de componente.
+ *
+ * ── O QUE ELA DECLARA ─────────────────────────────────────────────────
+ *   · os 6 canais `-rgb`, mais `--ng-on-primary-rgb` (a primária é preta)
+ *   · as fontes: Montserrat no corpo (`--ng-font`) e Bungee nos títulos
+ *     (`--ng-font-title`), e `font-synthesis-weight: none` no wrapper
+ *   · véu CLARO só para a foto escolhida na Mesa (regra 14 do contrato)
+ *   · cartão creme chapado, contorno de 3px e sombra dura em geometria (15, 16)
+ *   · alternativa creme com contorno; a escolhida em AMARELO com tinta e
+ *     rótulo pretos (15 e 18)
+ *   · texto sobre a cena na tinta cheia (17), títulos e traços em preto, e a
+ *     tinta do hover sobre o destaque amarelo em preto (17 e 18)
+ *   · painel de contexto na mesma caixa creme do cartão, tinta preta (13)
+ *   · três regras de `background-image`, SEM `linear-gradient`: cenas sem véu
+ *
+ * ── COR — amostrada na miniatura e nas cenas (05/10) ──────────────────
+ * Tinta PRETA PURA. Fundo 255,255,240 é o creme das nuvens e da explosão da
+ * capa; cartão 255,255,248, o da miniatura; destaque 255,208,64, o amarelo da
+ * alternativa escolhida na miniatura. Cada momento tem a sua cor de cena —
+ * capa amarela, dilema azul, resultado rosa —, e o preto passa nas três.
+ *
+ * CONTRASTE MEDIDO (WCAG; percentil 5 por pixel nas cenas WebP finais, na
+ * faixa onde o conteúdo assenta — y 230–670 —, no centro de desktop e na
+ * faixa de celular):
+ *   texto e texto secundário/cena 5,93 (capa) · 9,45 (dilema) · 6,24 (fim)
+ *   botão e barra de progresso/cena 6,32 · 10,29 · 6,65
+ *   barra/trilha 5,27–11,68 · texto/cartão 18,29 · texto/escolhida amarela
+ *   12,92 · texto creme/botão 20,81 · hover: preto/amarelo 14,35 ·
+ *   alternativa no hover 6,42 · ícone de tela cheia (glifo/placa, sobre o
+ *   azul) 5,92 · (i) 20,91.
+ * TÍTULO DA CAPA, dentro da explosão branca: o interior medido inteiro (máscara
+ * da área creme, 340.940 px) dá 17,11 no pior pixel para o título preto e
+ * 15,19 para o texto a 92%.
+ *
+ * ⚠️ LIMITE CONHECIDO, aceito: no HOVER, o botão amarelo contra a cena fica
+ * abaixo de 3:1 (1,45 na capa, 1,39 no dilema, 2,16 no resultado). O texto do
+ * botão segue legível (14,35), mas a borda do botão some contra o fundo
+ * enquanto o ponteiro estiver em cima. É o preço do destaque amarelo pedido
+ * para esta skin; o repouso (botão preto) passa em todas as cenas.
+ *
+ * ── SELETOR ───────────────────────────────────────────────────────────
+ * `.ng-game-wrap.ng-skin-popart` (0-2-0), pelas razões escritas na
+ * `skin-pixel.css`: duas skins na mesma página e imunidade à ordem do CSS.
+ */
+
+/*
+ * ── Fontes: Montserrat e Bungee, AUTO-HOSPEDADAS ──────────────────────
+ *
+ * Mesma regra das outras skins: nada de Google Fonts por <link> ou @import.
+ * Arquivos em `public/fonts/`, licença SIL OFL 1.1 ao lado
+ * (`OFL-montserrat.txt`, `OFL-bungee.txt`). Só o subconjunto `latin`, com o
+ * `unicode-range` original do Google Fonts. Nenhuma das duas declara nome
+ * reservado no OFL (conferido em 05/10, lendo os arquivos).
+ *
+ * Montserrat é VARIÁVEL, um arquivo para 100–900. Bungee tem UM peso só, o
+ * 400 — e o tema do WordPress já zera o peso do h2 para 400, então hoje o
+ * título sai no peso certo. O `font-synthesis-weight: none` no wrapper é a
+ * garantia para outro tema: sem ele, um h2 em negrito sairia com a Bungee
+ * engrossada pelo navegador (medido em canvas em 05/10). Soma: 52.300 bytes.
+ */
+@font-face {
+  font-family: 'Montserrat';
+  font-style:  normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../../fonts/montserrat-v31-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Bungee';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../fonts/bungee-v17-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+.ng-game-wrap.ng-skin-popart {
+  /* Canais — fonte única de cor. Ver o bloco de tokens do arquivo base. */
+  --ng-bg-rgb:         255, 255, 240;   /* creme das nuvens e da explosão */
+  --ng-card-rgb:       255, 255, 248;   /* caixa do cartão, da miniatura */
+  --ng-primary-rgb:    0, 0, 0;         /* botão preto */
+  --ng-accent-rgb:     255, 208, 64;    /* amarelo da escolhida */
+  --ng-on-rgb:         0, 0, 0;         /* tinta preta pura */
+  --ng-shadow-rgb:     0, 0, 0;
+  --ng-on-primary-rgb: 255, 255, 240;   /* texto creme sobre o botão preto */
+
+  --ng-font:           'Montserrat', sans-serif;
+  --ng-font-title:     'Bungee', sans-serif;
+
+  /* A Bungee só tem 400: nunca engrossar por síntese (ver o bloco das fontes). */
+  font-synthesis-weight: none;
+
+  /* Véu da FOTO da Mesa: claro, para a tinta preta sobreviver à foto. */
+  --ng-overlay-rgb:    255, 255, 255;
+  --ng-overlay-alfa:   0.6;
+
+  /* Cartão: caixa creme chapada, contorno grosso, sombra dura. */
+  --ng-card-bg:                  var(--ng-card-chapado);
+  --ng-card-borda-largura:       3px;
+  --ng-card-borda-cor:           rgb(var(--ng-on-rgb));
+  --ng-card-sombra-x:            6px;
+  --ng-card-sombra-y:            6px;
+  --ng-card-sombra-desfoque:     0;
+  --ng-card-sombra-alfa:         1;
+
+  /* Alternativas: creme com contorno; a escolhida amarela, tinta preta. */
+  --ng-option-bg:                var(--ng-card-chapado);
+  --ng-option-borda:             rgb(var(--ng-on-rgb));
+  --ng-option-escolhida-bg:      var(--ng-accent);
+  --ng-option-escolhida-rotulo:  rgb(var(--ng-on-rgb));
+
+  /* Texto sobre a cena na tinta cheia; títulos e traços em preto; tinta
+     preta sobre o destaque amarelo no hover dos botões. */
+  --ng-muted-cena:               var(--ng-text);
+  --ng-accent-texto:             rgb(var(--ng-on-rgb));
+  --ng-accent-contorno:          rgb(var(--ng-on-rgb));
+  --ng-progresso-cor:            rgb(var(--ng-on-rgb));
+  --ng-on-accent:                rgb(var(--ng-on-rgb));
+
+  /* Painel de contexto: a mesma caixa creme do cartão, tinta preta. */
+  --ng-feedback-bg:              var(--ng-card-chapado);
+  --ng-feedback-ink:             var(--ng-text);
+}
+
+/*
+ * ── Fundos de fábrica — o DEGRAU 2 da cascata ──────────────────────────
+ *
+ * Uma cena por momento, SEM `linear-gradient`, como na `games`. A foto
+ * escolhida na Mesa continua vencendo, por estilo inline, e leva o véu claro.
+ *
+ * Cenas em WebP com perda, q90, sem canal alfa (o PNG original era RGBA
+ * opaco).
+ *
+ *   CAPA      · explosão creme no centro, raios amarelos — o título fica dentro
+ *   DILEMA    · raios azuis, centro liso
+ *   RESULTADO · raios rosa, estrelas e explosão amarela à direita
+ */
+.ng-game-wrap.ng-skin-popart.ng-bg-capa {
+  background-image: url('../../images/skins/popart/capa.webp');
+}
+
+.ng-game-wrap.ng-skin-popart.ng-bg-dilema {
+  background-image: url('../../images/skins/popart/dilema.webp');
+}
+
+.ng-game-wrap.ng-skin-popart.ng-bg-fim {
+  background-image: url('../../images/skins/popart/fim.webp');
+}
