@@ -1,0 +1,182 @@
+/*
+ * SKIN "GAMES" — caderno pontilhado com objetos de jogo desenhados a nanquim
+ * (cartas, troféu, controle, fliperama). A PRIMEIRA SKIN CLARA: fundo
+ * branco-gelo, tinta escura, cartão em caixa branca chapada com contorno grosso
+ * e sombra dura. Chega SÓ por tokens, sem regra de componente — o que os
+ * tokens de skin clara do base (95b6b6d e 748e980) tornaram possível.
+ *
+ * ── O QUE ELA DECLARA ─────────────────────────────────────────────────
+ *   · os 6 canais `-rgb`, mais `--ng-on-primary-rgb` (a primária é escura)
+ *   · as fontes: Rajdhani no corpo (`--ng-font`) e Orbitron nos títulos
+ *     (`--ng-font-title`)
+ *   · véu CLARO só para a foto escolhida na Mesa (regra 14 do contrato)
+ *   · cartão chapado, contorno de 3px e sombra dura em geometria (15 e 16)
+ *   · alternativa branca com contorno; a escolhida preta com tinta clara (15)
+ *   · texto sobre a cena na tinta cheia (17) e os papéis do destaque (18)
+ *   · painel de contexto na mesma caixa branca do cartão, tinta escura (13)
+ *   · três regras de `background-image`, SEM `linear-gradient`: as cenas de
+ *     fábrica são claras e não levam véu
+ *
+ * ── COR — amostrada na miniatura e nas cenas (05/10) ──────────────────
+ * Fundo 253,253,251 é o papel das três cenas (93–96% dos pixels); a tinta
+ * 20,20,20 é o traço do desenho e o contorno da miniatura. A primária é a
+ * própria tinta (botão preto), e o destaque um grafite 64,64,64, para o hover
+ * do botão se distinguir do repouso.
+ *
+ * CONTRASTE MEDIDO (WCAG; percentil 5 por pixel nas cenas WebP finais, na
+ * faixa onde o conteúdo assenta — y 230–670 —, no centro de desktop e na
+ * faixa de celular; os traços do desenho ficam abaixo dos 5%):
+ *   texto e texto secundário/cena 14,74 · botão/cena 18,09 · barra de
+ *   progresso/cena 10,18 e /trilha 7,92 · texto/cartão 14,98 · tinta
+ *   clara/escolhida 18,09 · texto/botão 18,09 · hover: texto claro/destaque
+ *   10,18 · alternativa no hover 6,03 · ícone de tela cheia (glifo/placa)
+ *   10,41 · (i) 18,42.
+ * Onde uma linha de texto cruza um traço do desenho, o contraste local cai a
+ * 1:1 — é tinta sobre tinta, e a arte deixa o centro livre.
+ *
+ * ── SELETOR ───────────────────────────────────────────────────────────
+ * `.ng-game-wrap.ng-skin-games` (0-2-0), pelas razões escritas na
+ * `skin-pixel.css`: duas skins na mesma página e imunidade à ordem do CSS.
+ */
+
+/*
+ * ── Fontes: Rajdhani e Orbitron, AUTO-HOSPEDADAS ──────────────────────
+ *
+ * Mesma regra da Press Start 2P e da Pacifico: nada de Google Fonts por
+ * <link> ou @import. Arquivos em `public/fonts/`, licença SIL OFL 1.1 ao lado
+ * (`OFL-rajdhani.txt`, `OFL-orbitron.txt`). Só o subconjunto `latin`, com o
+ * `unicode-range` original do Google Fonts.
+ *
+ * ⚠️ A ORBITRON DECLARA NOME RESERVADO no OFL ("Orbitron"). Está instalada
+ * como o Google a distribui — sem alterar nem renomear a fonte; só o NOME DO
+ * ARQUIVO segue o padrão da pasta. Conferir a licença antes de tornar o
+ * repositório público e distribuir o plugin.
+ *
+ * Rajdhani é ESTÁTICA, quatro arquivos (400, 500, 600, 700) — os pesos que o
+ * base usa. O 800 dos percentuais do radar cai no 700, sem engrossar (medido
+ * em canvas em 05/10: tinta idêntica à do 700). Orbitron é VARIÁVEL, um
+ * arquivo para 400–900. Soma das duas: 73.280 bytes.
+ */
+@font-face {
+  font-family: 'Rajdhani';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../fonts/rajdhani-v17-latin-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  font-style:  normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../../fonts/rajdhani-v17-latin-500.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  font-style:  normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../../fonts/rajdhani-v17-latin-600.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  font-style:  normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../../fonts/rajdhani-v17-latin-700.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Orbitron';
+  font-style:  normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('../../fonts/orbitron-v35-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+.ng-game-wrap.ng-skin-games {
+  /* Canais — fonte única de cor. Ver o bloco de tokens do arquivo base. */
+  --ng-bg-rgb:         253, 253, 251;   /* papel das cenas */
+  --ng-card-rgb:       255, 255, 255;   /* caixa branca do cartão */
+  --ng-primary-rgb:    20, 20, 20;      /* botão preto, a própria tinta */
+  --ng-accent-rgb:     64, 64, 64;      /* grafite: hover do botão */
+  --ng-on-rgb:         20, 20, 20;      /* tinta do traço: texto e cromo */
+  --ng-shadow-rgb:     20, 20, 20;
+  --ng-on-primary-rgb: 253, 253, 251;   /* texto claro sobre o botão preto */
+
+  --ng-font:           'Rajdhani', sans-serif;
+  --ng-font-title:     'Orbitron', sans-serif;
+
+  /* Véu da FOTO da Mesa: claro, para a tinta escura sobreviver à foto. */
+  --ng-overlay-rgb:    255, 255, 255;
+  --ng-overlay-alfa:   0.6;
+
+  /* Cartão: caixa branca chapada, contorno grosso, sombra dura. */
+  --ng-card-bg:                  var(--ng-card-chapado);
+  --ng-card-borda-largura:       3px;
+  --ng-card-borda-cor:           rgb(var(--ng-on-rgb));
+  --ng-card-sombra-x:            6px;
+  --ng-card-sombra-y:            6px;
+  --ng-card-sombra-desfoque:     0;
+  --ng-card-sombra-alfa:         1;
+
+  /* Alternativas: brancas com contorno; a escolhida preta com tinta clara. */
+  --ng-option-bg:                var(--ng-card-chapado);
+  --ng-option-borda:             rgb(var(--ng-on-rgb));
+  --ng-option-escolhida-bg:      rgb(var(--ng-on-rgb));
+  --ng-option-escolhida-ink:     var(--ng-bg);
+  --ng-option-escolhida-rotulo:  var(--ng-bg);
+
+  /* Texto sobre a cena na tinta cheia; títulos e traços na tinta. */
+  --ng-muted-cena:               var(--ng-text);
+  --ng-accent-texto:             rgb(var(--ng-on-rgb));
+  --ng-accent-contorno:          rgb(var(--ng-on-rgb));
+
+  /* Painel de contexto: a mesma caixa branca do cartão, tinta escura. */
+  --ng-feedback-bg:              var(--ng-card-chapado);
+  --ng-feedback-ink:             var(--ng-text);
+}
+
+/*
+ * ── Fundos de fábrica — o DEGRAU 2 da cascata ──────────────────────────
+ *
+ * Uma cena por momento, como na `drama`, mas SEM `linear-gradient`: as cenas
+ * são claras e a tinta é escura, então não há véu. A foto escolhida na Mesa
+ * continua vencendo, por estilo inline, e leva o véu claro declarado acima.
+ *
+ * Cenas em WebP com perda, q90, sem canal alfa (o PNG original era RGBA
+ * opaco).
+ *
+ *   CAPA      · objetos de jogo na borda, centro livre
+ *   DILEMA    · papel pontilhado, quase vazio
+ *   RESULTADO · chave, moedas, troféu e microfone nas laterais
+ */
+.ng-game-wrap.ng-skin-games.ng-bg-capa {
+  background-image: url('../../images/skins/games/capa.webp');
+}
+
+.ng-game-wrap.ng-skin-games.ng-bg-dilema {
+  background-image: url('../../images/skins/games/dilema.webp');
+}
+
+.ng-game-wrap.ng-skin-games.ng-bg-fim {
+  background-image: url('../../images/skins/games/fim.webp');
+}
