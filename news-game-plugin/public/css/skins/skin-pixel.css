@@ -71,7 +71,7 @@
  */
 
 /*
- * ── Fonte: Press Start 2P, AUTO-HOSPEDADA ─────────────────────────────
+ * ── Fonte: Pixelify Sans, AUTO-HOSPEDADA ──────────────────────────────
  *
  * ⚠️ NÃO TROCAR POR GOOGLE FONTS. A regra registrada em `skin-mono.css` é que
  * fonte EXTERNA está fora de questão em skin: é rede no carregamento do jogo e
@@ -84,40 +84,39 @@
  *     é detalhe.
  *
  * LICENÇA: SIL Open Font License 1.1, que PERMITE a redistribuição e EXIGE que
- * a licença acompanhe o arquivo. O texto está em `public/fonts/OFL.txt` e não
- * pode ser removido do pacote do plugin. Copyright 2012 The Press Start 2P
- * Project Authors (cody@zone38.net), desenho de CodeMan38.
+ * a licença acompanhe o arquivo. O texto está em
+ * `public/fonts/OFL-pixelify-sans.txt` e não pode ser removido do pacote do
+ * plugin. Copyright 2021 The Pixelify Sans Project Authors, sem nome reservado
+ * na linha de copyright.
  *
- * DOIS SUBSETS, com os `unicode-range` originais do Google Fonts: o navegador
- * baixa só o que a página usa. Em português o `latin` resolve praticamente
- * tudo (ã õ ç á é í ó ú â ê ô à estão em U+0000-00FF); o `latin-ext` fica de
- * reserva para nome próprio estrangeiro e quase nunca é requisitado. Juntos são
- * 22 KB.
+ * TROCA DE 07/10: até aqui a fonte era a Press Start 2P, que declarava nome
+ * reservado no OFL. A Pixelify Sans é outra fonte e outra métrica — PROPORCIONAL,
+ * com minúsculas e descendentes —, e o que isso mudou na escala está no bloco
+ * "Escala do cromo", logo abaixo da lista dos oito seletores.
+ *
+ * UM ARQUIVO VARIÁVEL, 400–700, só o subconjunto `latin`, com o `unicode-range`
+ * original do Google Fonts (ã õ ç á é í ó ú â ê ô à estão em U+0000-00FF). Sem
+ * `latin-ext`, por decisão: fora do `latin`, o glifo cai na reserva mono.
+ * 12 KB.
+ *
+ * O INTERVALO `font-weight: 400 700` É O QUE TORNA OS NEGRITOS REAIS. O base
+ * pede 700 no título do dilema e no rótulo, 600 nos dois botões e 500 na
+ * consequência; a Press Start 2P só tinha 400, e o navegador engrossava os de
+ * 600 e 700 por síntese. Agora os quatro pesos saem do próprio arquivo.
  *
  * `font-display: swap`: o texto aparece imediatamente na fonte de reserva e é
  * repintado quando a pixel chega. O contrário (`block`) daria texto invisível
  * por até 3s no primeiro acesso — inaceitável num jogo que abre com a capa.
  */
 @font-face {
-  font-family: 'Press Start 2P';
+  font-family: 'Pixelify Sans';
   font-style:  normal;
-  font-weight: 400;
+  font-weight: 400 700;
   font-display: swap;
-  src: url('../../fonts/press-start-2p-v16-latin.woff2') format('woff2');
+  src: url('../../fonts/pixelify-sans-v3-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
     U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
     U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: 'Press Start 2P';
-  font-style:  normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../../fonts/press-start-2p-v16-latin-ext.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
-    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
-    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
 .ng-game-wrap.ng-skin-pixel {
@@ -160,36 +159,37 @@
 
   /*
    * ── Corpo dos botões de chamada — token PRÓPRIO desta skin ──
-   * `.ng-btn-next` e `.ng-btn-cta` são cromo (Press Start 2P), mas o base os
+   * `.ng-btn-next` e `.ng-btn-cta` são cromo (fonte de display), mas o base os
    * dimensiona com `--ng-fs-8` e `--ng-fs-9`, que servem TAMBÉM texto em mono
    * (`.ng-screen p` e o topo do clamp do corpo). Um token para duas famílias
    * com necessidades opostas não tem valor certo — é a mesma classe de
    * problema que `--ng-on-primary` tinha antes de ganhar canal próprio.
    *
-   * A MEDIÇÃO que obriga isto: "Ver resultado final" tem 19 caracteres, e a
-   * quadrada gasta ~1em por glifo. No celular o botão tem ~330px menos 32px de
-   * padding:
-   *     1.05rem (--ng-fs-9, o do CTA hoje) → 319px  ESTOURA
-   *     1.00rem (--ng-fs-8, o do "Continuar") → 304px  ESTOURA
-   *     0.78rem                            → 237px  cabe
-   * ⚠️ Isto CORRIGE UM DEFEITO REAL introduzido em 29/08: o comentário da
-   * escala afirmava que `--ng-fs-4` vestia estes dois botões, e por isso a
-   * calibração de 0.78rem foi escrita na tabela mas nunca chegou a eles.
-   * `--ng-fs-4` veste `.ng-modal-link`. Os botões seguiam em 1rem e 1.05rem.
+   * O VALOR É A ALTURA VISUAL, e o tamanho aplicado é ele × `--ng-fator-display`
+   * (ver "Escala do cromo"). Os 0.78rem foram calibrados em 29/08 para a Press
+   * Start 2P, que gastava ~1em por glifo; com a Pixelify Sans a premissa caiu,
+   * mas o número continua certo como ALTURA: com o fator, a maiúscula sai da
+   * mesma altura de antes, e a largura cai para ~70%.
+   * ⚠️ MEDIDO EM 07/10, antes da troca: a 390px "Ver resultado final" em Press
+   * Start 2P QUEBRAVA EM DUAS LINHAS (texto e padding pediam 305px num botão de
+   * 258px). A conta de 29/08 supunha botão de ~330px. Com a Pixelify cabe em
+   * uma — os números estão no "Escala do cromo".
+   * ⚠️ HISTÓRICO, 29/08: o comentário da escala afirmava que `--ng-fs-4` vestia
+   * estes dois botões, e a calibração nunca chegou a eles. `--ng-fs-4` veste
+   * `.ng-modal-link`.
    */
   --ng-fs-btn:          0.78rem;
 
   /*
    * ── Corpo da consequência — token PRÓPRIO desta skin ──
-   * A consequência é o título do painel de feedback e passa a ser cromo (Press
-   * Start 2P). O base a dimensiona com `--ng-fs-dilema`, o clamp fluido que
-   * também veste o título do dilema; no desktop isso dá 1.4rem, e a quadrada a
-   * 22px transformaria uma frase de 150 caracteres em cinco linhas.
+   * A consequência é o título do painel de feedback e é cromo (fonte de
+   * display). O base a dimensiona com `--ng-fs-dilema`, o clamp fluido que
+   * também veste o título do dilema.
    *
-   * Medido a 1.05rem (~16.8px, ~1em por glifo) na largura útil do painel no
-   * desktop — 860px de palco menos 40px de padding: ~48 caracteres por linha,
-   * então 150 caracteres ocupam ~3 linhas. É o que cabe no painel sem forçar a
-   * altura, que é justamente o que esta revisão está consertando.
+   * Como o `--ng-fs-btn`, o valor é ALTURA VISUAL e sai multiplicado por
+   * `--ng-fator-display`. Calibrado em 29/08 para ~48 caracteres por linha da
+   * Press Start 2P no painel de desktop; com a Pixelify a ~70% da largura, a
+   * mesma altura dá mais caracteres por linha — medidos no "Escala do cromo".
    *
    * Token, e não literal nos seletores, pelo mesmo motivo do `--ng-fs-btn`:
    * `--ng-fs-dilema` serve as DUAS famílias, e torcê-lo arrastaria o título do
@@ -210,13 +210,27 @@
    * corpo. É como jogo de console de verdade faz — HUD em pixel, diálogo em
    * fonte legível.
    *
+   * 07/10: o display passou a ser a Pixelify Sans — pixel, mas PROPORCIONAL,
+   * com minúsculas e descendentes. A divisão em duas famílias continua: é
+   * fonte de display, e o corpo segue em mono.
+   *
    * A RESERVA DAS DUAS É MONOESPAÇADA de propósito. Se o `.woff2` faltar num
    * deploy quebrado, o cromo cai em Courier e o jogo continua com sabor de
    * terminal, em vez de voltar à sans-serif do base e perder a identidade
    * inteira sem nenhum sinal.
    */
   --ng-font:            'Courier New', Courier, monospace;
-  --ng-font-display:    'Press Start 2P', 'Courier New', Courier, monospace;
+  --ng-font-display:    'Pixelify Sans', 'Courier New', Courier, monospace;
+
+  /*
+   * ── Fator da fonte de display — token PRÓPRIO desta skin ──
+   * Multiplica o tamanho dos oito seletores de cromo, e SÓ deles (regras no
+   * "Escala do cromo"). 1.36 = altura da maiúscula da Press Start 2P (0.875em)
+   * ÷ a da Pixelify Sans (0.643em): com ele, todo o cromo sai com a mesma
+   * altura visual de antes da troca, e a escala abaixo continua valendo como
+   * está. Nenhum token compartilhado com o corpo é tocado.
+   */
+  --ng-fator-display:   1.36;
 
   /*
    * ── Nitidez dos cenários: NÃO declarar `image-rendering` aqui ──
@@ -271,9 +285,15 @@
    *   `--ng-fs-10` 1.35  → 1.15rem  · título do dilema (topo do clamp fluido)
    *   `--ng-fs-11` 1.75  → 1.25rem  · nome do perfil no veredito
    *   `--ng-fs-12` 1.9   → 1.4rem   · título da capa
-   * Os três últimos DESCEM porque a quadrada ocupa ~2x a largura por glifo: a
-   * 1.9rem um nome de perfil de 21 caracteres passaria de 600px e quebraria em
-   * três linhas no celular.
+   * Os três últimos DESCERAM porque a Press Start 2P, quadrada, ocupava ~2x a
+   * largura por glifo: a 1.9rem um nome de perfil de 21 caracteres passaria de
+   * 600px e quebraria em três linhas no celular.
+   *   ⚠️ 07/10 — A PREMISSA "~1em POR GLIFO" NÃO VALE MAIS: a Pixelify Sans é
+   *   proporcional e, na mesma altura de maiúscula, ocupa ~70% da largura da
+   *   Press Start 2P. Os valores ficam como estão porque passaram a significar
+   *   ALTURA VISUAL: o cromo os consome multiplicados por `--ng-fator-display`,
+   *   e o que sobrou de largura virou folga, não tamanho. Subir algum deles é
+   *   decisão de desenho, não correção.
    *
    * ⚠️ CORREÇÃO DE 29/08: esta tabela listava um quinto token, `--ng-fs-4`,
    * como sendo o dos botões "Continuar" e CTA. É FALSO — `--ng-fs-4` veste
@@ -310,7 +330,7 @@
 }
 
 /*
- * ── O cromo, e só ele, em Press Start 2P ───────────────────────────────
+ * ── O cromo, e só ele, na fonte de display ─────────────────────────────
  *
  * Oito seletores, agrupados de propósito: é a lista fechada do que é "cromo"
  * nesta skin, e vê-la inteira num lugar é o que impede a fonte de vazar para
@@ -344,21 +364,63 @@
   font-family: var(--ng-font-display);
 }
 
-/* Corpo dos dois botões de chamada, desacoplado de `--ng-fs-8`/`--ng-fs-9` —
-   ver a nota do `--ng-fs-btn` no bloco de tokens. É o que os mantém dentro da
-   largura do botão no celular. */
-.ng-game-wrap.ng-skin-pixel .ng-btn-next,
-.ng-game-wrap.ng-skin-pixel .ng-btn-cta {
-  font-size: var(--ng-fs-btn);
+/*
+ * ── Escala do cromo: o fator da fonte de display ───────────────────────
+ *
+ * Cada um dos oito seletores acima recebe o tamanho que o base (ou o token
+ * próprio desta skin) já lhe dava, × `--ng-fator-display`. É por isso que o
+ * fator mora em REGRA DE COMPONENTE, e não em token: `--ng-fs-7`, `-8`, `-9` e
+ * `-10` servem também o corpo em Courier, e multiplicar o token arrastaria o
+ * corpo junto. Aqui só o cromo muda; o corpo não tem uma linha nova.
+ *
+ * O `calc()` repete a FONTE do tamanho de cada seletor no base — se o base
+ * trocar o token de um deles, a regra correspondente daqui tem de trocar junto:
+ *   título do dilema  `--ng-fs-dilema` (o clamp fluido) · capa `--ng-fs-12`
+ *   perfil `--ng-fs-11` · rótulo `--ng-fs-2` · contador `--ng-fs-3`
+ *   botões `--ng-fs-btn` e consequência `--ng-fs-conseq`, os dois desta skin
+ *
+ * A ORDEM IMPORTA ENTRE OS DOIS `h2`: as duas regras têm a mesma
+ * especificidade, e o perfil vem depois da capa, como no base.
+ *
+ * MEDIDO EM 07/10 a 390px, Chrome headless, arquivos reais:
+ *   "Ver resultado final"  Press Start 2P 2 linhas · Pixelify 1 linha
+ *   capa de 60 caracteres  Press Start 2P 6 linhas · Pixelify 4 linhas
+ */
+.ng-game-wrap.ng-skin-pixel .ng-dilema-title {
+  font-size: calc(var(--ng-fs-dilema) * var(--ng-fator-display));
 }
 
-/* Glifo quadrado com `line-height: 1.3` do base cola as linhas de um título de
-   duas linhas. O `letter-spacing: 0.01em` do base não faz nada numa
-   monoespaçada e sai. */
-.ng-game-wrap.ng-skin-pixel .ng-dilema-title {
-  line-height:    1.5;
-  letter-spacing: 0;
+.ng-game-wrap.ng-skin-pixel .ng-screen h2 {
+  font-size: calc(var(--ng-fs-12) * var(--ng-fator-display));
 }
+
+.ng-game-wrap.ng-skin-pixel .ng-verdict-result h2 {
+  font-size: calc(var(--ng-fs-11) * var(--ng-fator-display));
+}
+
+.ng-game-wrap.ng-skin-pixel .ng-opt-label {
+  font-size: calc(var(--ng-fs-2) * var(--ng-fator-display));
+}
+
+.ng-game-wrap.ng-skin-pixel .ng-progress-label {
+  font-size: calc(var(--ng-fs-3) * var(--ng-fator-display));
+}
+
+/* Botões de chamada: desacoplados de `--ng-fs-8`/`--ng-fs-9` — ver a nota do
+   `--ng-fs-btn` no bloco de tokens. */
+.ng-game-wrap.ng-skin-pixel .ng-btn-next,
+.ng-game-wrap.ng-skin-pixel .ng-btn-cta {
+  font-size: calc(var(--ng-fs-btn) * var(--ng-fator-display));
+}
+
+/*
+ * SAIU EM 07/10 a regra do título do dilema que trocava o `line-height` 1.3 do
+ * base por 1.5 e o `letter-spacing` 0.01em por 0. As duas razões eram da Press
+ * Start 2P: glifo quadrado, sem descendente, colava as linhas; e espaçamento
+ * não faz nada numa monoespaçada. A Pixelify tem descendente (g e p descem
+ * 0.19em) e é proporcional — o 1.5 deixava as linhas de um título de duas
+ * linhas soltas, e o título volta aos valores do base.
+ */
 
 /*
  * ── Caixas de alternativa: amarelo sólido, texto preto ─────────────────
@@ -393,11 +455,12 @@
 
 /* "OPÇÃO A" — no base é `--ng-accent`, amarelo claro, que sobre a caixa amarela
    seria INVISÍVEL. Preto a 70% mantém o rótulo como informação secundária sem
-   virar corpo de texto, e mede 7.02:1. O `letter-spacing` do base (0.1em) vai a
-   zero: a quadrada já é espaçada, e 0.1em a esgarça. */
+   virar corpo de texto, e mede 7.02:1. O `letter-spacing` do base (0.1em)
+   VOLTOU em 07/10: era zerado porque a Press Start 2P, quadrada, já vinha
+   espaçada; a Pixelify é proporcional, e o rótulo em caixa-alta pede o
+   espaçamento do base, como nas outras skins. */
 .ng-game-wrap.ng-skin-pixel .ng-opt-label {
-  color:          rgba(var(--ng-on-primary-rgb), 0.7);
-  letter-spacing: 0;
+  color: rgba(var(--ng-on-primary-rgb), 0.7);
 }
 
 /* Hover: clareia para o acento, mantendo a moldura preta. Preto sobre #FFE566
@@ -466,7 +529,9 @@
    * IGUAL à do palco e rolagem interna quando o texto não cabe. Com a
    * consequência em Press Start 2P — maior por glifo — isso passou a acionar a
    * barra no desktop, e barra de rolagem dentro de uma caixa de diálogo de RPG
-   * é o oposto do que a skin promete.
+   * é o oposto do que a skin promete. (07/10: com a Pixelify o painel ficou
+   * mais baixo, mas a regra continua — ela não custa nada quando o texto cabe,
+   * e é o que segura uma consequência longa sem barra.)
    *
    * `inset: 0 0 auto 0` solta APENAS o `bottom`. Topo, esquerda e direita
    * continuam colados no palco, então o painel mantém posição e largura — e
@@ -493,13 +558,13 @@
   overflow-y: visible;
 }
 
-/* A consequência como TÍTULO do painel: tamanho próprio, e entrelinha de 1.7
-   contra 1.55 do base — glifo quadrado sem descendente cola na linha seguinte,
-   e aqui são até três linhas. A cor vem do bloco abaixo, junto com os outros
-   dois textos. */
+/* A consequência como TÍTULO do painel: tamanho próprio, × o fator da fonte de
+   display (ver "Escala do cromo"). A entrelinha é a do base, 1.55, desde 07/10:
+   o 1.7 desta skin existia porque o glifo quadrado da Press Start 2P, sem
+   descendente, colava na linha seguinte; a Pixelify tem descendente. A cor vem
+   do bloco abaixo, junto com os outros dois textos. */
 .ng-game-wrap.ng-skin-pixel .ng-feedback-consequence {
-  font-size:   var(--ng-fs-conseq);
-  line-height: 1.7;
+  font-size: calc(var(--ng-fs-conseq) * var(--ng-fator-display));
 }
 
 /* Os três textos do painel, invertidos junto com o fundo. Medidos sobre ele:
@@ -669,8 +734,8 @@
     --ng-fs-10:  1.4rem;    /* título do dilema */
     --ng-fs-11:  1.5rem;    /* nome do perfil */
     --ng-fs-12:  1.75rem;   /* título da capa */
-    --ng-fs-btn:    0.95rem; /* "Ver resultado final" ~289px, folgado no palco largo */
-    --ng-fs-conseq: 1.05rem; /* ~48 chars/linha no painel de 860px */
+    --ng-fs-btn:    0.95rem; /* altura; × fator: "Ver resultado final" em botão de 271px (07/10) */
+    --ng-fs-conseq: 1.05rem; /* altura; × fator: consequência de teste em 2 linhas no painel (07/10) */
   }
 
   /* Corpo mais alto pede entrelinha maior. 1.6 nos dois, contra 1.65 e 1.55 do

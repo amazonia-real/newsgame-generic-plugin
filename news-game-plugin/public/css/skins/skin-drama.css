@@ -43,10 +43,10 @@
 /*
  * ── Fonte: Pacifico, AUTO-HOSPEDADA, só nos títulos ───────────────────
  *
- * Mesma regra da Press Start 2P: nada de Google Fonts por <link> ou @import
+ * Mesma regra da fonte da `pixel`: nada de Google Fonts por <link> ou @import
  * (rede de terceiro e IP do leitor). Arquivo em `public/fonts/`, licença SIL
- * OFL 1.1 ao lado, em `OFL-pacifico.txt` — o `OFL.txt` sem sufixo é o da Press
- * Start 2P, e as duas licenças têm de acompanhar o pacote.
+ * OFL 1.1 ao lado, em `OFL-pacifico.txt` — cada fonte tem a sua licença com o
+ * nome dela no sufixo, e todas têm de acompanhar o pacote.
  *
  * Só o subconjunto `latin`, com o `unicode-range` original do Google Fonts:
  * cobre ã ç é õ e as maiúsculas acentuadas (conferido em 05/10). Fora dele, o
