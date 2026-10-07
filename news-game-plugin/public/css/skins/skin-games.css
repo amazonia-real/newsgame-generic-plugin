@@ -7,7 +7,7 @@
  *
  * ── O QUE ELA DECLARA ─────────────────────────────────────────────────
  *   · os 6 canais `-rgb`, mais `--ng-on-primary-rgb` (a primária é escura)
- *   · as fontes: Rajdhani no corpo (`--ng-font`) e Orbitron nos títulos
+ *   · as fontes: Rajdhani no corpo (`--ng-font`) e Oxanium nos títulos
  *     (`--ng-font-title`)
  *   · véu CLARO só para a foto escolhida na Mesa (regra 14 do contrato)
  *   · cartão chapado, contorno de 3px e sombra dura em geometria (15 e 16)
@@ -40,22 +40,24 @@
  */
 
 /*
- * ── Fontes: Rajdhani e Orbitron, AUTO-HOSPEDADAS ──────────────────────
+ * ── Fontes: Rajdhani e Oxanium, AUTO-HOSPEDADAS ───────────────────────
  *
- * Mesma regra da Press Start 2P e da Pacifico: nada de Google Fonts por
- * <link> ou @import. Arquivos em `public/fonts/`, licença SIL OFL 1.1 ao lado
- * (`OFL-rajdhani.txt`, `OFL-orbitron.txt`). Só o subconjunto `latin`, com o
- * `unicode-range` original do Google Fonts.
- *
- * ⚠️ A ORBITRON DECLARA NOME RESERVADO no OFL ("Orbitron"). Está instalada
- * como o Google a distribui — sem alterar nem renomear a fonte; só o NOME DO
- * ARQUIVO segue o padrão da pasta. Conferir a licença antes de tornar o
- * repositório público e distribuir o plugin.
+ * Mesma regra da Pacifico: nada de Google Fonts por <link> ou @import.
+ * Arquivos em `public/fonts/`, licença SIL OFL 1.1 ao lado
+ * (`OFL-rajdhani.txt`, `OFL-oxanium.txt`). Só o subconjunto `latin`, com o
+ * `unicode-range` original do Google Fonts. Nenhuma das duas declara nome
+ * reservado na linha de copyright do OFL.
  *
  * Rajdhani é ESTÁTICA, quatro arquivos (400, 500, 600, 700) — os pesos que o
  * base usa. O 800 dos percentuais do radar cai no 700, sem engrossar (medido
- * em canvas em 05/10: tinta idêntica à do 700). Orbitron é VARIÁVEL, um
- * arquivo para 400–900. Soma das duas: 73.280 bytes.
+ * em canvas em 05/10: tinta idêntica à do 700). Soma das duas: 75.524 bytes.
+ *
+ * Oxanium é VARIÁVEL, um arquivo para 200–800 — e o PESO PADRÃO DO ARQUIVO É
+ * 200. Por isso o `@font-face` declara o intervalo inteiro: com `font-weight`
+ * de um valor só, o navegador usaria o arquivo como está, e o título — que sai
+ * em 400 porque o tema zera o peso dos `h1`–`h6` — seria desenhado fino.
+ * Troca de 07/10: a Oxanium substituiu a Orbitron, que declarava nome
+ * reservado no OFL.
  */
 @font-face {
   font-family: 'Rajdhani';
@@ -102,11 +104,11 @@
 }
 
 @font-face {
-  font-family: 'Orbitron';
+  font-family: 'Oxanium';
   font-style:  normal;
-  font-weight: 400 900;
+  font-weight: 200 800;
   font-display: swap;
-  src: url('../../fonts/orbitron-v35-latin.woff2') format('woff2');
+  src: url('../../fonts/oxanium-v21-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
     U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
     U+2212, U+2215, U+FEFF, U+FFFD;
@@ -123,7 +125,7 @@
   --ng-on-primary-rgb: 253, 253, 251;   /* texto claro sobre o botão preto */
 
   --ng-font:           'Rajdhani', sans-serif;
-  --ng-font-title:     'Orbitron', sans-serif;
+  --ng-font-title:     'Oxanium', sans-serif;
 
   /* Véu da FOTO da Mesa: claro, para a tinta escura sobreviver à foto. */
   --ng-overlay-rgb:    255, 255, 255;

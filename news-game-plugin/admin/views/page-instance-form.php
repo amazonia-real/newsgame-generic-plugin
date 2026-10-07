@@ -53,7 +53,7 @@ $resumos_skin  = array(
     'mono'      => 'Preto e branco de fundo escuro, ênfase por peso e não por cor, tipografia serifada. Muda cor, raio e tipografia.',
     'pixel'     => 'Amarelo de caixa de diálogo, fonte de arcade no cromo e três cenários de fábrica em pixel art — capa, dilemas e resultado. Com imagem própria, como a Drama, a Games, a Pop Art e a Minimal.',
     'drama'     => 'Veludo vermelho e ouro de marquise, raios 12/8/3 (os do base), títulos em Pacifico e três cenários de teatro — capa, dilemas e resultado. Cartão escuro.',
-    'games'     => 'Skin CLARA: fundo de caderno branco, tinta preta, cartão branco com contorno grosso e sombra dura (raios 12/8/3, os do base), títulos em Orbitron, corpo em Rajdhani e três cenários desenhados a nanquim.',
+    'games'     => 'Skin CLARA: fundo de caderno branco, tinta preta, cartão branco com contorno grosso e sombra dura (raios 12/8/3, os do base), títulos em Oxanium, corpo em Rajdhani e três cenários desenhados a nanquim.',
     'popart'    => 'Skin CLARA: raios de quadrinho — capa amarela, dilemas azuis, resultado rosa —, tinta preta, cartão creme com contorno grosso e sombra dura, escolhida em amarelo (raios 12/8/3), títulos em Bungee e corpo em Montserrat.',
     'minimal'   => 'Skin CLARA e PLANA: fundo cinza-claro, tinta azul, cartão branco com contorno azul e sem sombra, cantos retos (raios 0/0/0), escolhida cheia de azul, a fonte do jogo e três cenários de linhas e quadrados.',
 );
