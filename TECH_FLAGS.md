@@ -1956,9 +1956,11 @@ FLAG 001), **FLAG 017** (a hipótese do raciocínio ligado).
 
 ## FLAG 020 — Painel de contexto (`.ng-feedback`) reprovava o AA no pior caso
 
-**Status:** 🟡 **Resolvido nas skins que declaram o próprio painel; a Padrão reprova e
-fica como está, por decisão.** Registrado em 2026-10-05, a partir do defeito achado
-pelo editor em partida real na skin `drama` ("cartão de contexto", 2,7:1 e 4,0:1).
+**Status:** 🟡 **Resolvido nas skins que declaram o próprio painel — a Padrão inclusive,
+desde `79f34be` (2026-10-07).** Segue aberta, na Padrão, a trava "Leia antes de avançar"
+abaixo de 4,5:1 — ver a atualização de 2026-10-07, no fim desta FLAG. Registrado em
+2026-10-05, a partir do defeito achado pelo editor em partida real na skin `drama`
+("cartão de contexto", 2,7:1 e 4,0:1).
 
 ### O mecanismo
 
@@ -1984,6 +1986,9 @@ dele (percentis 1 e 99 de luminância) — o pior caso de cada elemento. Mínimo
 | `mono` | 2,07 (texto 2,42) | **6,94** (trava); consequência e texto **16,16** | passa — caixa chapada |
 | `neutro`, `colorido`, `futurista` | 2,07 a 2,17 | — | **deixam de contar**: removidas em `7b48807` |
 
+A linha da `default` descreve o estado depois de `a489b16`; a Padrão mudou em
+`79f34be` — ver a atualização de 2026-10-07, abaixo.
+
 O defeito atingia **6 das 7** skins de então — todas menos a `pixel`, que já tinha
 painel próprio (a contagem "5" que circulou em 05/10 era das seis **outras** além da
 drama, sem a pixel). Os 2,7 e 4,0 do editor na drama batem com o pior caso escuro e
@@ -2000,7 +2005,7 @@ claro medido (2,59 e 3,99).
 - Contrato na **regra 13** da §5.4 do `GEMINI.md`: skin que precisa de outro painel
   sobrescreve o par, declarando os dois tokens
 
-### Por que a Padrão fica reprovando
+### Por que a Padrão fica reprovando *(superado em 2026-10-07 — ver abaixo)*
 
 **Decisão do editor:** o padrão do par é o comportamento atual da Padrão e não muda
 por causa de outra skin; alinhar a Padrão ao Jogo da Amazônia original é tarefa
@@ -2014,10 +2019,38 @@ imagens que estiverem atrás do painel no jogo real. Não é número do JDA.
   `.ng-feedback-consequence`, `.ng-feedback-text`, `.ng-feedback-hint`
 - `news-game-plugin/public/css/skins/skin-drama.css` e `skin-mono.css` — o par
 - `news-game-plugin/public/css/skins/skin-pixel.css` — a regra de componente anterior
+- `news-game-plugin/public/css/skins/skin-default.css` — o par da Padrão, desde `79f34be`
 
 **Ver também:** **FLAG 009** (contraste de tokens de alpha baixo no base — mesma
 família de defeito, outro token), a regra 13 da §5.4 do `GEMINI.md` e a tarefa de
 alinhar a Padrão ao JDA, junto ao H3 no roadmap.
+
+### Atualização de 2026-10-07 — a Padrão declara o par do JDA (`79f34be`)
+
+- **A premissa estava errada.** O vidro do base (`--ng-feedback-glass`, branco a .30)
+  foi descrito como reprodução do `.consequencia-toast` do JDA. Ele copiou
+  `jda-base.css:1109`, que no JDA **perde** na cascata. O que vence é
+  `jda-base.css:1956` — fundo `rgba(247,255,247,.98)` — com a consequência em `#1B480C`
+  (`:1961`). Medido por estilo computado em 390, 680, 820 e 1340 px. A regra 13 da §5.4
+  do `GEMINI.md` foi corrigida junto.
+- **O painel do JDA também declara `#2A5C1A`** (`jda-base.css:1551`, cor do próprio
+  `.consequencia-toast`), e **nenhum texto visível a usa**: a consequência, a dica, o botão
+  e as etiquetas do placar têm cor própria.
+- **A Padrão deixa de ser vidro.** `skin-default.css` declara o par:
+  `--ng-feedback-bg: rgba(247,255,247,.98)` e `--ng-feedback-ink: #1B480C`. O base não
+  mudou; as outras seis skins ficaram idênticas (19.230 valores de estilo computado).
+- **Medição nova, com OUTRO método.** Contraste calculado pelos valores computados, com o
+  painel composto sobre os dois extremos do que pode estar atrás dele (branco e preto),
+  no estado de trava, em 390 e 1340 px. O 2,16 registrado acima veio de percentis de
+  pixel numa cena real; os dois números **não** são a mesma medida e não se comparam
+  como antes e depois. Pior caso pelo método novo:
+  - consequência e desfecho: 9,97:1
+  - trava "Leia antes de avançar" (tinta cheia com opacidade .7): **4,36:1, abaixo de
+    4,5**. No JDA, a dica é a tinta a .5 com opacidade .85 (2,24:1 pelo mesmo método).
+    Pendência do bloco (c) do alinhamento, no §10 do `CLAUDE.md`
+  - botão travado "Continuar em Ns": 1,79:1 (JDA 2,41:1). A causa é a opacidade .45 do
+    estado desabilitado, nos dois lados; a WCAG não exige contraste de controle
+    desabilitado
 
 ---
 
