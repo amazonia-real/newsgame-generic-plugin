@@ -3,11 +3,11 @@
  *
  * O Padrão continua partindo do arquivo base (`newsgame-game.css`): os valores
  * vêm do bloco de tokens de lá, e esta folha só declara o que difere — desde
- * 07/10, o par do painel de contexto e a borda e a sombra do cartão, por
- * faixa. Ela existe para que o Padrão tenha o MESMO caminho de carregamento
- * das outras skins (`skin-<slug>.css`, enfileirada depois do base) e um lugar
- * próprio para valores que só ele deve ter, sem arrastar as skins que herdam
- * do base.
+ * 07/10, o par do painel de contexto e o cartão da pergunta (fundo, borda,
+ * sombra, título e `text-shadow`, por faixa). Ela existe para que o Padrão
+ * tenha o MESMO caminho de carregamento das outras skins (`skin-<slug>.css`,
+ * enfileirada depois do base) e um lugar próprio para valores que só ele deve
+ * ter, sem arrastar as skins que herdam do base.
  *
  * ── SELETOR ───────────────────────────────────────────────────────────
  * `.ng-game-wrap.ng-skin-default` (0-2-0), pelas razões escritas na
@@ -28,15 +28,18 @@
   --ng-feedback-ink: #1B480C;
 
   /*
-   * Cartão da pergunta: borda e sombra do JDA, por faixa. Até 1024px vence
-   * `jda-mobile.css:82`; a partir de 1025px, `jda-base.css:918` (abaixo).
-   * FICAM DE FORA, de propósito: o FUNDO do cartão do JDA (branco a .10 /
-   * preto a .28) e o brilho neon do desktop (segunda camada de sombra, que a
-   * geometria do base não comporta). O fundo derrubaria o texto do Padrão
-   * abaixo do AA — medido em 07/10, foto clara sob o véu de 42%: situação
-   * 2,49:1 e título 1,30:1 no celular. O JDA compensa com `text-shadow`, que
-   * entra junto com o fundo e a cor do título, no mesmo bloco.
+   * Cartão da pergunta: fundo, borda e sombra do JDA, por faixa. Até 1024px
+   * vence `jda-mobile.css:82`; a partir de 1025px, `jda-base.css:918`
+   * (abaixo). FICA DE FORA o brilho neon do desktop: é uma segunda camada de
+   * sombra, que a geometria do base não comporta.
+   *
+   * O FUNDO ANDA JUNTO com o `text-shadow` e o título branco (regras de
+   * componente no fim da folha): sozinho, o vidro claro derrubava o texto —
+   * medido em 07/10, foto clara sob o véu de 42%, situação 2,49:1 e título
+   * 1,30:1 no celular. O `text-shadow` é como o JDA compensa; a WCAG não o
+   * conta, e a medição sem ele continua abaixo de 4,5:1 no celular.
    */
+  --ng-card-bg:                  rgba(255, 255, 255, 0.10);
   --ng-card-borda-cor:           rgba(255, 255, 255, 0.25);
   --ng-card-borda-largura:       1px;
   --ng-card-sombra-x:            0;
@@ -52,10 +55,50 @@
    e 2). */
 @media (min-width: 1025px) {
   .ng-game-wrap.ng-skin-default {
+    --ng-card-bg:              rgba(0, 0, 0, 0.28);
     --ng-card-borda-cor:       rgba(74, 222, 128, 0.55);
     --ng-card-borda-largura:   1.5px;
     --ng-card-sombra-y:        20px;
     --ng-card-sombra-desfoque: 60px;
     --ng-card-sombra-alfa:     0.3;
+  }
+}
+
+/*
+ * Título da pergunta em branco. Regra de componente, e não o token
+ * `--ng-accent-texto`: ele também pinta o título da capa, o nome do perfil, o
+ * "Opção A", o "Contexto" e o link do modal, que não mudam aqui. O JDA não
+ * mostra título de pergunta; o branco segue a cor da situação dele.
+ */
+.ng-game-wrap.ng-skin-default .ng-dilema-title {
+  color: #ffffff;
+}
+
+/*
+ * `text-shadow` do JDA, só no que ele sombreia dentro do cartão: até 1024px,
+ * situação, título e texto das alternativas (`jda-mobile.css:99-108`); a
+ * partir de 1025px, situação e título (`jda-desktop.css:228-240`), e as
+ * alternativas sem sombra. A alternativa ESCOLHIDA nunca tem sombra
+ * (`jda-base.css:1931`). O rótulo "Opção A" herda a da alternativa — no JDA o
+ * rótulo fica oculto. Painel de contexto, modal e botões não recebem.
+ */
+.ng-game-wrap.ng-skin-default .ng-dilema-title,
+.ng-game-wrap.ng-skin-default .ng-dilema-body,
+.ng-game-wrap.ng-skin-default .ng-btn-option {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.ng-game-wrap.ng-skin-default .ng-btn-option.is-chosen {
+  text-shadow: none;
+}
+
+@media (min-width: 1025px) {
+  .ng-game-wrap.ng-skin-default .ng-dilema-title,
+  .ng-game-wrap.ng-skin-default .ng-dilema-body {
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+  }
+
+  .ng-game-wrap.ng-skin-default .ng-btn-option {
+    text-shadow: none;
   }
 }
