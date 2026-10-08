@@ -3,11 +3,11 @@
  *
  * O Padrão continua partindo do arquivo base (`newsgame-game.css`): os valores
  * vêm do bloco de tokens de lá, e esta folha só declara o que difere — desde
- * 07/10, o par do painel de contexto e o cartão da pergunta (fundo, borda,
- * sombra, título e `text-shadow`, por faixa). Ela existe para que o Padrão
- * tenha o MESMO caminho de carregamento das outras skins (`skin-<slug>.css`,
- * enfileirada depois do base) e um lugar próprio para valores que só ele deve
- * ter, sem arrastar as skins que herdam do base.
+ * 07/10, o par do painel de contexto, o cartão da pergunta (fundo, borda,
+ * sombra, título e `text-shadow`, por faixa) e o modal (i). Ela existe para
+ * que o Padrão tenha o MESMO caminho de carregamento das outras skins
+ * (`skin-<slug>.css`, enfileirada depois do base) e um lugar próprio para
+ * valores que só ele deve ter, sem arrastar as skins que herdam do base.
  *
  * ── SELETOR ───────────────────────────────────────────────────────────
  * `.ng-game-wrap.ng-skin-default` (0-2-0), pelas razões escritas na
@@ -101,4 +101,47 @@
   .ng-game-wrap.ng-skin-default .ng-btn-option {
     text-shadow: none;
   }
+}
+
+/*
+ * Modal de contexto (i): o cartão claro do JDA, por regras de componente —
+ * `--ng-modal-glass` é derivado e `--ng-text`, `--ng-radius` e
+ * `--ng-accent-texto` são compartilhados. Iguais nas quatro faixas:
+ * fundo menta e tinta `jda-base.css:1897`, texto `:1901`, link `:1890`/`:1904`,
+ * raio `:671`, blur `:1537`. O rótulo "Contexto", que o JDA não tem, fica e
+ * ganha a tinta escura (o verde-claro dava 1,9:1 sobre o menta).
+ *
+ * O (x) vai junto porque, branco, sumiria no menta (1,05:1): cor do JDA, igual
+ * no hover (lá a regra de hover perde para uma `!important`). O contorno de
+ * foco segue o do base.
+ *
+ * FICAM DE FORA: o véu e o blur atrás do modal, o logo do pé, o `text-shadow`
+ * do cartão do JDA (0 2px 4px a .4) e, pendentes do bloco (c), a borda (branca
+ * .3; .2 no desktop) e a sombra (0 8 32 a .2; 0 10 30 a .5 no desktop).
+ */
+.ng-game-wrap.ng-skin-default .ng-modal-content {
+  background:              rgba(247, 255, 247, 0.95);
+  color:                   #1B480C;
+  border-radius:           22px;
+  -webkit-backdrop-filter: blur(25px) saturate(2);
+  backdrop-filter:         blur(25px) saturate(2);
+}
+
+.ng-game-wrap.ng-skin-default .ng-modal-text {
+  color: #163824;
+}
+
+.ng-game-wrap.ng-skin-default .ng-modal-link {
+  color:          #1B480C;
+  font-weight:    800;
+  text-transform: none;
+}
+
+.ng-game-wrap.ng-skin-default .ng-modal-content .ng-verd-label {
+  color: #1B480C;
+}
+
+.ng-game-wrap.ng-skin-default .ng-modal-close,
+.ng-game-wrap.ng-skin-default .ng-modal-close:hover {
+  color: #2A5C1A;
 }
