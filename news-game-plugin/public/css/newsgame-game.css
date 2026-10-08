@@ -1180,7 +1180,10 @@ body.newsgame-fullscreen .wp-block-post-title { display: none; }
   .ng-card           { padding: 1.15rem 1.15rem 2.1rem; }
   .ng-btn-option     { padding: 0.85rem 1rem; }
   .ng-feedback       { padding: 1rem 0.9rem; }
-  .ng-modal          { padding: 0.75rem; align-items: flex-end; }
+  /* Modal centralizado também aqui, por decisão do editor: é um alerta de
+     contexto, fechado pelo (x). Até 08/10 esta linha o prendia embaixo
+     (align-items: flex-end); padding e max-height continuam. */
+  .ng-modal          { padding: 0.75rem; }
   .ng-modal-content  { max-height: 72vh; }
   .ng-verdict-result { padding: 1.5rem 0.75rem; }
   /* Alvo de toque: o avançar ocupa a largura, em vez de ficar num canto */
