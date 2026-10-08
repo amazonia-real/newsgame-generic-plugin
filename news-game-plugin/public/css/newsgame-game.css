@@ -626,9 +626,15 @@
 }
 
 /* "Aprofundar" em caixa alta, como o .modal-link do JDA (jda-base.css:729).
-   Substitui a URL crua que aparecia na tela de feedback até aqui. */
+   Substitui a URL crua que aparecia na tela de feedback até aqui.
+   No canto direito do cartão, em TODAS as skins: `display: table` encolhe a
+   caixa ao texto e `margin-left: auto` a empurra para a direita. É a posição
+   do pé do JDA (logo à esquerda, link à direita), mas vale também SEM logo, por
+   decisão do editor — no JDA, sozinho, o link ficaria à esquerda. Quando o
+   logo entrar, o pé com marcação (frente própria) substitui esta regra. */
 .ng-modal-link {
-  display:         inline-block;
+  display:         table;
+  margin-left:     auto;
   color:           var(--ng-accent-texto);
   font-size:       var(--ng-fs-4);
   font-weight:     700;
