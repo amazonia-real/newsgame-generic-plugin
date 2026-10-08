@@ -49,7 +49,7 @@ $rotulos_skin  = array(
  * a torna preferível a derivar o valor do CSS em PHP.
  */
 $resumos_skin  = array(
-    'default'   => 'Verde terra sobre fundo escuro, raios 12/8/3. Não carrega folha extra: é a própria base do plugin.',
+    'default'   => 'Verde terra sobre fundo escuro, raios 12/8/3, a fonte do jogo. É o ponto de partida das outras skins.',
     'mono'      => 'Preto e branco de fundo escuro, ênfase por peso e não por cor, tipografia serifada. Muda cor, raio e tipografia.',
     'pixel'     => 'Amarelo de caixa de diálogo, fonte de arcade no cromo e três cenários de fábrica em pixel art — capa, dilemas e resultado. Com imagem própria, como a Drama, a Games, a Pop Art e a Minimal.',
     'drama'     => 'Veludo vermelho e ouro de marquise, raios 12/8/3 (os do base), títulos em Pacifico e três cenários de teatro — capa, dilemas e resultado. Cartão escuro.',

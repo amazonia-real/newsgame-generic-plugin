@@ -1,0 +1,15 @@
+/*
+ * SKIN "DEFAULT" (Padrão) — folha própria, VAZIA de propósito.
+ *
+ * O Padrão continua sendo o arquivo base (`newsgame-game.css`): todos os
+ * valores dele vêm do bloco de tokens de lá, e esta folha não declara regra
+ * nem token. Ela existe para que o Padrão tenha o MESMO caminho de
+ * carregamento das outras skins (`skin-<slug>.css`, enfileirada depois do
+ * base) e um lugar próprio para valores que só ele deve ter, sem arrastar as
+ * skins que herdam do base.
+ *
+ * ── SELETOR ───────────────────────────────────────────────────────────
+ * `.ng-game-wrap.ng-skin-default` (0-2-0), pelas razões escritas na
+ * `skin-pixel.css`: duas skins na mesma página e imunidade à ordem do CSS. Os
+ * tokens vivem no wrap, não em `:root` (regra 2 da §5.4 do `GEMINI.md`).
+ */

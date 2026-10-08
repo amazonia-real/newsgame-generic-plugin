@@ -175,26 +175,24 @@ class Newsgame_Shortcodes {
      * inline: inline exigiria 'unsafe-inline' em style-src no site hospedeiro e
      * desfaria o ganho do A1. Ver FLAG 007 e o A5.
      *
-     * 'default' NÃO tem arquivo — é a própria folha base. Daí o `if`, em vez de
-     * um skin-default.css vazio: arquivo vazio seria uma requisição por render
-     * para não mudar nada.
+     * Desde 07/10 'default' também tem folha (`skin-default.css`) e passa pelo
+     * mesmo caminho, sem exceção. A folha nasceu vazia: o custo é uma
+     * requisição por render que não muda nada, aceito em troca de o Padrão ter
+     * onde guardar valores só dele sem mexer no base, que as outras skins herdam.
      *
      * A dependência garante que o base esteja na página antes; quem garante que
      * a skin VENÇA é a especificidade do seletor dela (0-2-0 contra 0-1-0), não
      * esta ordem — ver o cabeçalho dos arquivos de skin.
      *
      * Sem file_exists() de propósito: o slug vem de whitelist fechada e as
-     * cinco folhas são versionadas com o plugin — o mesmo vale para as artes da
-     * skin `pixel`, que a folha dela referencia por caminho relativo. Num
+     * sete folhas (a `default` incluída) são versionadas com o plugin — o mesmo
+     * vale para os cenários das skins que os têm, que cada folha referencia por
+     * caminho relativo. Num
      * deploy quebrado, o 404 aparece no devtools e o jogo renderiza com a
      * paleta base; um skip silencioso renderizaria igual e não apareceria em
      * lugar nenhum.
      */
     private static function enqueue_skin( $skin ) {
-        if ( Newsgame_Admin_Instances::SKIN_DEFAULT === $skin ) {
-            return;
-        }
-
         wp_enqueue_style(
             'newsgame-skin-' . $skin,
             NEWSGAME_URL . 'public/css/skins/skin-' . $skin . '.css',

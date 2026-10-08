@@ -16,16 +16,18 @@ class Newsgame_Admin_Instances {
      * decisão de escopo do projeto, não configuração do editor.
      *
      * ⚠️ ACRESCENTAR SKIN EXIGE TRÊS ARQUIVOS, e faltar qualquer um degrada:
-     * esta constante (dado), o mapa `$rotulos_skin` em
-     * `page-instance-form.php` (UI — sem ele o <select> mostra o slug cru) e a
-     * folha `public/css/skins/skin-<slug>.css` (aparência — sem ela o
-     * enfileiramento devolve 404 e o jogo renderiza com a paleta base). A
-     * `pixel` acrescenta um quarto: as artes em `public/images/skins/pixel/`,
-     * referenciadas pela própria folha e por mais nada.
+     * esta constante (dado), os mapas `$rotulos_skin` e `$resumos_skin` em
+     * `page-instance-form.php` (UI — sem eles o seletor mostra o slug cru e
+     * nenhum resumo) e a folha `public/css/skins/skin-<slug>.css` (aparência —
+     * sem ela o enfileiramento devolve 404 e o jogo renderiza com a paleta
+     * base). A miniatura `admin/images/skins/skin-<slug>.webp` é opcional: a
+     * falta dela é avisada na própria tela. Skins com cenários acrescentam as
+     * artes em `public/images/skins/<slug>/`, referenciadas pela própria folha
+     * e por mais nada.
      *
-     * `default` NÃO tem folha, de propósito: é o próprio arquivo base, e um
-     * `skin-default.css` vazio seria uma requisição por render para não mudar
-     * nada.
+     * Desde 07/10 a regra vale também para `default`: ela tem folha própria
+     * (`skin-default.css`) e passa pelo mesmo enfileiramento das outras, sem
+     * exceção no loader.
      *
      * NOTA DE 29/08: o texto que vivia aqui dizia que estas entradas eram "o
      * suporte de schema deste passo" e que "nenhuma tem folha de estilo ainda".
