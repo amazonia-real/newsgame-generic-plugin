@@ -1,15 +1,28 @@
 /*
- * SKIN "DEFAULT" (Padrão) — folha própria, VAZIA de propósito.
+ * SKIN "DEFAULT" (Padrão) — folha própria.
  *
- * O Padrão continua sendo o arquivo base (`newsgame-game.css`): todos os
- * valores dele vêm do bloco de tokens de lá, e esta folha não declara regra
- * nem token. Ela existe para que o Padrão tenha o MESMO caminho de
- * carregamento das outras skins (`skin-<slug>.css`, enfileirada depois do
- * base) e um lugar próprio para valores que só ele deve ter, sem arrastar as
- * skins que herdam do base.
+ * O Padrão continua partindo do arquivo base (`newsgame-game.css`): os valores
+ * vêm do bloco de tokens de lá, e esta folha só declara o que difere — desde
+ * 07/10, o par do painel de contexto. Ela existe para que o Padrão tenha o
+ * MESMO caminho de carregamento das outras skins (`skin-<slug>.css`,
+ * enfileirada depois do base) e um lugar próprio para valores que só ele deve
+ * ter, sem arrastar as skins que herdam do base.
  *
  * ── SELETOR ───────────────────────────────────────────────────────────
  * `.ng-game-wrap.ng-skin-default` (0-2-0), pelas razões escritas na
  * `skin-pixel.css`: duas skins na mesma página e imunidade à ordem do CSS. Os
  * tokens vivem no wrap, não em `:root` (regra 2 da §5.4 do `GEMINI.md`).
  */
+
+.ng-game-wrap.ng-skin-default {
+  /*
+   * Painel de contexto: fundo e tinta que VENCEM no JDA, em par (regra 13).
+   * No JDA quem vence é `jda-base.css:1956` (fundo menta a .98) e `:1961`
+   * (texto #1B480C), e não a regra `:1109` (vidro branco a .30) que o base
+   * copiou — ela é sobrescrita lá. Raio e blur do painel ficam como no base.
+   * Diferença conhecida: a dica do JDA é a tinta a .5 com opacidade .85; aqui
+   * ela segue a tinta cheia com a opacidade .7 do base.
+   */
+  --ng-feedback-bg:  rgba(247, 255, 247, 0.98);
+  --ng-feedback-ink: #1B480C;
+}
