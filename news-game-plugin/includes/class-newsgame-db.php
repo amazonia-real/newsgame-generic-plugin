@@ -7,7 +7,7 @@ class Newsgame_DB {
      * Versão interna do schema — incrementar aqui ao adicionar colunas.
      * Independente da versão do plugin: só muda quando o banco muda.
      */
-    const SCHEMA_VERSION = '1.6';
+    const SCHEMA_VERSION = '1.7';
 
     /* ── Ponto de entrada público ──────────────────────────── */
 
@@ -91,6 +91,29 @@ class Newsgame_DB {
             'skin',
             "VARCHAR(64) NOT NULL DEFAULT 'default' COMMENT 'Slug da skin de fabrica: whitelist em Newsgame_Admin_Instances::SKINS' AFTER `axis_matrix`"
         );
+        /*
+         * N de perguntas sorteadas por partida (etapa 1, schema 1.7). O `density`
+         * passa a ser só a meta do conjunto de aprovadas.
+         *
+         * As instâncias que já existem recebem round_size = density, para o jogo
+         * não mudar, limitado a 4..15: o density antigo pode estar fora dessa
+         * faixa (o CREATE tinha DEFAULT 20), e acima de 255 o UPDATE inteiro
+         * falharia no TINYINT. O preenchimento roda SÓ quando o ALTER acabou de
+         * criar a coluna: add_column_if_missing() devolve true apenas nesse caso.
+         * Uma segunda execução encontra a coluna e não toca nas linhas — nem nas
+         * editadas depois.
+         */
+        $round_size_nova = self::add_column_if_missing(
+            $instances,
+            'round_size',
+            "TINYINT UNSIGNED NOT NULL DEFAULT 10 COMMENT 'Perguntas sorteadas por partida' AFTER `density`"
+        );
+        if ( $round_size_nova ) {
+            $wpdb->query( "UPDATE `$instances` SET round_size = LEAST(15, GREATEST(4, density))" );
+            if ( $wpdb->last_error ) {
+                error_log( "[Newsgame_DB] Preenchimento de round_size FALHOU: " . $wpdb->last_error );
+            }
+        }
 
         // wp_newsgame_dilemas
         self::add_column_if_missing(
@@ -139,7 +162,8 @@ class Newsgame_DB {
             title        VARCHAR(500)    NOT NULL DEFAULT '',
             theme_prompt TEXT,
             characters    LONGTEXT        COMMENT 'JSON: lista de personagens com slug, label e queries RAG',
-            density       SMALLINT        NOT NULL DEFAULT 20 COMMENT 'Numero de perguntas a gerar (20-120)',
+            density       SMALLINT        NOT NULL DEFAULT 20 COMMENT 'Meta do conjunto de aprovadas (1 a 120)',
+            round_size    TINYINT UNSIGNED NOT NULL DEFAULT 10 COMMENT 'Perguntas sorteadas por partida',
             num_options   TINYINT         NOT NULL DEFAULT 2 COMMENT '2 ou 3 opcoes de resposta por pergunta',
             enable_levels TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '0=nivel unico, 1=Aprendiz/Pro',
             nivel_padrao  VARCHAR(20)     NOT NULL DEFAULT 'pedagogico' COMMENT 'ludico | pedagogico | complexo',
@@ -176,6 +200,10 @@ class Newsgame_DB {
 
     /* ── Helper: ADD COLUMN se não existir ─────────────────── */
 
+    /**
+     * Devolve true só quando ESTA chamada criou a coluna. Quem precisa preencher
+     * as linhas existentes uma única vez (ex.: round_size) depende disso.
+     */
     private static function add_column_if_missing( $table, $column, $definition ) {
         global $wpdb;
 
@@ -183,14 +211,18 @@ class Newsgame_DB {
             $wpdb->prepare( "SHOW COLUMNS FROM `$table` LIKE %s", $column )
         );
 
-        if ( ! $exists ) {
-            $wpdb->query( "ALTER TABLE `$table` ADD COLUMN `$column` $definition" );
-
-            if ( $wpdb->last_error ) {
-                error_log( "[Newsgame_DB] ALTER TABLE $table ADD $column FALHOU: " . $wpdb->last_error );
-            } else {
-                error_log( "[Newsgame_DB] Coluna '$column' adicionada a $table com sucesso." );
-            }
+        if ( $exists ) {
+            return false;
         }
+
+        $wpdb->query( "ALTER TABLE `$table` ADD COLUMN `$column` $definition" );
+
+        if ( $wpdb->last_error ) {
+            error_log( "[Newsgame_DB] ALTER TABLE $table ADD $column FALHOU: " . $wpdb->last_error );
+            return false;
+        }
+
+        error_log( "[Newsgame_DB] Coluna '$column' adicionada a $table com sucesso." );
+        return true;
     }
 }
