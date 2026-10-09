@@ -31,7 +31,7 @@ class GenerateRequest(BaseModel):
     site_id: str
     instance_id: int
     theme_prompt: str
-    density: int = Field(ge=1, le=15)
+    density: int = Field(ge=1, le=120)   # meta do conjunto de aprovadas (teto 120); só validado, não lido
     characters: List[CharacterDef] = Field(default_factory=list)
     num_options: Literal[2, 3] = 2
     enable_levels: bool = False
