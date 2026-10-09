@@ -557,6 +557,20 @@
 }
 
 /*
+ * Em tela cheia o próprio `.ng-game-wrap` é o elemento do `requestFullscreen`,
+ * e o navegador o fixa no tamanho da tela. Sem rolagem, o que não cabe fica
+ * cortado e nada rola — medido em 09/10, 800×360: 32px na 1ª pergunta e 276px
+ * na pergunta mais longa. Com `auto`, a barra só aparece quando falta espaço.
+ * O ⛶ e o crédito da foto são `absolute` no wrap e passam a rolar com o
+ * conteúdo; o modal é `fixed` e não muda.
+ *
+ * O prefixo do Safari antigo vai em regra separada: um pseudo desconhecido
+ * invalidaria a lista inteira.
+ */
+.ng-game-wrap:fullscreen         { overflow-y: auto; }
+.ng-game-wrap:-webkit-full-screen { overflow-y: auto; }
+
+/*
  * ── Modal de contexto ──────────────────────────────────
  * `position: fixed` ancora no viewport porque .ng-game-wrap NÃO tem
  * transform/filter/backdrop-filter. Se algum dia tiver, o fixed passa a ancorar
