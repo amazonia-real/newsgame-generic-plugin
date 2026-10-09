@@ -37,8 +37,7 @@ Cada instância do jogo define:
 | `theme_prompt` | string | Identidade do acervo — instrui o modelo sobre o domínio |
 | `characters` | `CharacterDef[]` | Personagens da instância (slug, label, descrição) |
 | `num_options` | `2` ou `3` | Número de alternativas por dilema |
-| `enable_levels` | bool | Habilita nível COMPLEXO para os dilemas gerais |
-| `nivel_padrao` | string | Nível narrativo padrão: `ludico`, `pedagogico` ou `complexo` |
+| `nivel_padrao` | string | Nível narrativo padrão: `ludico`, `pedagogico` ou `complexo` — é dele que vem o COMPLEXO |
 | `density` | int | Quantidade total de dilemas a gerar |
 
 **Personagens são definidos pelo editor por instância** — não há personagens

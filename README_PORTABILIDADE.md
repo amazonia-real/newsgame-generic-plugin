@@ -165,7 +165,6 @@ Revise os eixos sugeridos antes de prosseguir.
 |-------|-------------|--------|
 | Número de Perguntas/Rodadas | Quantidade de dilemas gerados | Mínimo: 4 / Máximo: 15 |
 | Opções de Resposta | 2 opções (A/B) ou 3 opções (A/B/C) | — |
-| Níveis de Dificuldade | Ativa dois níveis: Aprendiz (acessível) e Pro (jornalístico) | — |
 | Perfil do Jogo | Tom narrativo: Lúdico / Pedagógico / Complexo | — |
 
 ### Passo 4 — Personagens do Jogo

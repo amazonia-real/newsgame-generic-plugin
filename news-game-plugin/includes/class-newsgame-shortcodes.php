@@ -282,7 +282,6 @@ class Newsgame_Shortcodes {
                 'title'               => $instance->title,
                 'dilemas'             => $dilemas,
                 'num_options'         => (int) ( $instance->num_options   ?? 2 ),
-                'enable_levels'       => (bool) ( $instance->enable_levels ?? false ),
                 'perfis'              => $matriz['perfis'],
                 'eixos'               => $matriz['eixos'],
             ),

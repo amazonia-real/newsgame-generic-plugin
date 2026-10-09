@@ -34,7 +34,6 @@ class GenerateRequest(BaseModel):
     density: int = Field(ge=1, le=120)   # meta do conjunto de aprovadas (teto 120); só validado, não lido
     characters: List[CharacterDef] = Field(default_factory=list)
     num_options: Literal[2, 3] = 2
-    enable_levels: bool = False
     slot_index: int = Field(ge=0, default=0)    # posição no lote (0-based); rotação de personagens
     nivel_padrao: str = Field(default='pedagogico')  # 'ludico' | 'pedagogico' | 'complexo'
     fontes_usadas: List[str]   = Field(default_factory=list)
@@ -189,7 +188,6 @@ class RegenerateRequest(BaseModel):
     nivel_padrao: str = Field(default='pedagogico')  # tom da instância, mesma regra do GenerateRequest
     characters: List[CharacterDef] = Field(default_factory=list)
     num_options: Literal[2, 3] = 2
-    enable_levels: bool = False
     fontes_usadas: List[str] = Field(default_factory=list)
     # Cascata de chave — ver a nota em GenerateRequest. Aqui o payload é montado
     # inteiramente no servidor (class-newsgame-review.php:266-275), sem passar

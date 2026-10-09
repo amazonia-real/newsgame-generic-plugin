@@ -93,7 +93,6 @@ class Newsgame_Generator {
                 'density'       => $deficit,
                 'characters'    => $characters,
                 'num_options'   => (int) ( $instance->num_options   ?? 2 ),
-                'enable_levels' => (bool) ( $instance->enable_levels ?? false ),
                 'nivel_padrao'  => $instance->nivel_padrao ?? 'pedagogico',
                 'axis_matrix'   => $instance->axis_matrix
                                        ? json_decode( $instance->axis_matrix, true )

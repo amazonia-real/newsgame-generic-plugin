@@ -54,6 +54,8 @@ class Newsgame_DB {
             'num_options',
             "TINYINT NOT NULL DEFAULT 2 COMMENT '2 ou 3 opcoes de resposta' AFTER `density`"
         );
+        // LEGADO desde 09/10 (ver o comentário do CREATE): continua sendo criada
+        // porque o `AFTER enable_levels` do nivel_padrao, logo abaixo, depende dela.
         self::add_column_if_missing(
             $instances,
             'enable_levels',
@@ -154,6 +156,14 @@ class Newsgame_DB {
          * Newsgame_Status. Ela fica no schema porque removê-la não traria ganho e
          * exigiria migração; o INSERT cai no DEFAULT. Os valores que sobraram
          * nas linhas antigas (draft/review) não significam nada.
+         *
+         * ⚠️ A coluna `enable_levels` também é LEGADO, desde 09/10: nada a lê e
+         * nada a escreve. A opção "Ativar Níveis (Aprendiz / Pro)" prometia uma
+         * calibragem que a geração nunca fez — o nível vem do `nivel_padrao`. Não
+         * usar em consulta; os valores que sobraram (ex.: 1 na instância 8) não
+         * significam nada. Fica pela mesma razão do `status`, e o `AFTER
+         * enable_levels` do `nivel_padrao`, na migração, depende dela.
+         *
          * Comentário em PHP, e não COMMENT de SQL, para não mudar a definição.
          */
         dbDelta( "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}newsgame_instances (

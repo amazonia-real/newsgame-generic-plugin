@@ -11,7 +11,6 @@ $theme         = $is_edit ? $inst->theme_prompt : '';
 $density       = $is_edit ? (int) $inst->density : 10;
 $round_size    = $is_edit ? (int) ( $inst->round_size ?? 10 ) : 10;
 $num_options   = $is_edit ? (int) ( $inst->num_options   ?? 2 ) : 2;
-$enable_levels = $is_edit ? (bool) ( $inst->enable_levels ?? false ) : false;
 $nivel_padrao  = $is_edit ? ( $inst->nivel_padrao ?? 'pedagogico' ) : 'pedagogico';
 /*
  * Skin normalizada na LEITURA, e não só na escrita. Uma linha gravada por SQL à
@@ -390,21 +389,6 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
         </td>
       </tr>
       <tr>
-        <th scope="row">Níveis de Dificuldade</th>
-        <td>
-          <label>
-            <input type="checkbox" id="ng-enable-levels" name="enable_levels" value="1"
-                   <?php checked( $enable_levels ); ?>>
-            Ativar Níveis (Aprendiz / Pro)
-          </label>
-          <p class="description">
-            Se ativo, a IA calibra a complexidade em dois níveis: Aprendiz (linguagem acessível)
-            e Pro (jornalístico e sistêmico, com 20% das perguntas no nível avançado).
-            Se inativo, todas as perguntas têm complexidade uniforme.
-          </p>
-        </td>
-      </tr>
-      <tr>
         <th scope="row">
           <label for="ng-nivel-padrao">Perfil do Jogo</label>
         </th>
@@ -651,7 +635,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     O backend buscará no ChromaDB os trechos relevantes para cada personagem,
     enviará à IA e salvará as perguntas em <code>wp_newsgame_dilemas</code>.
     Meta: <strong><?php echo (int) $density; ?> perguntas</strong>
-    com <strong><?php echo (int) $num_options; ?> opções de resposta</strong><?php echo $enable_levels ? ', níveis ativados' : ''; ?>.
+    com <strong><?php echo (int) $num_options; ?> opções de resposta</strong>.
     <?php
     // O span existe sempre, mesmo vazio: o JS o reescreve depois de ações na
     // Mesa Editorial (evento `ng:contagens`, newsgame-admin-generation.js).

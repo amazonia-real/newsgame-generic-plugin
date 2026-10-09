@@ -25,7 +25,6 @@
   /* `numOptions` existia aqui e não era usado em lugar nenhum do bloco — era a
      única linha de código que o A3 apagou em vez de mover. Quem decide 2 ou 3
      alternativas na tela é `q.opt_c_texto != null`, dilema a dilema. */
-  var enableLevels  = !!cfg.enableLevels;   /* localize devolve "1" ou "" */
   var nonce         = cfg.nonce;
   var assignNonce   = cfg.assignNonce;
   var totalDilemas  = cfg.totalDilemas;
@@ -166,11 +165,13 @@
   }
 
   /* ── Constrói HTML de uma linha accordion ─────────────────
-     Complexidade 14, medida com o ESLint — acima do limite 10. Eram 15 até
+     Complexidade 11, medida com o ESLint — acima do limite 10. Eram 15 até
      29/08, quando `buildRowActions()` saiu daqui (o `if/else` de abas valia 1
-     ponto). Diretiva e não refatoração completa, pelo mesmo critério que o A4
-     aplicou ao buildRadarSVG: os 14 restantes são ternários e `||` de default
-     montando string de HTML, sem um `if`, `for` ou `case` no corpo.
+     ponto), e 14 até 09/10, quando saiu o rótulo Aprendiz/Pro do
+     `enable_levels` (3 pontos). Diretiva e não refatoração completa, pelo mesmo
+     critério que o A4 aplicou ao buildRadarSVG: os 11 restantes são ternários e
+     `||` de default montando string de HTML, sem um `if`, `for` ou `case` no
+     corpo.
 
      Sobram DOIS dos três helpers previstos — `buildRowMeta` e `buildEditTable`
      —, e é o que falta para a função cair abaixo de 10 e a diretiva sair.
@@ -194,7 +195,6 @@
 
     var nivel    = q.level || 1;
     var tipo     = q.character_slug || 'geral';
-    var metaLbl  = enableLevels ? (nivel === 2 ? 'Pro' : 'Aprendiz') : '';
     var impactoA = JSON.stringify(q.opt_a_impacto || {popularidade: 0, recursos: 0});
     var impactoB = JSON.stringify(q.opt_b_impacto || {popularidade: 0, recursos: 0});
     var impactoC = JSON.stringify(q.opt_c_impacto || {popularidade: 0, recursos: 0});
@@ -204,7 +204,6 @@
         '<div class="ng-qrow-head">',
           '<span class="ng-qrow-num">' + num + '</span>',
           '<span class="ng-qrow-title">' + esc(q.title || '(sem título)') + '</span>',
-          (metaLbl ? '<span class="ng-qrow-meta">' + esc(metaLbl) + '</span>' : ''),
           (q.axis_weights ? '<span class="ng-qrow-meta" title="Pesos de eixo atribuídos" style="color:#2d7a2d;">⚖</span>' : ''),
           '<span class="ng-qrow-chevron">›</span>',
         '</div>',

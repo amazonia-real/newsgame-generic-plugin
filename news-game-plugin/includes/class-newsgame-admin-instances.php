@@ -189,7 +189,6 @@ class Newsgame_Admin_Instances {
         // não emite warning com $inst nulo (tela de criação) e preserva o 2
         // quando a coluna vem NULL.
         $num_options   = (int) ( $inst->num_options ?? 2 );
-        $enable_levels = (bool) ( $inst->enable_levels ?? false );
         $chars         = (array) json_decode( $inst->characters ?? '[]', true );
 
         // A view roda as suas próprias contagens, depois. Esta existe porque o
@@ -241,8 +240,6 @@ class Newsgame_Admin_Instances {
         wp_enqueue_script( 'newsgame-admin-review', $base . 'newsgame-admin-review.js', array(), NEWSGAME_VERSION, true );
         wp_localize_script( 'newsgame-admin-review', 'ngReviewCfg', array(
             'instanceId'       => $id,
-            // Booleano vira "1" ou "" no localize; o .js normaliza com `!!`.
-            'enableLevels'     => $enable_levels,
             'totalDilemas'     => $review_total,
             'nonce'            => wp_create_nonce( Newsgame_Review::NONCE ),
             'assignNonce'      => wp_create_nonce( self::NONCE_ASSIGN ),
@@ -324,7 +321,6 @@ class Newsgame_Admin_Instances {
         $density       = min( 120, max( 4, absint( $_POST['density'] ?? 10 ) ) );
         $round_size    = min( 15, max( 4, absint( $_POST['round_size'] ?? 10 ) ) );
         $num_options   = in_array( (int) ( $_POST['num_options'] ?? 2 ), array( 2, 3 ), true ) ? (int) $_POST['num_options'] : 2;
-        $enable_levels = isset( $_POST['enable_levels'] ) ? 1 : 0;
         $nivel_padrao  = in_array( $_POST['nivel_padrao'] ?? '', array( 'ludico', 'pedagogico', 'complexo' ), true )
                             ? sanitize_key( $_POST['nivel_padrao'] )
                             : 'pedagogico';
@@ -368,11 +364,10 @@ class Newsgame_Admin_Instances {
             'density'       => $density,
             'round_size'    => $round_size,
             'num_options'   => $num_options,
-            'enable_levels' => $enable_levels,
             'nivel_padrao'  => $nivel_padrao,
             'characters'    => wp_json_encode( $characters, JSON_UNESCAPED_UNICODE ),
         );
-        $fmt = array( '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s' );
+        $fmt = array( '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' );
 
         /*
          * A skin entra no write SÓ quando o formulário enviou o campo.

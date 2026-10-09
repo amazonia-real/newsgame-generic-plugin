@@ -323,7 +323,6 @@ class Newsgame_Review {
             'nivel_padrao'    => $instance->nivel_padrao ?? 'pedagogico',
             'characters'      => $characters,
             'num_options'     => (int) ( $instance->num_options   ?? 2 ),
-            'enable_levels'   => (bool) ( $instance->enable_levels ?? false ),
         );
 
         /*
