@@ -102,7 +102,9 @@
       chamadas:     0,                  // chamadas que chegaram ao provedor
       teto:         posicoes.length + FOLGA_CHAMADAS,
       esperas:      0,                  // esperas de 60 s após 429
-      dilemas:      [],
+      salvas:       0,                  // gravadas no banco, uma a uma
+      naoGravadas:  0,                  // geradas e não gravadas (para o lote)
+      gravadas:     [],                 // { pedida, gravada } — posição real no banco
       fontes:       fontes.slice(),     // semeadas pelo servidor, crescem no lote
       falhas:       [],                 // { posicao, motivo } — vão para o relatório
       interrompido: ''                  // motivo da parada antecipada, se houve
@@ -119,9 +121,11 @@
       setBar(feitas, st.alvo);
       pLabel.textContent = 'Gerando a pergunta da posição ' + pos +
         ' (' + (feitas + 1) + ' de ' + st.alvo + ')…';
-      chamarPosicao(basePayload, st, pos).then(function (res) {
-        setTimeout(passo, aplicarResultado(st, pos, res));
-      });
+      chamarPosicao(basePayload, st, pos)
+        .then(function (res) {
+          return res.tipo === 'ok' ? gravarGerada(st, pos, res.dilema) : aplicarResultado(st, pos, res);
+        })
+        .then(function (espera) { setTimeout(passo, espera); });
     }
 
     passo();
@@ -178,14 +182,69 @@
     return response.json().then(function (d) { return { tipo: 'ok', dilema: d }; });
   }
 
-  // Aplica o resultado ao estado e devolve a espera, em ms, até o próximo passo.
+  // Aplica um resultado SEM pergunta (espera, recusa ou falha) e devolve a
+  // espera, em ms, até o próximo passo. A pergunta gerada vai por gravarGerada().
   function aplicarResultado(st, pos, res) {
     if (res.tipo === 'espera') { return registrarEspera(st); }
     if (res.tipo === 'recusa') { st.interrompido = res.motivo; return 0; }
     st.chamadas++;
-    if (res.tipo === 'ok') { registrarSucesso(st, res.dilema); return 600; }
     registrarFalha(st, pos, res.motivo);
     return 600;
+  }
+
+  /* ── Cada pergunta é gravada assim que é gerada (3b-2) ── */
+  // Em SEQUÊNCIA: o próximo /generate-one só sai depois da resposta do save. O
+  // servidor confere a posição pedida e devolve a gravada (cd902e8). Falha de
+  // gravação tem UMA nova tentativa; na segunda, o lote para como no 502, e o que
+  // já foi gravado fica.
+  function gravarGerada(st, pos, dilema) {
+    st.chamadas++;
+    pLabel.textContent = 'Gravando a pergunta da posição ' + pos + '…';
+    return salvarUma(dilema)
+      .then(function (g) { return g.ok ? g : salvarUma(dilema); })
+      .then(function (g) {
+        if (g.ok) { registrarSucesso(st, pos, dilema, g); return 600; }
+        registrarNaoGravada(st, pos, g.motivo);
+        return 0;
+      });
+  }
+
+  // Um POST com UM dilema. Resolve sempre: { ok, gravada, contagens } ou { ok:false, motivo }.
+  function salvarUma(dilema) {
+    var fd = new FormData();
+    fd.append('action',      cfg.actionSave);
+    fd.append('nonce',       nonce);
+    fd.append('instance_id', instId);
+    fd.append('dilemas',     JSON.stringify([dilema]));
+
+    return fetch(ajaxurl, { method: 'POST', body: fd })
+      .then(function (r) {
+        if (!r.ok) { return { success: false, data: { msg: 'HTTP ' + r.status } }; }
+        return r.json();
+      })
+      .then(lerSalvamento)
+      .catch(function (e) { return { ok: false, motivo: 'falha de rede (' + e.message + ')' }; });
+  }
+
+  function lerSalvamento(r) {
+    var d = (r && r.data) || {};
+    if (!gravouUma(r, d)) {
+      return { ok: false, motivo: d.msg || 'o servidor não confirmou a gravação' };
+    }
+    var p = (d.posicoes || [])[0] || {};
+    return { ok: true, gravada: p.gravada, contagens: d.contagens };
+  }
+
+  // Sucesso só com exatamente 1 gravada e nenhuma falha: o POST leva um dilema.
+  function gravouUma(r, d) {
+    return !!(r && r.success) && d.saved === 1 && !(d.failed > 0);
+  }
+
+  function registrarNaoGravada(st, pos, motivo) {
+    st.naoGravadas++;
+    st.fila.shift();
+    st.interrompido = 'gerei a pergunta da posição ' + pos + ' mas não consegui gravá-la (' +
+      motivo + '). As já gravadas ficam.';
   }
 
   // 429 é o throttle do proxy e não chega ao provedor, então não conta no teto
@@ -202,8 +261,10 @@
     return 60000;
   }
 
-  function registrarSucesso(st, dilema) {
-    st.dilemas.push(dilema);
+  function registrarSucesso(st, pos, dilema, g) {
+    st.salvas++;
+    st.gravadas.push({ pedida: pos, gravada: g.gravada });
+    if (g.contagens) { pintarPainel(g.contagens); }
     st.fila.shift();
     var fonte = (dilema.info_contextual && dilema.info_contextual.link_original) || dilema.source_url;
     if (fonte) { st.fontes.push(fonte); }
@@ -227,34 +288,7 @@
     st.fila.forEach(function (p) { st.falhas.push({ posicao: p, motivo: 'não gerada (lote interrompido)' }); });
     st.fila = [];
     setBar(st.alvo, st.alvo);
-    if (!st.dilemas.length) { concluir(st, 0, 0); return; }
-    saveMatrix(st);
-  }
-
-  /* ── Salva o lote no WordPress via AJAX ──────────────── */
-  function saveMatrix(st) {
-    pLabel.textContent = 'Salvando ' + st.dilemas.length + ' pergunta(s)…';
-
-    var fd = new FormData();
-    fd.append('action',      cfg.actionSave);
-    fd.append('nonce',       nonce);
-    fd.append('instance_id', instId);
-    fd.append('dilemas',     JSON.stringify(st.dilemas));
-
-    fetch(ajaxurl, { method: 'POST', body: fd })
-      .then(function (r) { return r.json(); })
-      .then(function (r) {
-        if (!r.success) {
-          setError('Erro ao salvar: ' + (r.data && r.data.msg ? r.data.msg : 'verifique o log do servidor.'));
-          return;
-        }
-        var saved  = r.data && r.data.saved  != null ? r.data.saved  : st.dilemas.length;
-        var failed = r.data && r.data.failed != null ? r.data.failed : 0;
-        concluir(st, saved, failed);
-      })
-      .catch(function (e) {
-        setError('Falha de rede ao salvar: ' + e.message);
-      });
+    concluir(st, st.salvas, st.naoGravadas);
   }
 
   /* ── Relatório: fica na tela até a próxima ação ──────── */
@@ -281,9 +315,18 @@
     if (failed > 0) {
       linhas.push(failed + ' gerada(s) não foram gravadas no banco — veja o log do servidor (error_log).');
     }
+    if (st.gravadas.length) { linhas.push('Gravadas nas posições: ' + textoGravadas(st.gravadas) + '.'); }
     if (st.interrompido) { linhas.push('Lote interrompido: ' + st.interrompido); }
     st.falhas.forEach(function (f) { linhas.push('Posição ' + f.posicao + ': ' + f.motivo + '.'); });
     return { linhas: linhas, faltam: st.alvo - saved, alerta: saved < st.alvo || failed > 0 };
+  }
+
+  // A posição GRAVADA, que é a do banco. Quando o servidor moveu a pergunta
+  // (a pedida foi ocupada durante o lote), o relatório mostra as duas.
+  function textoGravadas(gravadas) {
+    return gravadas.map(function (g) {
+      return g.gravada === g.pedida ? String(g.gravada) : g.gravada + ' (pedida ' + g.pedida + ', ocupada no meio do lote)';
+    }).join(', ');
   }
 
   // `atualizarBotao` só no relatório sem reload: depois do reload o rótulo do
