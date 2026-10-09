@@ -283,7 +283,8 @@
  * desfecho em Inter. O rótulo do radar segue na pilha de sistema, como no JDA.
  *
  * O CTA é o da TELA (`.ng-screen`): capa e fim genérico. O "Jogar novamente" do
- * veredito também é `.ng-btn-cta` e fica de fora. A dica perde o itálico: o JDA
+ * veredito também é `.ng-btn-cta` e tem regra própria, abaixo (Inter 600, que é
+ * o peso que ele já tem). A dica perde o itálico: o JDA
  * não o usa, e a Manrope não tem itálico (seria sintetizado).
  */
 .ng-game-wrap.ng-skin-default .ng-dilema-title,
@@ -302,7 +303,8 @@
 .ng-game-wrap.ng-skin-default .ng-feedback-text,
 .ng-game-wrap.ng-skin-default .ng-feedback .ng-btn-next,
 .ng-game-wrap.ng-skin-default .ng-screen .ng-btn-cta,
-.ng-game-wrap.ng-skin-default .ng-btn-share {
+.ng-game-wrap.ng-skin-default .ng-btn-share,
+.ng-game-wrap.ng-skin-default .ng-btn-restart {
   font-family: 'Newsgame Inter', var(--ng-font);
 }
 
@@ -422,6 +424,14 @@
 .ng-game-wrap.ng-skin-default .ng-btn-share {
   font-size:      0.8rem;
   line-height:    normal;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* "Jogar novamente": `jda-base.css:1496`. Peso 600 e entrelinha `normal` já
+   são os do base. */
+.ng-game-wrap.ng-skin-default .ng-btn-restart {
+  font-size:      0.76rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
