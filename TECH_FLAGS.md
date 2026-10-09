@@ -2054,6 +2054,64 @@ alinhar a Padrão ao JDA, junto ao H3 no roadmap.
 
 ---
 
+## FLAG 021 — Smart App Control bloqueia o `hnswlib` do ChromaDB, de forma intermitente
+
+**Status:** 🔵 Registrado em 2026-10-09. **Achado de AMBIENTE desta máquina, não defeito
+do produto.** Decisão do editor: **não mexer no sistema** (nem no Smart App Control, nem
+em política, nem em arquivo); se a geração falhar com 500 "Erro interno", **reiniciar o
+backend**.
+
+### O sintoma
+
+`POST /generate-one` respondeu **500 "Erro interno"** num backend temporário em
+`127.0.0.1:8001` (teste do commit `975dc4b`). O traceback para em `rag.get_collection`
+(`generator.py`, ao abrir a coleção) e termina em:
+
+```
+ImportError: DLL load failed while importing hnswlib: Uma política de Controle de Aplicativo bloqueou este arquivo.
+```
+
+Acontece **antes** da chamada ao provedor: nenhuma cota é gasta, e a geração inteira fica
+fora do ar enquanto o bloqueio durar.
+
+### O que foi medido (só leitura, sem elevar)
+
+| Item | Resultado |
+|---|---|
+| Arquivo bloqueado | `backend-python\.venv\Lib\site-packages\hnswlib.cp312-win_amd64.pyd` (400.896 bytes) |
+| Assinatura | **`NotSigned`**; modificado em 15/05/2026 22:07, junto da instalação de `chroma_hnswlib-0.7.6` e `chromadb-0.5.11` no `.venv` |
+| Log `Microsoft-Windows-CodeIntegrity/Operational` | **dois** eventos **3077** (bloqueio, não auditoria) para o arquivo: **2026-10-02 16:58** e **2026-10-09 15:41** (o teste); política **`VerifiedAndReputableDesktop`** (PolicyID `27555.1000.240208`), a do Smart App Control; nível de assinatura pedido 2, validado 1 |
+| Alcance do log | começa em 13/08; o **primeiro 3077 de qualquer arquivo** é de **02/10 às 16:19** |
+| Smart App Control | `HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy\VerifiedAndReputablePolicyState = 1` (ligado, em modo de bloqueio), lido sem elevar |
+| Python fora do `.venv` | não tem `chromadb` nem `hnswlib` (`ModuleNotFoundError`); não serve de comparação |
+| No `.venv`, minutos depois | `import hnswlib` **funcionou**, sem 3077 novo. No mesmo dia, um segundo backend temporário rodou o RAG até o provedor sem bloqueio |
+
+### O que NÃO está verificado
+
+- **Por que é intermitente.** A geração funcionou em 02/10 às 22:38, horas depois do
+  bloqueio das 16:58. Duas hipóteses, **nenhuma testada**: (1) a decisão do Smart App
+  Control depende de uma consulta de reputação na nuvem, que pode responder diferente a
+  cada carga; (2) um processo que já tinha a DLL carregada não volta a ser checado — o
+  uvicorn do editor pode ter carregado o `hnswlib` antes do bloqueio e seguido no ar.
+- **O que ligou o bloqueio em 02/10.** Não há 3077 de nenhum arquivo antes disso.
+
+### Opções levantadas em 09/10 (nenhuma aplicada)
+
+| Opção | Risco |
+|---|---|
+| Não mexer e reiniciar o backend quando falhar (**a escolhida**) | a falha volta ao acaso, com um 500 genérico |
+| Desligar o Smart App Control | no Windows 11, desligado **não volta a ligar sem reinstalar o sistema**; a máquina perde a proteção |
+| Rodar o backend no Docker ou no WSL (já há `Dockerfile`) | configuração nova; o ChromaDB e o acervo precisam ser montados; o plugin aponta para outra URL |
+| Assinar a DLL por conta própria | **não resolve**: o Smart App Control exige certificado confiável e reputação |
+
+### Se recorrer
+
+Primeira medição, grátis: `Get-WinEvent -LogName 'Microsoft-Windows-CodeIntegrity/Operational'`
+filtrado por `hnswlib`, com a hora do 500. O 500 do `/generate-one` com "Erro interno"
+e `hnswlib` no traceback é este caso, e não o provedor.
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.

@@ -163,7 +163,8 @@ Revise os eixos sugeridos antes de prosseguir.
 
 | Campo | O que define | Limite |
 |-------|-------------|--------|
-| Número de Perguntas/Rodadas | Quantidade de dilemas gerados | Mínimo: 4 / Máximo: 15 |
+| Meta de perguntas aprovadas | Quantas perguntas a geração produz e quantas aprovadas o jogo precisa para o selo "Pronto" | 4 a 120 (no formulário; não menor que as perguntas por partida) |
+| Perguntas por partida | Quantas perguntas cada pessoa responde (o sorteio ainda não existe: hoje o jogo mostra todas as aprovadas) | 4 a 15 |
 | Opções de Resposta | 2 opções (A/B) ou 3 opções (A/B/C) | — |
 | Perfil do Jogo | Tom narrativo: Lúdico / Pedagógico / Complexo | — |
 
