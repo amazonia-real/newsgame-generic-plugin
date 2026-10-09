@@ -265,3 +265,17 @@ Decisões de arquitetura e regras de desenvolvimento em `CLAUDE.md`.
 ---
 
 *Originado no [Jogo da Amazônia](https://github.com/amazonia-real) — jornalismo interativo da maior floresta tropical do mundo.*
+
+## Uso de inteligência artificial no desenvolvimento
+
+Este plugin foi desenvolvido por Eduardo Nunomura com o apoio de ferramentas de IA
+generativa. Pela estimativa do autor, cerca de 80% do trabalho foi feito com o Claude
+(Claude.ai e Claude Code, da Anthropic) e cerca de 20% com o Gemini (Google). As
+decisões de produto são do autor. O código escrito por IA é apresentado em diff e
+revisado antes de cada commit, e o que ainda não foi testado em execução está marcado
+como tal na documentação do projeto (`CLAUDE.md`, §10). Os primeiros commits do
+repositório trazem o trailer de coautoria do Claude Code; a partir da adoção desta
+declaração, a autoria por ferramenta é registrada aqui, e não commit a commit.
+
+As perguntas geradas pelo plugin passam obrigatoriamente pela Mesa Editorial, com
+revisão humana antes de ir ao ar.
