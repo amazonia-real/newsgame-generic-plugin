@@ -15,10 +15,13 @@ defined( 'ABSPATH' ) || exit;
  * O status NÃO bloqueia nada: o shortcode renderiza em qualquer estado (D4,
  * fechado por decisão em 05/10). Ele só informa o editor do que falta.
  *
- * Regras (decididas em 05/10):
- *   Pronto     — eixos e perfis completos, aprovadas >= meta e TODAS as
- *                aprovadas com peso. É o que garante o veredito completo em
- *                qualquer partida.
+ * Regras (decididas em 05/10; o limiar mudou em 09/10, commit 4 da etapa 1):
+ *   Pronto     — eixos e perfis completos, aprovadas >= N (`round_size`, as
+ *                perguntas de uma partida) e TODAS as aprovadas com peso. É o
+ *                que garante uma partida inteira com veredito completo. A meta
+ *                do conjunto (`density`) NÃO bloqueia o selo: quando é MAIOR
+ *                que N e ainda não foi atingida, entra no "o que falta" como
+ *                complemento.
  *   Em revisão — eixos e perfis completos e há perguntas vivas (aprovadas ou
  *                pendentes), mas falta algo para Pronto.
  *   Rascunho   — o resto: sem eixos/perfis, ou sem pergunta viva.
@@ -115,9 +118,10 @@ class Newsgame_Status {
      * @return array{estado:string, rotulo:string, falta:string[]}
      */
     public static function avaliar( $inst, $aprovadas, $pendentes, $sem_peso ) {
-        $meta   = (int) $inst->density;
-        $matriz = self::matriz_completa( self::matriz_do_jogo( $inst->axis_matrix ?? '' ) );
-        $vivas  = $aprovadas + $pendentes;
+        $partida = (int) ( $inst->round_size ?? 10 );
+        $meta    = (int) $inst->density;
+        $matriz  = self::matriz_completa( self::matriz_do_jogo( $inst->axis_matrix ?? '' ) );
+        $vivas   = $aprovadas + $pendentes;
 
         $falta = array();
         if ( ! $matriz ) {
@@ -125,14 +129,19 @@ class Newsgame_Status {
         }
         if ( 0 === $vivas ) {
             $falta[] = 'nenhuma pergunta gerada';
-        } elseif ( $aprovadas < $meta ) {
-            $falta[] = sprintf( 'faltam %d aprovada(s) para a meta de %d', $meta - $aprovadas, $meta );
+        } elseif ( $aprovadas < $partida ) {
+            $falta[] = sprintf( 'faltam %d aprovada(s) para as %d perguntas da partida', $partida - $aprovadas, $partida );
         }
         if ( $sem_peso > 0 ) {
             $falta[] = sprintf( '%d aprovada(s) sem peso', $sem_peso );
         }
+        // Complemento: não bloqueia o selo, e só aparece com meta > N. Com meta = N o
+        // item da partida já diz o mesmo; com meta < N (legado) ele também cobre.
+        if ( $meta > $partida && $aprovadas < $meta ) {
+            $falta[] = sprintf( 'para completar a meta do conjunto: faltam %d de %d aprovadas', $meta - $aprovadas, $meta );
+        }
 
-        if ( $matriz && $aprovadas >= $meta && 0 === $sem_peso ) {
+        if ( $matriz && $aprovadas >= $partida && 0 === $sem_peso ) {
             $estado = self::PRONTO;
         } elseif ( $matriz && $vivas > 0 ) {
             $estado = self::REVISAO;
