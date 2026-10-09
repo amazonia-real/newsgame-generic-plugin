@@ -4,7 +4,8 @@
  * O Padrão continua partindo do arquivo base (`newsgame-game.css`): os valores
  * vêm do bloco de tokens de lá, e esta folha só declara o que difere — desde
  * 07/10, o par do painel de contexto, o cartão da pergunta (fundo, borda,
- * sombra, título e `text-shadow`, por faixa), as alternativas e o modal (i).
+ * sombra, título e `text-shadow`, por faixa), as alternativas e o modal (i);
+ * desde 09/10, as fontes do JDA (Manrope e Inter).
  * Ela existe para que o Padrão tenha o MESMO caminho de carregamento das
  * outras skins (`skin-<slug>.css`, enfileirada depois do base) e um lugar próprio para
  * valores que só ele deve ter, sem arrastar as skins que herdam do base.
@@ -15,7 +16,52 @@
  * tokens vivem no wrap, não em `:root` (regra 2 da §5.4 do `GEMINI.md`).
  */
 
+/*
+ * Fontes do JDA, auto-hospedadas em `public/fonts/` com a licença ao lado
+ * (`OFL-manrope.txt`, `OFL-inter.txt`; OFL 1.1, sem nome reservado), pela
+ * regra da §5.3: nada de Google Fonts. No JDA a Manrope vem do tema WordPress e
+ * a Inter do Google Fonts; aqui nenhuma das duas depende do site.
+ *
+ * Nomes de família PRÓPRIOS ('Newsgame Manrope', 'Newsgame Inter'): o tema do
+ * WordPress local já carrega uma "Manrope" dele, e o nome puro colidiria com ela.
+ *
+ * Os dois arquivos são variáveis (Manrope 200–800, Inter 100–900), e o
+ * `font-weight` declara o intervalo inteiro: com um valor só, o navegador
+ * usaria o arquivo no peso padrão dele (200 na Manrope) e não interpolaria. Só
+ * o redondo da Inter: o JDA não usa itálico.
+ */
+@font-face {
+  font-family: 'Newsgame Manrope';
+  font-style:  normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('../../fonts/manrope-v20-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Newsgame Inter';
+  font-style:  normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../../fonts/inter-v20-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 .ng-game-wrap.ng-skin-default {
+  /*
+   * Títulos de tela (capa, "Jogo concluído!" e nome do perfil) em Manrope, pelo
+   * token da regra 12. O `--ng-font` NÃO muda: ele chega a elementos fora do
+   * alinhamento (progresso, crédito da foto, rótulo do radar, "Jogar novamente"),
+   * e as famílias vão elemento a elemento, no fim da folha. A pilha de sistema
+   * segue como reserva.
+   */
+  --ng-font-title: 'Newsgame Manrope', var(--ng-font);
+
   /*
    * Painel de contexto: fundo e tinta que VENCEM no JDA, em par (regra 13).
    * No JDA quem vence é `jda-base.css:1956` (fundo menta a .98) e `:1961`
@@ -219,4 +265,68 @@
 .ng-game-wrap.ng-skin-default .ng-modal-close,
 .ng-game-wrap.ng-skin-default .ng-modal-close:hover {
   color: #2A5C1A;
+}
+
+/*
+ * Fontes por elemento: a família e o peso que VENCEM no JDA (estilo computado,
+ * 09/10, iguais nas quatro faixas). Pesos sempre declarados: o tema zera os
+ * títulos para 400 e põe 300 no `body`, e o que o JDA mostra não pode depender
+ * disso — nem o 300 do texto do modal, que lá vem herdado do tema.
+ *
+ * Manrope: situação 700, texto do modal 300, "Aprofundar" 800 (já declarado na
+ * regra do modal, acima), dica 500, título da capa e do veredito 800 (família
+ * pelo `--ng-font-title`), texto do veredito 400. Inter: alternativas 500,
+ * resumo do painel 500, "Continuar" 700, CTA da capa 700 e "Compartilhar" 700.
+ *
+ * SEM PAR NO JDA, muda só a família: título da pergunta, título "Contexto" do
+ * modal e subtítulo da capa em Manrope; "Opção A" (herda da alternativa) e
+ * desfecho em Inter. O rótulo do radar segue na pilha de sistema, como no JDA.
+ *
+ * O CTA é o da TELA (`.ng-screen`): capa e fim genérico. O "Jogar novamente" do
+ * veredito também é `.ng-btn-cta` e fica de fora. A dica perde o itálico: o JDA
+ * não o usa, e a Manrope não tem itálico (seria sintetizado).
+ */
+.ng-game-wrap.ng-skin-default .ng-dilema-title,
+.ng-game-wrap.ng-skin-default .ng-dilema-body,
+.ng-game-wrap.ng-skin-default .ng-modal-text,
+.ng-game-wrap.ng-skin-default .ng-modal-link,
+.ng-game-wrap.ng-skin-default .ng-modal-content .ng-verd-label,
+.ng-game-wrap.ng-skin-default .ng-feedback-hint,
+.ng-game-wrap.ng-skin-default .ng-screen p,
+.ng-game-wrap.ng-skin-default .ng-verdict-summary {
+  font-family: 'Newsgame Manrope', var(--ng-font);
+}
+
+.ng-game-wrap.ng-skin-default .ng-btn-option,
+.ng-game-wrap.ng-skin-default .ng-feedback-consequence,
+.ng-game-wrap.ng-skin-default .ng-feedback-text,
+.ng-game-wrap.ng-skin-default .ng-feedback .ng-btn-next,
+.ng-game-wrap.ng-skin-default .ng-screen .ng-btn-cta,
+.ng-game-wrap.ng-skin-default .ng-btn-share {
+  font-family: 'Newsgame Inter', var(--ng-font);
+}
+
+.ng-game-wrap.ng-skin-default .ng-modal-text      { font-weight: 300; }
+.ng-game-wrap.ng-skin-default .ng-verdict-summary { font-weight: 400; }
+
+.ng-game-wrap.ng-skin-default .ng-btn-option,
+.ng-game-wrap.ng-skin-default .ng-feedback-consequence,
+.ng-game-wrap.ng-skin-default .ng-feedback-hint {
+  font-weight: 500;
+}
+
+.ng-game-wrap.ng-skin-default .ng-dilema-body,
+.ng-game-wrap.ng-skin-default .ng-feedback .ng-btn-next,
+.ng-game-wrap.ng-skin-default .ng-screen .ng-btn-cta,
+.ng-game-wrap.ng-skin-default .ng-btn-share {
+  font-weight: 700;
+}
+
+.ng-game-wrap.ng-skin-default .ng-screen h2,
+.ng-game-wrap.ng-skin-default .ng-verdict-result h2 {
+  font-weight: 800;
+}
+
+.ng-game-wrap.ng-skin-default .ng-feedback-hint {
+  font-style: normal;
 }
