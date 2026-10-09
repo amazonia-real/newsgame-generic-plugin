@@ -166,6 +166,19 @@
 }
 
 /*
+ * Alternativas em coluna única, como no JDA (`jda-base.css:1055`, flex em
+ * coluna em todas as faixas). Abaixo de 600px o base já é coluna única; a
+ * media só declara a coluna única onde o base põe duas, sem repetir o valor
+ * dele. TELA BAIXA (≤500px de altura) fica com as 2 colunas do base: medido em
+ * 844×390, a coluna única somava 91px ao palco e o empurrava 68px para fora da
+ * tela. O JDA cabe ali porque compacta tudo com `max-height: 680px` — gap,
+ * padding e altura mínima —, que fica de fora (pendência do bloco (c)).
+ */
+@media (min-width: 600px) and (min-height: 501px) {
+  .ng-game-wrap.ng-skin-default .ng-options { grid-template-columns: 1fr; }
+}
+
+/*
  * Modal de contexto (i): o cartão claro do JDA, por regras de componente —
  * `--ng-modal-glass` é derivado e `--ng-text`, `--ng-radius` e
  * `--ng-accent-texto` são compartilhados. Iguais nas quatro faixas:
