@@ -677,6 +677,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
   <div id="ng-progress-wrap" style="display:none;margin-top:1.5rem;max-width:600px">
     <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px">
       <span id="ng-progress-label">Aguardando backend…</span>
+      <button type="button" id="ng-gen-parar" class="button button-small" style="display:none">Parar</button>
       <span id="ng-progress-pct">0%</span>
     </div>
     <div style="background:#ddd;border-radius:4px;height:12px;overflow:hidden">

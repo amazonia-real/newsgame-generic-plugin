@@ -29,6 +29,7 @@
   var pPct        = document.getElementById('ng-progress-pct');
   var pBar        = document.getElementById('ng-progress-bar');
   var pLast       = document.getElementById('ng-progress-last');
+  var pararBtn    = document.getElementById('ng-gen-parar');
   var instId      = cfg.instanceId;
   var nonce       = cfg.nonce;
   var reviewNonce = cfg.reviewNonce;
@@ -107,7 +108,10 @@
       gravadas:     [],                 // { pedida, gravada } — posição real no banco
       fontes:       fontes.slice(),     // semeadas pelo servidor, crescem no lote
       falhas:       [],                 // { posicao, motivo } — vão para o relatório
-      interrompido: ''                  // motivo da parada antecipada, se houve
+      interrompido: '',                 // linha do relatório da parada antecipada, se houve
+      alertas:      [],                 // avisos que o relatório imprime SEMPRE (gravação ambígua)
+      emCurso:      false,              // geração ou gravação esperando resposta
+      timer:        null                // espera agendada até o próximo passo
     };
   }
 
@@ -115,20 +119,48 @@
     var st = novoEstado(posicoes, fontes);
 
     function passo() {
+      st.timer = null;
       var pos = proximaPosicao(st);
       if (pos === null) { finalizarLote(st); return; }
       var feitas = st.alvo - st.fila.length;
       setBar(feitas, st.alvo);
       pLabel.textContent = 'Gerando a pergunta da posição ' + pos +
         ' (' + (feitas + 1) + ' de ' + st.alvo + ')…';
+      st.emCurso = true;
       chamarPosicao(basePayload, st, pos)
         .then(function (res) {
           return res.tipo === 'ok' ? gravarGerada(st, pos, res.dilema) : aplicarResultado(st, pos, res);
         })
-        .then(function (espera) { setTimeout(passo, espera); });
+        .then(function (espera) {
+          st.emCurso = false;
+          st.timer = setTimeout(passo, st.interrompido ? 0 : espera);
+        });
     }
 
+    pararBtn.onclick = function () { pararLote(st, passo); };
+    pararBtn.disabled = false;
+    pararBtn.style.display = '';
     passo();
+  }
+
+  /* ── Parar (3b-3) ───────────────────────────────────── */
+  // NÃO cancela a chamada em curso: o PHP já a mandou ao provedor e a pergunta já
+  // foi paga. Ela termina e, se vier uma pergunta, é gravada. O que se cancela é a
+  // espera agendada — inclusive os 60 s do 429 —, para o lote encerrar na hora.
+  function pararLote(st, passo) {
+    pararBtn.disabled = true;
+    if (!st.interrompido) { st.interrompido = 'Lote parado pelo editor.'; }
+    if (st.emCurso) {
+      pLabel.textContent = 'Parando: aguardando a resposta da chamada em curso…';
+      return;
+    }
+    clearTimeout(st.timer);
+    passo();
+  }
+
+  // A primeira causa de parada vence: as seguintes não a sobrescrevem.
+  function interromper(st, motivo) {
+    if (!st.interrompido) { st.interrompido = 'Lote interrompido: ' + motivo; }
   }
 
   // Próxima posição da fila, ou null quando o lote acabou. Teto de chamadas
@@ -186,7 +218,7 @@
   // espera, em ms, até o próximo passo. A pergunta gerada vai por gravarGerada().
   function aplicarResultado(st, pos, res) {
     if (res.tipo === 'espera') { return registrarEspera(st); }
-    if (res.tipo === 'recusa') { st.interrompido = res.motivo; return 0; }
+    if (res.tipo === 'recusa') { interromper(st, res.motivo); return 0; }
     st.chamadas++;
     registrarFalha(st, pos, res.motivo);
     return 600;
@@ -194,22 +226,25 @@
 
   /* ── Cada pergunta é gravada assim que é gerada (3b-2) ── */
   // Em SEQUÊNCIA: o próximo /generate-one só sai depois da resposta do save. O
-  // servidor confere a posição pedida e devolve a gravada (cd902e8). Falha de
-  // gravação tem UMA nova tentativa; na segunda, o lote para como no 502, e o que
+  // servidor confere a posição pedida e devolve a gravada (cd902e8). Falha
+  // EXPLÍCITA de gravação (o servidor respondeu e garante que nada gravou) tem UMA
+  // nova tentativa; falha AMBÍGUA (rede, HTTP, resposta sem JSON) não tem: repetir
+  // poderia gravar a mesma pergunta duas vezes. Nos dois casos o lote para, e o que
   // já foi gravado fica.
   function gravarGerada(st, pos, dilema) {
     st.chamadas++;
     pLabel.textContent = 'Gravando a pergunta da posição ' + pos + '…';
     return salvarUma(dilema)
-      .then(function (g) { return g.ok ? g : salvarUma(dilema); })
+      .then(function (g) { return g.ok || g.ambigua ? g : salvarUma(dilema); })
       .then(function (g) {
         if (g.ok) { registrarSucesso(st, pos, dilema, g); return 600; }
-        registrarNaoGravada(st, pos, g.motivo);
+        registrarNaoGravada(st, pos, g);
         return 0;
       });
   }
 
-  // Um POST com UM dilema. Resolve sempre: { ok, gravada, contagens } ou { ok:false, motivo }.
+  // Um POST com UM dilema. Resolve sempre: { ok, gravada, contagens } ou
+  // { ok:false, ambigua, motivo }. Ambígua = o cliente não sabe se o INSERT ocorreu.
   function salvarUma(dilema) {
     var fd = new FormData();
     fd.append('action',      cfg.actionSave);
@@ -219,20 +254,23 @@
 
     return fetch(ajaxurl, { method: 'POST', body: fd })
       .then(function (r) {
-        if (!r.ok) { return { success: false, data: { msg: 'HTTP ' + r.status } }; }
+        if (!r.ok) { throw new Error('HTTP ' + r.status); }
         return r.json();
       })
       .then(lerSalvamento)
-      .catch(function (e) { return { ok: false, motivo: 'falha de rede (' + e.message + ')' }; });
+      .catch(function (e) { return { ok: false, ambigua: true, motivo: e.message }; });
   }
 
+  // Explícita só quando o servidor respondeu JSON dizendo que não gravou
+  // (success:false ou failed > 0); qualquer outra resposta fora do esperado é ambígua.
   function lerSalvamento(r) {
     var d = (r && r.data) || {};
-    if (!gravouUma(r, d)) {
-      return { ok: false, motivo: d.msg || 'o servidor não confirmou a gravação' };
+    if (gravouUma(r, d)) {
+      var p = (d.posicoes || [])[0] || {};
+      return { ok: true, gravada: p.gravada, contagens: d.contagens };
     }
-    var p = (d.posicoes || [])[0] || {};
-    return { ok: true, gravada: p.gravada, contagens: d.contagens };
+    var explicita = !(r && r.success) || d.failed > 0;
+    return { ok: false, ambigua: !explicita, motivo: d.msg || 'o servidor não confirmou a gravação' };
   }
 
   // Sucesso só com exatamente 1 gravada e nenhuma falha: o POST leva um dilema.
@@ -240,11 +278,19 @@
     return !!(r && r.success) && d.saved === 1 && !(d.failed > 0);
   }
 
-  function registrarNaoGravada(st, pos, motivo) {
-    st.naoGravadas++;
+  function registrarNaoGravada(st, pos, g) {
     st.fila.shift();
-    st.interrompido = 'gerei a pergunta da posição ' + pos + ' mas não consegui gravá-la (' +
-      motivo + '). As já gravadas ficam.';
+    if (g.ambigua) {
+      // O aviso vai para st.alertas, e não só para a causa da parada: com o Parar já
+      // clicado, a causa é "parado pelo editor" e este aviso sumiria do relatório.
+      st.alertas.push('Não sei se a pergunta da posição ' + pos + ' foi gravada (' + g.motivo +
+        '): confira a aba Pendentes antes de gerar de novo.');
+      interromper(st, 'gravação incerta da pergunta da posição ' + pos + '.');
+      return;
+    }
+    st.naoGravadas++;
+    interromper(st, 'gerei a pergunta da posição ' + pos + ' mas não consegui gravá-la (' +
+      g.motivo + '). As já gravadas ficam.');
   }
 
   // 429 é o throttle do proxy e não chega ao provedor, então não conta no teto
@@ -252,8 +298,8 @@
   function registrarEspera(st) {
     st.esperas++;
     if (st.esperas > MAX_ESPERAS_429) {
-      st.interrompido = 'limite de uso do provedor (' + MAX_ESPERAS_429 +
-        ' esperas de 60 s no mesmo lote)';
+      interromper(st, 'limite de uso do provedor (' + MAX_ESPERAS_429 +
+        ' esperas de 60 s no mesmo lote)');
       return 0;
     }
     pLabel.textContent = 'Limite de requisições — aguardando 60 s (' +
@@ -266,9 +312,18 @@
     st.gravadas.push({ pedida: pos, gravada: g.gravada });
     if (g.contagens) { pintarPainel(g.contagens); }
     st.fila.shift();
+    pararSeMetaAtingida(st, g.contagens);
     var fonte = (dilema.info_contextual && dilema.info_contextual.link_original) || dilema.source_url;
     if (fonte) { st.fontes.push(fonte); }
     if (dilema.titulo) { pLast.textContent = 'Último: "' + dilema.titulo + '"'; }
+  }
+
+  // Alguém inseriu ou devolveu por baixo durante o lote e a meta fechou: gerar o
+  // resto passaria da meta. Só vale se ainda havia posições na fila.
+  function pararSeMetaAtingida(st, c) {
+    if (c && c.deficit <= 0 && st.fila.length) {
+      interromper(st, 'meta atingida no meio do lote; as posições restantes não foram geradas.');
+    }
   }
 
   // Falha retentável: a posição fica na frente da fila até MAX_TENTATIVAS.
@@ -288,6 +343,7 @@
     st.fila.forEach(function (p) { st.falhas.push({ posicao: p, motivo: 'não gerada (lote interrompido)' }); });
     st.fila = [];
     setBar(st.alvo, st.alvo);
+    pararBtn.style.display = 'none';
     concluir(st, st.salvas, st.naoGravadas);
   }
 
@@ -316,7 +372,8 @@
       linhas.push(failed + ' gerada(s) não foram gravadas no banco — veja o log do servidor (error_log).');
     }
     if (st.gravadas.length) { linhas.push('Gravadas nas posições: ' + textoGravadas(st.gravadas) + '.'); }
-    if (st.interrompido) { linhas.push('Lote interrompido: ' + st.interrompido); }
+    if (st.interrompido) { linhas.push(st.interrompido); }
+    linhas = linhas.concat(st.alertas);
     st.falhas.forEach(function (f) { linhas.push('Posição ' + f.posicao + ': ' + f.motivo + '.'); });
     return { linhas: linhas, faltam: st.alvo - saved, alerta: saved < st.alvo || failed > 0 };
   }
