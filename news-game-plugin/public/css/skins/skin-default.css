@@ -4,9 +4,9 @@
  * O Padrão continua partindo do arquivo base (`newsgame-game.css`): os valores
  * vêm do bloco de tokens de lá, e esta folha só declara o que difere — desde
  * 07/10, o par do painel de contexto, o cartão da pergunta (fundo, borda,
- * sombra, título e `text-shadow`, por faixa) e o modal (i). Ela existe para
- * que o Padrão tenha o MESMO caminho de carregamento das outras skins
- * (`skin-<slug>.css`, enfileirada depois do base) e um lugar próprio para
+ * sombra, título e `text-shadow`, por faixa), as alternativas e o modal (i).
+ * Ela existe para que o Padrão tenha o MESMO caminho de carregamento das
+ * outras skins (`skin-<slug>.css`, enfileirada depois do base) e um lugar próprio para
  * valores que só ele deve ter, sem arrastar as skins que herdam do base.
  *
  * ── SELETOR ───────────────────────────────────────────────────────────
@@ -48,6 +48,20 @@
   --ng-card-sombra-espalhamento: 0;
   --ng-card-sombra-rgb:          0, 0, 0;
   --ng-card-sombra-alfa:         0.2;
+
+  /*
+   * Alternativas: as cores que VENCEM no JDA, por faixa. Até 1024px,
+   * `jda-mobile.css:113`; a partir de 1025px, `jda-base.css:930` — e não o
+   * `jda-desktop.css:251` (branco .12/.25), que perde para ela lá. Escolhida
+   * em branco .92 com tinta escura (`jda-base.css:1924` e `:1931`), igual nas
+   * faixas. Hover, borda da escolhida, largura da borda e opacidade da não
+   * escolhida são regras de componente, no fim da folha.
+   */
+  --ng-option-bg:               rgba(255, 255, 255, 0.25);
+  --ng-option-borda:            rgba(255, 255, 255, 0.40);
+  --ng-option-escolhida-bg:     rgba(255, 255, 255, 0.92);
+  --ng-option-escolhida-ink:    #1B480C;
+  --ng-option-escolhida-rotulo: #1B480C;
 }
 
 /* Desktop: redeclara só o que muda. A borda copia o 1.5px DECLARADO no JDA;
@@ -61,6 +75,8 @@
     --ng-card-sombra-y:        20px;
     --ng-card-sombra-desfoque: 60px;
     --ng-card-sombra-alfa:     0.3;
+    --ng-option-bg:            rgba(255, 255, 255, 0.10);
+    --ng-option-borda:         rgba(255, 255, 255, 0.22);
   }
 }
 
@@ -100,6 +116,52 @@
 
   .ng-game-wrap.ng-skin-default .ng-btn-option {
     text-shadow: none;
+  }
+}
+
+/*
+ * Alternativas, o que não é token: `--ng-primary-hover` é derivado, o
+ * `--ng-accent-contorno` também pinta foco e spinner, e a largura da borda e a
+ * opacidade da não escolhida são literais no base. Hover: `jda-mobile.css:119`
+ * até 1024px; `jda-base.css:1942` (fundo) e `jda-desktop.css:259` (borda) a
+ * partir de 1025px; tinta `jda-base.css:1946`. Não escolhida:
+ * `.btn-opcao:disabled` (.48).
+ *
+ * O rótulo "Opção A" vai para a tinta das alternativas: o JDA não o mostra, e o
+ * verde do destaque dava ~1:1 sobre o vidro branco. Na escolhida ele segue o
+ * `--ng-option-escolhida-rotulo`, porque esta regra não alcança a `.is-chosen`.
+ *
+ * Contraste aceito por fidelidade, sem `text-shadow` (a WCAG não o conta), foto
+ * clara sob o véu de 42%: repouso 1,91:1 até 1024px e 3,95:1 a partir de
+ * 1025px (era 4,70); hover 1,72 e 3,27. É o que o JDA tem. Pendência do bloco
+ * (c). FICAM DE FORA: foco, sombra e halo neon do hover, blur e `translateY`.
+ */
+.ng-game-wrap.ng-skin-default .ng-btn-option {
+  border-width: 1px;
+}
+
+.ng-game-wrap.ng-skin-default .ng-btn-option:hover:not(:disabled) {
+  background:   rgba(255, 255, 255, 0.38);
+  border-color: rgba(255, 255, 255, 0.65);
+  color:        rgba(255, 255, 255, 0.96);
+}
+
+.ng-game-wrap.ng-skin-default .ng-btn-option.is-chosen {
+  border-color: rgba(255, 255, 255, 0.92);
+}
+
+.ng-game-wrap.ng-skin-default .ng-btn-option.is-other {
+  opacity: 0.48;
+}
+
+.ng-game-wrap.ng-skin-default .ng-btn-option:not(.is-chosen) .ng-opt-label {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+@media (min-width: 1025px) {
+  .ng-game-wrap.ng-skin-default .ng-btn-option:hover:not(:disabled) {
+    background:   rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.50);
   }
 }
 
