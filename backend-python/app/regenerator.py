@@ -2,7 +2,7 @@
 Lógica do endpoint /regenerate.
 
 Gera exatamente 1 pergunta substituta de forma síncrona (sem SSE).
-Reutiliza _build_prompt(), _nivel_nome() e mmr_search() do generator.py.
+Reutiliza _build_prompt(), tom_do_nivel() e mmr_search() do generator.py.
 """
 from __future__ import annotations
 import logging
@@ -12,7 +12,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.config import get_settings
 from app.generator import (
-    _get_llm, _build_prompt, _is_valid_dilema, _nivel_nome, _extract_json_dilema,
+    _get_llm, _build_prompt, _is_valid_dilema, tom_do_nivel, _extract_json_dilema,
     texto_da_resposta,
     ErroDeProvedor, erro_fatal_de_provedor, detail_de_provedor,
     PROVEDOR_DEFAULT,
@@ -44,8 +44,9 @@ def generate_one(
     db             = get_collection(req.site_id)
     llm            = _get_llm(provedor, api_key)
 
-    modo_geral = not bool(req.characters)
-    n_nome     = _nivel_nome(req.nivel, modo_geral, req.personagem_tipo)
+    # Tom pela MESMA regra da geração (o nivel_padrao da instância). O nível
+    # gravado continua o da original (req.nivel).
+    _, n_nome = tom_do_nivel(req.nivel_padrao)
 
     char = next((c for c in req.characters if c.slug == req.personagem_tipo), None)
 

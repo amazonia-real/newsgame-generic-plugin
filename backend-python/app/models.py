@@ -186,6 +186,7 @@ class RegenerateRequest(BaseModel):
     theme_prompt: str
     personagem_tipo: str = "geral"
     nivel: int = Field(ge=1, le=2, default=1)
+    nivel_padrao: str = Field(default='pedagogico')  # tom da instância, mesma regra do GenerateRequest
     characters: List[CharacterDef] = Field(default_factory=list)
     num_options: Literal[2, 3] = 2
     enable_levels: bool = False

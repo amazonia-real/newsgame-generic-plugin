@@ -388,14 +388,6 @@ def _resolve_prompt(template: str, **kwargs) -> str:
     return template
 
 
-def _nivel_nome(nivel: int, modo_geral: bool, personagem_tipo: str) -> str:
-    if nivel == 2:
-        return "COMPLEXO"
-    if modo_geral or personagem_tipo == "geral":
-        return "PEDAGÓGICO"
-    return "LÚDICO"
-
-
 # ── Normalização da resposta do provedor ──────────────────
 
 def texto_da_resposta(content, contexto: str) -> str:
@@ -1329,6 +1321,17 @@ _NIVEL_MAP: dict[str, tuple[int, str]] = {
 }
 
 
+def tom_do_nivel(nivel_padrao: str) -> tuple[int, str]:
+    """
+    Fonte ÚNICA da regra de tom: o `nivel_padrao` da instância decide o nível
+    gravado e o tom do prompt, com ou sem personagens. Usada pela geração e pela
+    substituta (/regenerate). Até 09/10 a substituta tinha regra própria
+    (`_nivel_nome`, pelo level e pela presença de personagem) e saía em outro tom
+    em 2 dos 6 casos: lúdico sem personagens e pedagógico com personagens.
+    """
+    return _NIVEL_MAP.get(nivel_padrao, (1, "PEDAGÓGICO"))
+
+
 def generate_one_dilema(
     req: GenerateRequest, api_key: str, provedor: str = PROVEDOR_DEFAULT
 ) -> DilemaNg | None:
@@ -1345,7 +1348,7 @@ def generate_one_dilema(
     llm = _get_llm(provedor, api_key)
 
     # Nível obedece cegamente ao campo enviado pelo WordPress
-    nivel, nivel_nome = _NIVEL_MAP.get(req.nivel_padrao, (1, "PEDAGÓGICO"))
+    nivel, nivel_nome = tom_do_nivel(req.nivel_padrao)
 
     # Personagem: rotação por slot para diversificar as queries RAG
     n_chars = len(req.characters)

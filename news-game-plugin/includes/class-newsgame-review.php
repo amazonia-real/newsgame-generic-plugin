@@ -319,6 +319,8 @@ class Newsgame_Review {
             'theme_prompt'    => $instance->theme_prompt,
             'personagem_tipo' => $personagem_tipo,
             'nivel'           => $nivel,
+            // Tom da substituta = tom da instância, pela mesma regra da geração.
+            'nivel_padrao'    => $instance->nivel_padrao ?? 'pedagogico',
             'characters'      => $characters,
             'num_options'     => (int) ( $instance->num_options   ?? 2 ),
             'enable_levels'   => (bool) ( $instance->enable_levels ?? false ),
