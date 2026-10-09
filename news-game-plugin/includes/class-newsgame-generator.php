@@ -23,6 +23,11 @@ class Newsgame_Generator {
     const NONCE_GENERATE    = 'newsgame_generate';
     const NONCE_PUSH        = 'newsgame_push_ingest';
 
+    // Maior posição aceita como pedida no salvamento: o teto da meta do conjunto.
+    // As posições são preenchidas a partir da menor livre, então nenhuma viva
+    // legítima passa disso; acima, a pedida é tratada como inválida.
+    const POSICAO_MAXIMA    = 120;
+
     public static function init() {
         add_action( 'wp_ajax_' . self::AJAX_START,        array( __CLASS__, 'ajax_start' ) );
         add_action( 'wp_ajax_' . self::AJAX_GENERATE_ONE, array( __CLASS__, 'ajax_generate_one' ) );
@@ -156,6 +161,38 @@ class Newsgame_Generator {
     }
 
     /**
+     * Posição em que uma pergunta deve ser gravada: a pedida, se for válida
+     * (1 a POSICAO_MAXIMA) e nenhuma OUTRA viva (aprovada ou pendente) estiver
+     * nela; senão a menor livre. Descartada não ocupa. `$ignorar_id` tira a
+     * própria pergunta da conferência — é o que permite à Mesa devolver uma
+     * aprovada para a vaga que ela mesma ocupa. Devolve null em erro de SELECT.
+     *
+     * Usada pelo salvamento da geração (a posição vem do navegador e pode ter
+     * sido ocupada por uma devolução na Mesa durante o lote) e pela Mesa
+     * (Newsgame_Review::posicao_para_devolver).
+     */
+    public static function posicao_para_gravar( int $instance_id, int $pedida, int $ignorar_id = 0 ): ?int {
+        global $wpdb;
+        if ( $pedida >= 1 && $pedida <= self::POSICAO_MAXIMA ) {
+            $ocupada = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}newsgame_dilemas
+                  WHERE instance_id = %d AND position = %d AND id <> %d
+                    AND review_status IN ('approved', 'pending')",
+                $instance_id, $pedida, $ignorar_id
+            ) );
+            if ( $wpdb->last_error ) {
+                error_log( '[Newsgame] posicao_para_gravar: ' . $wpdb->last_error );
+                return null;
+            }
+            if ( 0 === $ocupada ) {
+                return $pedida;
+            }
+        }
+        $livres = self::posicoes_livres( $instance_id, 1 );
+        return $livres ? $livres[0] : null;
+    }
+
+    /**
      * Fontes já usadas pela instância, em TODOS os status — descartadas incluídas,
      * para a pergunta rejeitada pelo editor não voltar da mesma matéria. Semeia o
      * `fontes_usadas` do lote; antes ele começava vazio a cada clique.
@@ -281,15 +318,33 @@ class Newsgame_Generator {
             wp_send_json_error( array( 'msg' => 'Dados inválidos ou lista de dilemas vazia.' ) );
         }
 
-        $saved  = 0;
-        $failed = 0;
+        /*
+         * A posição que vem do navegador é só um PEDIDO: foi calculada no clique
+         * (ajax_start), e uma devolução na Mesa no meio do lote pode tê-la
+         * ocupado. O servidor confere e, se preciso, usa a menor livre. Cada
+         * INSERT já aparece na conferência do dilema seguinte, então duas
+         * perguntas com a mesma posição pedida no mesmo POST não colidem.
+         * A sentinela continua o retorno de save_dilema(), nunca o insert_id.
+         */
+        $saved    = 0;
+        $failed   = 0;
+        $posicoes = array();
         foreach ( $dilemas as $d ) {
             if ( ! is_array( $d ) ) continue;
-            if ( false !== self::save_dilema( $d, $instance_id ) ) {
-                $saved++;
-            } else {
-                $failed++;
+            $pedida  = (int) ( $d['position'] ?? 0 );
+            $gravada = self::posicao_para_gravar( $instance_id, $pedida );
+            if ( null !== $gravada ) {
+                $d['position'] = $gravada;
+                if ( false === self::save_dilema( $d, $instance_id ) ) {
+                    $gravada = null;
+                }
             }
+            if ( null === $gravada ) {
+                $failed++;
+            } else {
+                $saved++;
+            }
+            $posicoes[] = array( 'pedida' => $pedida, 'gravada' => $gravada );
         }
 
         if ( $failed > 0 ) {
@@ -306,7 +361,38 @@ class Newsgame_Generator {
         // Sem promoção de status desde 05/10: o status é derivado
         // (Newsgame_Status) e passa a "Em revisão" sozinho quando houver
         // perguntas e matriz. Com isso saiu a terceira escrita do C13.
-        wp_send_json_success( array( 'saved' => $saved, 'failed' => $failed ) );
+        wp_send_json_success( array(
+            'saved'     => $saved,
+            'failed'    => $failed,
+            'posicoes'  => $posicoes,
+            'contagens' => self::contagens_para_painel( $instance_id ),
+        ) );
+    }
+
+    /**
+     * Contagens no formato do evento `ng:contagens` (as chaves são as abas da
+     * Mesa) mais o déficit da meta, para o lote atualizar o painel sem
+     * recarregar. Null em erro de SELECT ou instância inexistente.
+     */
+    private static function contagens_para_painel( int $instance_id ): ?array {
+        global $wpdb;
+        $instance = Newsgame_Admin_Instances::get( $instance_id );
+        $linhas   = $wpdb->get_results( $wpdb->prepare(
+            "SELECT review_status, COUNT(*) AS n FROM {$wpdb->prefix}newsgame_dilemas
+              WHERE instance_id = %d GROUP BY review_status",
+            $instance_id
+        ) );
+        if ( ! $instance || $wpdb->last_error ) {
+            return null;
+        }
+        $c = array( 'pending' => 0, 'approved' => 0, 'discarded' => 0 );
+        foreach ( $linhas as $l ) {
+            if ( isset( $c[ $l->review_status ] ) ) {
+                $c[ $l->review_status ] = (int) $l->n;
+            }
+        }
+        $c['deficit'] = max( 0, (int) $instance->density - $c['approved'] - $c['pending'] );
+        return $c;
     }
 
     /* ── 4. Push vault → /ingest ─────────────────────────────── */

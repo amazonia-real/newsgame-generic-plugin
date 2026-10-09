@@ -252,28 +252,14 @@ class Newsgame_Review {
      * (aprovada ou pendente) estiver nela; senão a menor livre. Posição < 1 (as
      * substitutas antigas, gravadas com 0) também vai para a menor livre.
      *
-     * O `id <> %d` é o que permite devolver uma APROVADA: a vaga que ela mesma
-     * ocupa não conta como ocupada. Devolve null em erro de SELECT.
+     * Ignorar o próprio `$id` é o que permite devolver uma APROVADA: a vaga que
+     * ela mesma ocupa não conta como ocupada. Devolve null em erro de SELECT.
+     *
+     * A regra mora em Newsgame_Generator::posicao_para_gravar() desde 09/10,
+     * compartilhada com o salvamento da geração.
      */
     private static function posicao_para_devolver( int $instance_id, int $id, int $original ): ?int {
-        global $wpdb;
-        if ( $original >= 1 ) {
-            $ocupada = (int) $wpdb->get_var( $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}newsgame_dilemas
-                  WHERE instance_id = %d AND position = %d AND id <> %d
-                    AND review_status IN ('approved', 'pending')",
-                $instance_id, $original, $id
-            ) );
-            if ( $wpdb->last_error ) {
-                error_log( '[Newsgame] posicao_para_devolver: ' . $wpdb->last_error );
-                return null;
-            }
-            if ( 0 === $ocupada ) {
-                return $original;
-            }
-        }
-        $livres = Newsgame_Generator::posicoes_livres( $instance_id, 1 );
-        return $livres ? $livres[0] : null;
+        return Newsgame_Generator::posicao_para_gravar( $instance_id, $original, $id );
     }
 
     /* ── 5. Pedir Substituta — chama /regenerate no backend ── */
