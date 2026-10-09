@@ -318,7 +318,11 @@ class Newsgame_Admin_Instances {
         $id            = (int) ( $_POST['instance_id'] ?? 0 );
         $title         = sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) );
         $theme_prompt  = sanitize_textarea_field( wp_unslash( $_POST['theme_prompt'] ?? '' ) );
-        $density       = min( 15, max( 4, absint( $_POST['density'] ?? 10 ) ) );
+        // Meta do conjunto de aprovadas (até 120) e N de perguntas sorteadas por
+        // partida (4 a 15). O piso 4 da meta vem da regra meta >= N, conferida
+        // abaixo, depois do título.
+        $density       = min( 120, max( 4, absint( $_POST['density'] ?? 10 ) ) );
+        $round_size    = min( 15, max( 4, absint( $_POST['round_size'] ?? 10 ) ) );
         $num_options   = in_array( (int) ( $_POST['num_options'] ?? 2 ), array( 2, 3 ), true ) ? (int) $_POST['num_options'] : 2;
         $enable_levels = isset( $_POST['enable_levels'] ) ? 1 : 0;
         $nivel_padrao  = in_array( $_POST['nivel_padrao'] ?? '', array( 'ludico', 'pedagogico', 'complexo' ), true )
@@ -332,6 +336,17 @@ class Newsgame_Admin_Instances {
                 'action' => $id ? 'edit' : 'new',
                 'id'     => $id ?: null,
                 'error'  => 'title_required',
+            ), admin_url( 'admin.php' ) ) );
+            exit;
+        }
+
+        // Meta menor que a partida: erro, sem gravar e sem ajustar em silêncio.
+        if ( $density < $round_size ) {
+            wp_safe_redirect( add_query_arg( array(
+                'page'   => 'newsgame-instances',
+                'action' => $id ? 'edit' : 'new',
+                'id'     => $id ?: null,
+                'error'  => 'meta_menor_que_partida',
             ), admin_url( 'admin.php' ) ) );
             exit;
         }
@@ -351,12 +366,13 @@ class Newsgame_Admin_Instances {
             'slug'          => $slug,
             'theme_prompt'  => $theme_prompt,
             'density'       => $density,
+            'round_size'    => $round_size,
             'num_options'   => $num_options,
             'enable_levels' => $enable_levels,
             'nivel_padrao'  => $nivel_padrao,
             'characters'    => wp_json_encode( $characters, JSON_UNESCAPED_UNICODE ),
         );
-        $fmt = array( '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' );
+        $fmt = array( '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s' );
 
         /*
          * A skin entra no write SÓ quando o formulário enviou o campo.

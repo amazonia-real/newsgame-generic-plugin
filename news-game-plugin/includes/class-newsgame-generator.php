@@ -191,9 +191,10 @@ class Newsgame_Generator {
             wp_send_json( array( 'detail' => 'Permissão insuficiente.' ), 403 );
         }
 
-        // Teto alto de propósito: o loop legítimo faz até ~15 chamadas (limite de
-        // density do formulário) mais as retentativas. Serve contra loop de JS com
-        // bug, que faria centenas por segundo — não contra uso normal.
+        // Teto alto de propósito: o loop legítimo é sequencial, uma chamada por vez
+        // e cada uma leva segundos, então fica bem abaixo de 60 por minuto mesmo
+        // com a meta de 120. Serve contra loop de JS com bug, que faria centenas
+        // por segundo — não contra uso normal.
         // O 429 já tem tratamento no JS: espera 60 s e retenta o mesmo slot.
         if ( Newsgame_Settings::rate_limited( 'generate_one', 60 ) ) {
             wp_send_json( array( 'detail' => 'Limite de geração por minuto atingido. Aguarde e tente novamente.' ), 429 );

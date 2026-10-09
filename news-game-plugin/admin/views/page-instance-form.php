@@ -9,6 +9,7 @@ $is_edit = (bool) $inst;
 $title         = $is_edit ? $inst->title        : '';
 $theme         = $is_edit ? $inst->theme_prompt : '';
 $density       = $is_edit ? (int) $inst->density : 10;
+$round_size    = $is_edit ? (int) ( $inst->round_size ?? 10 ) : 10;
 $num_options   = $is_edit ? (int) ( $inst->num_options   ?? 2 ) : 2;
 $enable_levels = $is_edit ? (bool) ( $inst->enable_levels ?? false ) : false;
 $nivel_padrao  = $is_edit ? ( $inst->nivel_padrao ?? 'pedagogico' ) : 'pedagogico';
@@ -216,6 +217,10 @@ $page_title = $is_edit
     <div class="notice notice-error"><p>O nome do jogo é obrigatório.</p></div>
   <?php endif; ?>
 
+  <?php if ( isset( $_GET['error'] ) && 'meta_menor_que_partida' === $_GET['error'] ) : ?>
+    <div class="notice notice-error"><p>A meta de perguntas aprovadas não pode ser menor que o número de perguntas por partida. Nada foi salvo.</p></div>
+  <?php endif; ?>
+
   <?php if ( isset( $_GET['error'] ) && 'db_write' === $_GET['error'] ) : ?>
     <div class="notice notice-error"><p>Não foi possível gravar a instância no banco — nada foi salvo, e as alterações deste envio se perderam. A causa está no log do servidor (<code>error_log</code>).</p></div>
   <?php endif; ?>
@@ -335,17 +340,34 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     <table class="form-table" role="presentation">
       <tr>
         <th scope="row">
-          <label for="ng-density">Número de Perguntas/Rodadas</label>
+          <label for="ng-density">Meta de perguntas aprovadas</label>
         </th>
         <td>
           <input type="number" id="ng-density" name="density"
                  value="<?php echo (int) $density; ?>"
+                 min="4" max="120" step="1"
+                 style="width:80px;vertical-align:middle">
+          &nbsp;perguntas
+          <p class="description">
+            Quantas perguntas a geração deve produzir e quantas aprovadas o jogo
+            precisa para receber o selo "Pronto". De 4 a 120, e não menor que as
+            perguntas por partida.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">
+          <label for="ng-round-size">Perguntas por partida</label>
+        </th>
+        <td>
+          <input type="number" id="ng-round-size" name="round_size"
+                 value="<?php echo (int) $round_size; ?>"
                  min="4" max="15" step="1"
                  style="width:80px;vertical-align:middle">
           &nbsp;perguntas
           <p class="description">
-            Número de dilemas gerados por sessão de jogo.
-            Mínimo: 4 &nbsp;|&nbsp; Máximo: 15
+            Quantas perguntas cada pessoa responde numa partida. De 4 a 15.
+            Ainda sem efeito no jogo: por enquanto ele mostra todas as aprovadas.
           </p>
         </td>
       </tr>
