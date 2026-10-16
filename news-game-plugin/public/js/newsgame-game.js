@@ -248,38 +248,39 @@
     '</svg>';
   }
 
-  /* ── Desfecho e lição num bloco contínuo ───────────────
-     Eram duas seções rotuladas empilhadas (a antiga vSection(), que saiu junto
-     por não ter mais nenhum chamador). Viram um parágrafo só, no formato
-     [desfecho] + " Lição: " + [lição]. Nenhuma quebra de linha: as duas versões
-     anteriores usaram \n\n e depois \n, e as duas ainda cortavam a leitura em
-     dois blocos visuais. Agora é um parágrafo só, encadeado por espaço.
+  /* ── Lição e desfecho num bloco contínuo ───────────────
+     Um parágrafo só, no formato [lição] + " " + [desfecho], SEM rótulo: desde
+     16/10 a lição abre o texto, e o "Lição: " que o JS punha antes dela saiu.
+     Nenhuma quebra de linha: versões anteriores usaram \n\n e depois \n, e as
+     duas cortavam a leitura em dois blocos visuais.
 
-     Cada parte entra só se existir: dilema sem lição mostra apenas o desfecho,
-     sem o rótulo "Lição:" pendurado, e vice-versa. */
+     A divisão é por CAMPO, não por texto: `licao` e `desfecho` vêm separados do
+     banco (veredicto), então nada aqui procura "Lição:" dentro do texto. Cada
+     parte entra só se existir, aparada, e é unida por um espaço só. */
   function textoDesfecho(verd) {
     var partes = [];
+    if (verd.licao)    { partes.push(String(verd.licao).trim()); }
     if (verd.desfecho) { partes.push(String(verd.desfecho).trim()); }
-    if (verd.licao)    { partes.push('Lição: ' + String(verd.licao).trim()); }
-    return partes.join(' ');
+    return partes.filter(Boolean).join(' ');
   }
 
   /* ── Card explicativo sobreposto ───────────────────────
-     DOIS elementos: a consequência da escolha em destaque e o bloco contínuo de
-     desfecho + lição.
+     UM elemento de texto: o bloco contínuo de lição + desfecho.
 
-     A linha "Sua escolha" saiu por decisão de UX de 29/08 — poluía o card, a
-     opção escolhida continua visível atrás do vidro, e o texto da consequência
-     já a identifica. Os badges de impacto nos eixos saíram na mesma linha de
-     raciocínio: o peso da escolha reaparece somado no radar do fim, e no card
-     eles competiam com o texto sem acrescentar decisão ao jogador. */
-  function buildFeedback(opt, verd) {
+     A consequência da escolha (`option_x.consequencia`), que era o título em
+     destaque do card, saiu por decisão de UX de 16/10. Com ela saiu o único texto
+     do card que dependia da alternativa escolhida: lição e desfecho são do
+     DILEMA, iguais para qualquer escolha. O campo segue gerado e gravado.
+
+     A linha "Sua escolha" saiu por decisão de UX de 29/08 — poluía o card, e a
+     opção escolhida continua visível atrás do vidro. Os badges de impacto nos
+     eixos saíram na mesma linha de raciocínio: o peso da escolha reaparece
+     somado no radar do fim, e no card eles competiam com o texto sem acrescentar
+     decisão ao jogador. */
+  function buildFeedback(verd) {
     var desfecho = textoDesfecho(verd);
     return '<div class="ng-feedback">' +
         '<div class="ng-feedback-inner">' +
-          (opt.consequencia
-            ? '<p class="ng-feedback-consequence">' + escNl(opt.consequencia) + '</p>'
-            : '') +
           (desfecho
             ? '<p class="ng-feedback-text">' + escNl(desfecho) + '</p>'
             : '') +
@@ -673,7 +674,7 @@
             '<p class="ng-dilema-body">' + escNl(d.body) + '</p>' +
           '</div>' +
           '<div class="ng-options">' + optsHtml + '</div>' +
-          buildFeedback(d['option_' + pick] || {}, verd) +
+          buildFeedback(verd) +
         '</div>';
 
       aplicarProgresso(inner);
