@@ -798,24 +798,11 @@
    com ele o texto volta à cor de texto normal em vez da invertida. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .ng-feedback { background: var(--ng-card); }
-  .ng-feedback .ng-feedback-consequence,
   .ng-feedback .ng-feedback-hint,
   .ng-feedback .ng-feedback-text { color: var(--ng-text); }
 }
 
 .ng-feedback-inner { width: 100%; text-align: center; }
-
-.ng-feedback-consequence {
-  margin:         0 0 1rem;
-  color:          var(--ng-feedback-ink);
-  /* Sobe para a fluida do dilema em 29/08, junto com o aumento do
-     .ng-feedback-text: sem isso os dois ficariam do mesmo tamanho no desktop e
-     a consequência perderia o destaque sobre a lição. */
-  font-size:      var(--ng-fs-dilema);
-  font-weight:    500;
-  letter-spacing: 0.02em;
-  line-height:    1.55;
-}
 
 /* Bloco contínuo de desfecho + lição, montado por textoDesfecho(). Alinhado à
    esquerda para leitura corrida — o centralizado do resto do card serve para

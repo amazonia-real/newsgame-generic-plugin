@@ -100,9 +100,10 @@
  * 12 KB.
  *
  * O INTERVALO `font-weight: 400 700` É O QUE TORNA OS NEGRITOS REAIS. O base
- * pede 700 no título do dilema e no rótulo, 600 nos dois botões e 500 na
- * consequência; a Press Start 2P só tinha 400, e o navegador engrossava os de
- * 600 e 700 por síntese. Agora os quatro pesos saem do próprio arquivo.
+ * pede 700 no título do dilema e no rótulo e 600 nos dois botões (pedia também
+ * 500 na consequência, que saiu da tela em 16/10); a Press Start 2P só tinha
+ * 400, e o navegador engrossava os de 600 e 700 por síntese. Agora os pesos
+ * saem do próprio arquivo.
  *
  * `font-display: swap`: o texto aparece imediatamente na fonte de reserva e é
  * repintado quando a pixel chega. O contrário (`block`) daria texto invisível
@@ -179,23 +180,6 @@
    * `.ng-modal-link`.
    */
   --ng-fs-btn:          0.78rem;
-
-  /*
-   * ── Corpo da consequência — token PRÓPRIO desta skin ──
-   * A consequência é o título do painel de feedback e é cromo (fonte de
-   * display). O base a dimensiona com `--ng-fs-dilema`, o clamp fluido que
-   * também veste o título do dilema.
-   *
-   * Como o `--ng-fs-btn`, o valor é ALTURA VISUAL e sai multiplicado por
-   * `--ng-fator-display`. Calibrado em 29/08 para ~48 caracteres por linha da
-   * Press Start 2P no painel de desktop; com a Pixelify a ~70% da largura, a
-   * mesma altura dá mais caracteres por linha — medidos no "Escala do cromo".
-   *
-   * Token, e não literal nos seletores, pelo mesmo motivo do `--ng-fs-btn`:
-   * `--ng-fs-dilema` serve as DUAS famílias, e torcê-lo arrastaria o título do
-   * dilema junto.
-   */
-  --ng-fs-conseq:       0.85rem;
 
   /*
    * ── DUAS FAMÍLIAS, e é a decisão central desta revisão ──
@@ -332,15 +316,12 @@
 /*
  * ── O cromo, e só ele, na fonte de display ─────────────────────────────
  *
- * Oito seletores, agrupados de propósito: é a lista fechada do que é "cromo"
+ * Sete seletores, agrupados de propósito: é a lista fechada do que é "cromo"
  * nesta skin, e vê-la inteira num lugar é o que impede a fonte de vazar para
  * parágrafo na próxima edição.
  *
- * O OITAVO É `.ng-feedback-consequence`, desde 29/08. Ele é o único que não é
- * rótulo nem título curto: é a frase de desfecho da escolha, e entrou por
- * decisão editorial de tratá-la como TÍTULO do painel de feedback. Por isso é
- * também o único do grupo com tamanho próprio (`--ng-fs-conseq`) — nos outros
- * sete o token do base já serve.
+ * Eram oito até 16/10: o oitavo era o título do painel de contexto, que saiu
+ * junto com a consequência da alternativa, deixada de exibir naquela tela.
  *
  * DOIS DELES NÃO EXISTEM COM O NOME ÓBVIO, e é bom saber ao editar: o título
  * da capa e o da tela de conclusão são `.ng-screen h2` (o `<h2>` não tem
@@ -359,15 +340,14 @@
 .ng-game-wrap.ng-skin-pixel .ng-opt-label,
 .ng-game-wrap.ng-skin-pixel .ng-progress-label,
 .ng-game-wrap.ng-skin-pixel .ng-btn-next,
-.ng-game-wrap.ng-skin-pixel .ng-btn-cta,
-.ng-game-wrap.ng-skin-pixel .ng-feedback-consequence {
+.ng-game-wrap.ng-skin-pixel .ng-btn-cta {
   font-family: var(--ng-font-display);
 }
 
 /*
  * ── Escala do cromo: o fator da fonte de display ───────────────────────
  *
- * Cada um dos oito seletores acima recebe o tamanho que o base (ou o token
+ * Cada um dos sete seletores acima recebe o tamanho que o base (ou o token
  * próprio desta skin) já lhe dava, × `--ng-fator-display`. É por isso que o
  * fator mora em REGRA DE COMPONENTE, e não em token: `--ng-fs-7`, `-8`, `-9` e
  * `-10` servem também o corpo em Courier, e multiplicar o token arrastaria o
@@ -377,7 +357,7 @@
  * trocar o token de um deles, a regra correspondente daqui tem de trocar junto:
  *   título do dilema  `--ng-fs-dilema` (o clamp fluido) · capa `--ng-fs-12`
  *   perfil `--ng-fs-11` · rótulo `--ng-fs-2` · contador `--ng-fs-3`
- *   botões `--ng-fs-btn` e consequência `--ng-fs-conseq`, os dois desta skin
+ *   botões `--ng-fs-btn`, desta skin
  *
  * A ORDEM IMPORTA ENTRE OS DOIS `h2`: as duas regras têm a mesma
  * especificidade, e o perfil vem depois da capa, como no base.
@@ -558,19 +538,9 @@
   overflow-y: visible;
 }
 
-/* A consequência como TÍTULO do painel: tamanho próprio, × o fator da fonte de
-   display (ver "Escala do cromo"). A entrelinha é a do base, 1.55, desde 07/10:
-   o 1.7 desta skin existia porque o glifo quadrado da Press Start 2P, sem
-   descendente, colava na linha seguinte; a Pixelify tem descendente. A cor vem
-   do bloco abaixo, junto com os outros dois textos. */
-.ng-game-wrap.ng-skin-pixel .ng-feedback-consequence {
-  font-size: calc(var(--ng-fs-conseq) * var(--ng-fator-display));
-}
-
-/* Os três textos do painel, invertidos junto com o fundo. Medidos sobre ele:
-   14.57:1 nos dois primeiros; a trava de leitura fica em 7.69:1, porque o base
-   ainda lhe aplica `opacity: 0.7`. */
-.ng-game-wrap.ng-skin-pixel .ng-feedback-consequence,
+/* Os dois textos do painel, invertidos junto com o fundo. Medidos sobre ele:
+   14.57:1 no texto; a trava de leitura fica em 7.69:1, porque o base ainda lhe
+   aplica `opacity: 0.7`. */
 .ng-game-wrap.ng-skin-pixel .ng-feedback-text,
 .ng-game-wrap.ng-skin-pixel .ng-feedback-hint {
   color: var(--ng-text);
@@ -707,7 +677,6 @@
     --ng-fs-11:  1.35rem;   /* nome do perfil */
     --ng-fs-12:  1.55rem;   /* título da capa */
     --ng-fs-btn:    0.85rem;
-    --ng-fs-conseq: 0.95rem;
   }
 }
 
@@ -735,7 +704,6 @@
     --ng-fs-11:  1.5rem;    /* nome do perfil */
     --ng-fs-12:  1.75rem;   /* título da capa */
     --ng-fs-btn:    0.95rem; /* altura; × fator: "Ver resultado final" em botão de 271px (07/10) */
-    --ng-fs-conseq: 1.05rem; /* altura; × fator: consequência de teste em 2 linhas no painel (07/10) */
   }
 
   /* Corpo mais alto pede entrelinha maior. 1.6 nos dois, contra 1.65 e 1.55 do

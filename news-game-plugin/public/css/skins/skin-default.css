@@ -299,7 +299,6 @@
 }
 
 .ng-game-wrap.ng-skin-default .ng-btn-option,
-.ng-game-wrap.ng-skin-default .ng-feedback-consequence,
 .ng-game-wrap.ng-skin-default .ng-feedback-text,
 .ng-game-wrap.ng-skin-default .ng-feedback .ng-btn-next,
 .ng-game-wrap.ng-skin-default .ng-screen .ng-btn-cta,
@@ -312,7 +311,6 @@
 .ng-game-wrap.ng-skin-default .ng-verdict-summary { font-weight: 400; }
 
 .ng-game-wrap.ng-skin-default .ng-btn-option,
-.ng-game-wrap.ng-skin-default .ng-feedback-consequence,
 .ng-game-wrap.ng-skin-default .ng-feedback-hint {
   font-weight: 500;
 }
@@ -371,12 +369,6 @@
   font-size:      0.85rem;
   line-height:    1.72;
   letter-spacing: -0.1px;
-}
-
-.ng-game-wrap.ng-skin-default .ng-feedback-consequence {
-  font-size:      clamp(1rem, 4vw, 1.2rem);
-  line-height:    1.5;
-  letter-spacing: 0.02em;
 }
 
 .ng-game-wrap.ng-skin-default .ng-feedback-hint {
@@ -439,7 +431,6 @@
 @media (min-width: 600px) {
   .ng-game-wrap.ng-skin-default .ng-dilema-body          { font-size: 17px; }
   .ng-game-wrap.ng-skin-default .ng-btn-option           { font-size: 18px; }
-  .ng-game-wrap.ng-skin-default .ng-feedback-consequence { font-size: 18px; }
 }
 
 @media (min-width: 1025px) {
@@ -447,6 +438,4 @@
     font-size:   clamp(1.2rem, 1.8vw, 1.6rem);
     line-height: 1.65;
   }
-
-  .ng-game-wrap.ng-skin-default .ng-feedback-consequence { line-height: 1.7; }
 }
