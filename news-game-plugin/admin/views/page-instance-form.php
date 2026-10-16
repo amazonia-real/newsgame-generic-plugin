@@ -366,7 +366,8 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           &nbsp;perguntas
           <p class="description">
             Quantas perguntas cada pessoa responde numa partida. De 4 a 15.
-            Ainda sem efeito no jogo: por enquanto ele mostra todas as aprovadas.
+            Cada partida sorteia essa quantidade entre as aprovadas, em ordem
+            embaralhada; com menos aprovadas, a partida usa todas.
           </p>
         </td>
       </tr>

@@ -289,6 +289,31 @@
       '</div>';
   }
 
+  /* ── Sorteio da partida ──────────────────────────────── */
+
+  /* Perguntas por partida (`round_size`), limitadas a 4..15 — a mesma faixa
+     que o formulário grava. É defesa: valor ausente ou fora da faixa no JSON
+     não pode virar partida de 0 ou de 120 perguntas. Ausente cai em 10, o
+     padrão da coluna. */
+  function limitarPartida(valor) {
+    var n = parseInt(valor, 10);
+    if (isNaN(n)) { return 10; }
+    return Math.min(15, Math.max(4, n));
+  }
+
+  /* Fisher-Yates sobre uma CÓPIA: o conjunto recebido do shortcode nunca é
+     reordenado, então cada sorteio parte da mesma lista. */
+  function embaralhar(lista) {
+    var copia = lista.slice();
+    for (var i = copia.length - 1; i > 0; i--) {
+      var j   = Math.floor(Math.random() * (i + 1));
+      var tmp = copia[i];
+      copia[i] = copia[j];
+      copia[j] = tmp;
+    }
+    return copia;
+  }
+
   /* ── Instância do jogo ───────────────────────────────── */
   function NgGame(wrap) {
     var gid     = wrap.id.replace('ng-game-', '');
@@ -308,7 +333,16 @@
       return;
     }
 
-    var dilemas  = data.dilemas;
+    /*
+     * O shortcode entrega o CONJUNTO das aprovadas; a partida é um sorteio de
+     * `tamPartida` delas, em ordem embaralhada, refeito no início de cada
+     * partida (ver iniciarPartida()). Com menos aprovadas que o N, a partida
+     * usa todas. `dilemas` é sempre a partida corrente — barra, fim e fundo
+     * leem dele, e não do conjunto.
+     */
+    var conjunto   = data.dilemas;
+    var tamPartida = Math.min(limitarPartida(data.round_size), conjunto.length);
+    var dilemas    = [];
     var title    = data.title || 'News-Game';
     var idx      = -1;   // -1 = tela inicial
     var creditoEl = wrap.querySelector('.ng-photo-credit');
@@ -490,6 +524,19 @@
       wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    /* Começo de partida — pela capa e por "Jogar novamente". Zera o acumulador
+       do veredito e sorteia de novo, sem recarregar a página. */
+    function iniciarPartida() {
+      idx = 0; vetor = {}; pesoCount = 0;
+      dilemas = embaralhar(conjunto).slice(0, tamPartida);
+      renderDilema();
+    }
+
+    function jogarNovamente() {
+      iniciarPartida();
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     /* Botão de tela cheia. Anexado ao WRAP, e não ao inner: o inner é reescrito
        por innerHTML a cada tela, e o botão morreria com o listener a cada
        avanço. Não é renderizado quando o navegador não suporta tela cheia de
@@ -545,11 +592,10 @@
       inner.innerHTML =
         '<div class="ng-screen">' +
           '<h2>' + esc(title) + '</h2>' +
-          '<p>' + dilemas.length + ' perguntas para você responder.</p>' +
+          '<p>' + tamPartida + ' perguntas para você responder.</p>' +
           '<button class="ng-btn-cta">Iniciar jogo ›</button>' +
         '</div>';
-      inner.querySelector('.ng-btn-cta')
-        .addEventListener('click', function () { idx = 0; renderDilema(); });
+      inner.querySelector('.ng-btn-cta').addEventListener('click', iniciarPartida);
     }
 
     /* ── Tela de dilema ── */
@@ -726,11 +772,7 @@
         }
       });
 
-      inner.querySelector('.ng-btn-restart').addEventListener('click', function () {
-        idx = 0; vetor = {}; pesoCount = 0;
-        renderDilema();
-        wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
+      inner.querySelector('.ng-btn-restart').addEventListener('click', jogarNovamente);
     }
 
     /* ── Tela genérica de conclusão (fallback) ── */
@@ -745,11 +787,7 @@
           '</p>' +
           '<button class="ng-btn-cta">Jogar novamente</button>' +
         '</div>';
-      inner.querySelector('.ng-btn-cta').addEventListener('click', function () {
-        idx = 0; vetor = {}; pesoCount = 0;
-        renderDilema();
-        wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
+      inner.querySelector('.ng-btn-cta').addEventListener('click', jogarNovamente);
     }
 
     renderStart();
