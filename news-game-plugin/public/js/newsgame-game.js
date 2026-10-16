@@ -599,6 +599,38 @@
       inner.querySelector('.ng-btn-cta').addEventListener('click', iniciarPartida);
     }
 
+    /* Alternativas do palco. Sem `pick`, são os botões da pergunta; com `pick`,
+       a escolhida e as outras, desabilitadas, da tela de contexto. */
+    function buildOpcoes(d, pick) {
+      return optKeys.map(function (key) {
+        var opt  = d['option_' + key] || {};
+        var abre = pick
+          ? '<button class="ng-btn-option ' + (key === pick ? 'is-chosen' : 'is-other') + '" disabled>'
+          : '<button class="ng-btn-option" data-pick="' + key + '">';
+        return abre +
+          '<span class="ng-opt-label">Opção ' + key.toUpperCase() + '</span>' +
+          esc(opt.texto || '') +
+        '</button>';
+      }).join('');
+    }
+
+    /* ── Palco: construtor ÚNICO das telas de pergunta e de contexto ──
+       As duas telas montam o mesmo cartão e as mesmas alternativas; a de
+       contexto acrescenta o painel (`painel`) e troca o (i) pelas alternativas
+       desabilitadas. O modal do (i) NÃO entra aqui: fica fora do palco, irmão
+       dele no `.ng-game-inner` — ver renderDilema(). */
+    function buildPalco(d, pick, temInfo, painel) {
+      return '<div class="ng-stage' + (pick ? ' is-feedback' : '') + '">' +
+          '<div class="ng-card">' +
+            '<h2 class="ng-dilema-title">' + esc(d.title) + '</h2>' +
+            '<p class="ng-dilema-body">' + escNl(d.body) + '</p>' +
+            (pick ? '' : buildInfoBtn(temInfo)) +
+          '</div>' +
+          '<div class="ng-options">' + buildOpcoes(d, pick) + '</div>' +
+          (painel || '') +
+        '</div>';
+    }
+
     /* ── Tela de dilema ── */
     function renderDilema() {
       limparTimers();
@@ -613,25 +645,15 @@
       var sintese = verd.sintese || '';
       var temInfo = !!(sintese || d.source_url);
 
-      var optsHtml = optKeys.map(function (key) {
-        var opt = d['option_' + key] || {};
-        return '<button class="ng-btn-option" data-pick="' + key + '">' +
-          '<span class="ng-opt-label">Opção ' + key.toUpperCase() + '</span>' +
-          esc(opt.texto || '') +
-        '</button>';
-      }).join('');
-
+      /* O modal é `position: fixed` e fica FORA do palco: elemento com
+         `backdrop-filter`, `transform` ou `filter` vira o bloco de contenção dos
+         descendentes fixos, e o modal ficaria preso dentro do cartão em vez de
+         cobrir a tela. O `.ng-game-inner` e os ancestrais dele não têm nenhum
+         desses (conferido em 16/10, nas 7 skins e em tela cheia). */
       inner.innerHTML =
         buildProgress(idx, idx + 1, dilemas.length) +
-        '<div class="ng-stage">' +
-          '<div class="ng-card">' +
-            '<h2 class="ng-dilema-title">' + esc(d.title) + '</h2>' +
-            '<p class="ng-dilema-body">' + escNl(d.body) + '</p>' +
-            buildInfoBtn(temInfo) +
-          '</div>' +
-          '<div class="ng-options">' + optsHtml + '</div>' +
-          (temInfo ? buildInfoModal(sintese, d.source_url) : '') +
-        '</div>';
+        buildPalco(d, null, temInfo, '') +
+        (temInfo ? buildInfoModal(sintese, d.source_url) : '');
 
       aplicarProgresso(inner);
       ligarInfo();
@@ -643,7 +665,7 @@
     /* ── Tela de feedback ──────────────────────────────────
        O dilema e as opções continuam ATRÁS, desfocados pelo vidro, e o card
        explicativo entra sobreposto. É a transição do JDA, não uma troca de
-       tela — e é por isso que o markup do palco é o mesmo do renderDilema(). */
+       tela — e é por isso que o palco sai do mesmo buildPalco() da pergunta. */
     function renderFeedback(pick) {
       limparTimers();
       montarTelaCheia();
@@ -657,25 +679,9 @@
       aplicarFundo(d.imagem);
       acumularPesos(pesos);
 
-      var optsHtml = optKeys.map(function (key) {
-        var opt = d['option_' + key] || {};
-        var cls = key === pick ? 'ng-btn-option is-chosen' : 'ng-btn-option is-other';
-        return '<button class="' + cls + '" disabled>' +
-          '<span class="ng-opt-label">Opção ' + key.toUpperCase() + '</span>' +
-          esc(opt.texto || '') +
-        '</button>';
-      }).join('');
-
       inner.innerHTML =
         buildProgress(idx + 1, idx + 1, dilemas.length) +
-        '<div class="ng-stage is-feedback">' +
-          '<div class="ng-card">' +
-            '<h2 class="ng-dilema-title">' + esc(d.title) + '</h2>' +
-            '<p class="ng-dilema-body">' + escNl(d.body) + '</p>' +
-          '</div>' +
-          '<div class="ng-options">' + optsHtml + '</div>' +
-          buildFeedback(verd) +
-        '</div>';
+        buildPalco(d, pick, false, buildFeedback(verd));
 
       aplicarProgresso(inner);
       var feedback = inner.querySelector('.ng-feedback');
