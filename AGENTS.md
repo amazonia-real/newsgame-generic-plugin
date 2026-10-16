@@ -39,7 +39,7 @@ Cada instância do jogo define:
 | `num_options` | `2` ou `3` | Número de alternativas por dilema |
 | `nivel_padrao` | string | Nível narrativo padrão: `ludico`, `pedagogico` ou `complexo` — é dele que vem o COMPLEXO |
 | `density` | int | Meta do conjunto de aprovadas (até 120): a geração produz o que falta para ela |
-| `round_size` | int | Perguntas sorteadas por partida (4 a 15). Coluna da instância (schema 1.7); ainda não vai ao backend nem ao jogo |
+| `round_size` | int | Perguntas sorteadas por partida (4 a 15). Coluna da instância (schema 1.7); vai ao jogo no JSON do shortcode, e o JS sorteia min(N, aprovadas) a cada partida. Não vai ao backend |
 
 **Personagens são definidos pelo editor por instância** — não há personagens
 hardcoded no sistema. Um jogo sobre eleições terá personagens diferentes de

@@ -149,7 +149,9 @@ Em **News-Game → Configurações**:
    posts e páginas publicados do próprio site, e "Indexar Acervo no Backend" os
    envia ao ChromaDB.
 2. **Instância** — em **News-Game → Instâncias**, cria a instância: nome,
-   descrição do acervo, meta de perguntas (4 a 15), 2 ou 3 opções, perfil do jogo,
+   descrição do acervo, meta de perguntas aprovadas (4 a 120), perguntas por
+   partida (4 a 15; cada partida sorteia essa quantidade entre as aprovadas, em
+   ordem embaralhada), 2 ou 3 opções, perfil do jogo,
    skin e personagens. **Salvar** fica na tela; **Salvar e voltar à lista** volta à
    listagem.
 3. **Eixos** — "Analisar Acervo e Propor Eixos" (liberado depois do primeiro
@@ -174,12 +176,15 @@ Em **News-Game → Configurações**:
 7. **Status** — calculado sozinho, nunca escolhido:
    - **Rascunho** — falta a matriz de eixos e perfis, ou não há pergunta;
    - **Em revisão** — tem matriz e perguntas, mas ainda não está Pronto;
-   - **Pronto** — aprovadas ≥ meta e todas com peso: o jogo entrega o veredito
-     completo.
+   - **Pronto** — eixos e perfis completos, aprovadas ≥ perguntas por partida (N)
+     e todas as aprovadas com peso: o jogo entrega o veredito completo. A meta do
+     conjunto não bloqueia o selo; quando é maior que N e ainda não foi atingida,
+     aparece como complemento no "o que falta".
 
    A listagem e o formulário mostram **o que falta**. O status volta de Pronto
-   para Em revisão sozinho se o editor devolver ou descartar uma aprovada, ou
-   aumentar a meta.
+   para Em revisão sozinho se as aprovadas ficarem abaixo das perguntas por
+   partida (por exemplo, o editor devolver ou descartar aprovadas até passar do
+   limite) ou se o editor aumentar as perguntas por partida acima das aprovadas.
 8. **Publicar** — o shortcode `[news-game id="1"]` (ID numérico da instância)
    renderiza o jogo em qualquer página. ⚠️ **O status não bloqueia o shortcode:**
    ele mostra o jogo no estado atual em qualquer página onde estiver, Pronto ou não.
