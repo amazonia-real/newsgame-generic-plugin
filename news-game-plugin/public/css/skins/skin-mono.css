@@ -76,4 +76,10 @@
      escura (regra 13 do contrato). O vidro claro do base não alcançava o AA. */
   --ng-feedback-bg:  var(--ng-feedback-chapado);
   --ng-feedback-ink: var(--ng-bg);
+
+  /* Borda das alternativas: desde o cartão único (16/10) ela fica sobre o
+     cartão carvão, e a primária (82) dava 2,38:1 contra ele. 98 é o mínimo com
+     margem para o contorno >= 3:1 (3,05; com 97, 3,00 exatos), percentil 5 por
+     pixel, em 390, 768 e 1340px. Só a borda: a primária segue em 82. */
+  --ng-option-borda: rgb(98, 98, 98);
 }
