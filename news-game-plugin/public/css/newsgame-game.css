@@ -1066,7 +1066,15 @@
 @media (max-width: 1024px) {
   .ng-game-wrap { padding: 1.25rem 0.75rem 2rem; }
   .ng-options   { gap: 0.6rem; }
-  .ng-progress  { margin-bottom: 1.25rem; }
+  /* O contador "1 / 4" fica à esquerda do botão de tela cheia. O botão
+     (36px, a 1rem do topo e da direita do wrap) ocupa a faixa de 16 a 52px do
+     topo, e aqui o wrap só tem 1.25rem de padding em cima: com pouca folga
+     vertical (cartão alto), a linha de progresso sobe para a faixa do botão. Até
+     1024px a linha encosta no lado direito do wrap (ou fica a até 2px dele), e
+     o contador cai embaixo do botão. 3rem = 36px + 1rem − 0.75rem (padding
+     lateral do wrap aqui) + 0.5rem de folga. Acima de 1024px o inner é estreito
+     demais para alcançar o canto, e a regra não é necessária. */
+  .ng-progress  { margin-bottom: 1.25rem; padding-right: 3rem; }
 }
 
 /*
