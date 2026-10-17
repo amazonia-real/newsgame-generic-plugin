@@ -669,7 +669,11 @@
 
 .ng-modal-link:hover { opacity: 0.75; }
 
-/* Foco visível: o modal é operável por teclado, e o (i) e o avançar também. */
+/* Foco visível: o modal é operável por teclado, e o (i), o avançar e as
+   alternativas também. As alternativas entraram em 16/10: sem regra própria,
+   elas herdavam o foco do TEMA hospedeiro (no Twenty Twenty-Five, 2px quase
+   preto), invisível sobre cartão escuro. */
+.ng-btn-option:focus-visible,
 .ng-btn-info:focus-visible,
 .ng-modal-close:focus-visible,
 .ng-modal-link:focus-visible,
