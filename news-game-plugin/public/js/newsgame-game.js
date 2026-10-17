@@ -615,19 +615,25 @@
     }
 
     /* ── Palco: construtor ÚNICO das telas de pergunta e de contexto ──
-       As duas telas montam o mesmo cartão e as mesmas alternativas; a de
-       contexto acrescenta o painel (`painel`) e troca o (i) pelas alternativas
-       desabilitadas. O modal do (i) NÃO entra aqui: fica fora do palco, irmão
-       dele no `.ng-game-inner` — ver renderDilema(). */
+       CARTÃO ÚNICO desde 16/10, como o `.glass-card` do JDA: pergunta,
+       alternativas e painel de contexto moram DENTRO do `.ng-card`. O corpo
+       (título, pergunta e o (i)) fica num bloco próprio, `.ng-card-corpo`, que
+       é a âncora do (i) — sem ele o botão iria para o pé do cartão, abaixo das
+       alternativas. O painel (`painel`) é absoluto dentro do cartão e cobre só
+       ele. A tela de contexto troca o (i) pelas alternativas desabilitadas.
+       O modal do (i) NÃO entra aqui: fica fora do palco, irmão dele no
+       `.ng-game-inner` — ver renderDilema(). */
     function buildPalco(d, pick, temInfo, painel) {
       return '<div class="ng-stage' + (pick ? ' is-feedback' : '') + '">' +
           '<div class="ng-card">' +
-            '<h2 class="ng-dilema-title">' + esc(d.title) + '</h2>' +
-            '<p class="ng-dilema-body">' + escNl(d.body) + '</p>' +
-            (pick ? '' : buildInfoBtn(temInfo)) +
+            '<div class="ng-card-corpo">' +
+              '<h2 class="ng-dilema-title">' + esc(d.title) + '</h2>' +
+              '<p class="ng-dilema-body">' + escNl(d.body) + '</p>' +
+              (pick ? '' : buildInfoBtn(temInfo)) +
+            '</div>' +
+            '<div class="ng-options">' + buildOpcoes(d, pick) + '</div>' +
+            (painel || '') +
           '</div>' +
-          '<div class="ng-options">' + buildOpcoes(d, pick) + '</div>' +
-          (painel || '') +
         '</div>';
     }
 

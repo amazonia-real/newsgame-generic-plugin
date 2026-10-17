@@ -224,7 +224,7 @@
    * --ng-game-inner, que é 740px.
    */
   --ng-card-max-lg:  660px;
-  /* Altura mínima do palco SÓ durante o feedback: sem ela o card curto faz o
+  /* Altura mínima do cartão SÓ durante o feedback: sem ela o cartão curto faz o
      texto explicativo transbordar; aplicada sempre, o dilema curto ganharia um
      vão vazio embaixo. Por isso é classe (.is-feedback), não regra geral. */
   --ng-feedback-min: 22rem;
@@ -379,10 +379,11 @@
 }
 
 /*
- * ── Palco: card + opções + feedback sobreposto ─────────
- * O feedback é `position:absolute` ancorado AQUI, e por isso cobre o card e as
- * opções de uma vez — mesma anatomia do `.consequencia-toast` do JDA
- * (jda-base.css:1109), que é `inset:0` dentro do `.glass-card`.
+ * ── Palco: limita a largura do cartão ──────────────────
+ * Desde 16/10 o palco só centraliza e limita a largura: o cartão é ÚNICO, e
+ * pergunta, alternativas e painel de contexto moram dentro dele — a anatomia
+ * do `.glass-card` do JDA (jda-base.css:890), com o `.consequencia-toast`
+ * (jda-base.css:1109) em `inset: 0` lá dentro.
  */
 .ng-stage {
   position:  relative;
@@ -390,18 +391,26 @@
   margin:    0 auto;
 }
 
-/* Vale só enquanto o feedback está na tela — ver a nota do --ng-feedback-min */
-.ng-stage.is-feedback { min-height: var(--ng-feedback-min); }
-
-/* ── Card de dilema ──────────────────────────────────── */
+/* ── Cartão único: corpo, alternativas e painel ───────── */
 .ng-card {
-  position:        relative;   /* âncora do botão (i) */
+  position:        relative;   /* âncora do painel de contexto */
   background:      var(--ng-card-bg);
   border:          var(--ng-card-borda-largura) solid var(--ng-card-borda-cor);
   border-radius:   var(--ng-radius);
   box-shadow:      var(--ng-card-shadow);
-  padding:         1.5rem 1.5rem 2.25rem;   /* folga embaixo: o (i) mora lá */
+  padding:         1.5rem;
   margin-bottom:   1.25rem;
+}
+
+/* Vale só enquanto o feedback está na tela — ver a nota do --ng-feedback-min */
+.ng-stage.is-feedback .ng-card { min-height: var(--ng-feedback-min); }
+
+/* Título, pergunta e o (i). É a âncora do (i): a folga embaixo é dele, e o
+   espaço até as alternativas vem da margem. */
+.ng-card-corpo {
+  position:        relative;
+  padding-bottom:  2.5rem;
+  margin-bottom:   0.75rem;
 }
 
 /*
@@ -443,9 +452,9 @@
  * a seguir a skin, em vez de ficar verde numa paleta ciano.
  */
 .ng-btn-info {
-  position:        absolute;
-  right:           0.75rem;
-  bottom:          0.6rem;
+  position:        absolute;   /* no pé do .ng-card-corpo, alinhado ao texto */
+  right:           0;
+  bottom:          0.5rem;
   display:         flex;
   align-items:     center;
   justify-content: center;
@@ -674,7 +683,6 @@
   display:               grid;
   grid-template-columns: 1fr 1fr;
   gap:                   1rem;
-  margin-bottom:         1.5rem;
 }
 
 /* As media queries deste arquivo ficam TODAS no bloco final, e não encostadas
@@ -774,10 +782,14 @@
  * Vidro CLARO sobre o card escuro, como o .consequencia-toast do JDA
  * (jda-base.css:1109): o dilema e as opções continuam atrás, desfocados, e é
  * essa continuidade que faz a tela TRANSICIONAR em vez de trocar.
+ *
+ * Mora DENTRO do cartão e cobre exatamente ele: o `inset` negativo da largura
+ * da borda faz o painel ocupar também a borda, com o mesmo raio — o mesmo
+ * retângulo do cartão, e não só a área interna.
  */
 .ng-feedback {
   position:                absolute;
-  inset:                   0;
+  inset:                   calc(-1 * var(--ng-card-borda-largura));
   z-index:                 50;
   display:                 flex;
   align-items:             center;
@@ -1178,7 +1190,8 @@ body.newsgame-fullscreen .wp-block-post-title { display: none; }
   /* svh e não vh: no celular o vh conta a área atrás da barra de URL */
   .ng-game-wrap      { min-height: 100svh; }
   .ng-options        { grid-template-columns: 1fr; }
-  .ng-card           { padding: 1.15rem 1.15rem 2.1rem; }
+  .ng-card           { padding: 1.15rem; }
+  .ng-card-corpo     { padding-bottom: 2.6rem; }   /* o (i) tem 32px aqui */
   .ng-btn-option     { padding: 0.85rem 1rem; }
   .ng-feedback       { padding: 1rem 0.9rem; }
   /* Modal centralizado também aqui, por decisão do editor: é um alerta de
@@ -1197,7 +1210,7 @@ body.newsgame-fullscreen .wp-block-post-title { display: none; }
 @media (min-width: 1025px) {
   .ng-game-wrap { padding: 3rem 1rem 3.5rem; }
   .ng-stage     { max-width: var(--ng-card-max-lg); }
-  .ng-card      { padding: 1.75rem 2rem 2.4rem; }
+  .ng-card      { padding: 1.75rem 2rem; }
 }
 
 /* ── Movimento reduzido ────────────────────────────────
