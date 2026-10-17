@@ -327,6 +327,21 @@
     return copia;
   }
 
+  /* ── Medição (GA4) ───────────────────────────────────────
+     O plugin NÃO carrega script externo nem tem ID de GA4 próprio: usa o
+     `gtag` do site, ou o `dataLayer` do GTM, se a página tiver um deles; sem
+     nenhum, não faz nada. Consentimento e propriedade ficam com o veículo.
+     O try/catch garante que a medição nunca quebra o jogo. */
+  function track(nome, params) {
+    try {
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', nome, params);
+      } else if (Array.isArray(window.dataLayer)) {
+        window.dataLayer.push(Object.assign({ event: nome }, params));
+      }
+    } catch (e) { /* medição falhou: o jogo segue */ }
+  }
+
   /* ── Instância do jogo ───────────────────────────────── */
   function NgGame(wrap) {
     var gid     = wrap.id.replace('ng-game-', '');
@@ -452,6 +467,39 @@
     var vetor    = {};   // { eixo1: N, eixo2: N, eixo3: N }
     var pesoCount = 0;   // quantos dilemas tinham axis_weights
 
+    /* Parâmetros de medição. A skin sai da classe do wrap, que o shortcode
+       monta; o contador de partidas é por carregamento da página e sobe a cada
+       iniciarPartida(), "Jogar novamente" incluído. Nenhum dado do jogador. */
+    var skinSlug = (wrap.className.match(/(?:^|\s)ng-skin-([a-z0-9_-]+)/) || [])[1] || '';
+    var partidaN = 0;
+
+    function medir(nome, extra) {
+      track(nome, Object.assign({ instancia: gid, skin: skinSlug, partida_n: partidaN }, extra));
+    }
+
+    function paramsPergunta() {
+      var d = dilemas[idx];
+      return {
+        etapa:         idx + 1,
+        total:         dilemas.length,
+        dilema_id:     d.id,
+        dilema_titulo: String(d.title || '').slice(0, 100)
+      };
+    }
+
+    /* `alternativa` é a letra interna; `posicao` é o lugar na tela (1 = a de
+       cima), que difere dela desde o embaralhamento. Os pesos só entram se a
+       escolha tiver `axis_weights`. */
+    function paramsResposta(pick, pesos) {
+      var p = paramsPergunta();
+      p.alternativa = pick;
+      p.posicao     = (ordens[idx] || optKeys).indexOf(pick) + 1;
+      ['eixo1', 'eixo2', 'eixo3'].forEach(function (eixo, i) {
+        if (pesos && typeof pesos[eixo] === 'number') { p['peso_' + (i + 1)] = pesos[eixo]; }
+      });
+      return p;
+    }
+
     var lockTimer  = null;   /* intervalo do contador de leitura */
     var neonTimer  = null;   /* espera até a luz do cartão começar */
     var escHandler = null;   /* listener de Esc do modal aberto */
@@ -552,6 +600,8 @@
       idx = 0; vetor = {}; pesoCount = 0;
       dilemas = embaralhar(conjunto).slice(0, tamPartida);
       ordens  = dilemas.map(function () { return embaralhar(optKeys); });
+      partidaN++;
+      medir('ng_inicio', { n: dilemas.length, conjunto: conjunto.length });
       renderDilema();
     }
 
@@ -694,6 +744,9 @@
       inner.querySelectorAll('.ng-btn-option').forEach(function (btn) {
         btn.addEventListener('click', function () { renderFeedback(btn.dataset.pick); });
       });
+      /* Uma vez por exibição: renderDilema() só é chamada ao começar a partida
+         e ao avançar — não há render por resize, foco ou teclado. */
+      medir('ng_pergunta_vista', paramsPergunta());
     }
 
     /* A luz do cartão começa NEON_ESPERA_MS depois de a pergunta entrar e vale
@@ -727,6 +780,7 @@
       // evita depender de o render anterior ter deixado o estado certo.
       aplicarFundo(d.imagem);
       acumularPesos(pesos);
+      medir('ng_resposta', paramsResposta(pick, pesos));
 
       inner.innerHTML =
         buildProgress(idx + 1, idx + 1, dilemas.length) +
@@ -792,6 +846,7 @@
        renderEnd(); o que saiu daqui foi a narrativa por eixo. */
     function renderVerdictNarrativa(perfil, vetorNorm) {
       var radar = (vetorNorm && data.eixos) ? buildRadarSVG(vetorNorm, data.eixos) : '';
+      medir('ng_fim', { tela: 'veredito', perfil: String(perfil.nome || '').slice(0, 100) });
 
       inner.innerHTML =
         '<div class="ng-verdict-result">' +
@@ -835,6 +890,7 @@
     function renderEndGenerico() {
       limparTimers();
       montarTelaCheia();
+      medir('ng_fim', { tela: 'generica' });
       inner.innerHTML =
         '<div class="ng-screen">' +
           '<h2>Jogo concluído!</h2>' +
