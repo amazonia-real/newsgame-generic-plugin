@@ -2016,7 +2016,9 @@ imagens que estiverem atrás do painel no jogo real. Não é número do JDA.
 **Onde está:**
 - `news-game-plugin/public/css/newsgame-game.css` — os tokens do par e
   `--ng-feedback-chapado` (junto dos de vidro); `.ng-feedback`,
-  `.ng-feedback-consequence`, `.ng-feedback-text`, `.ng-feedback-hint`
+  `.ng-feedback-text`, `.ng-feedback-hint`. A `.ng-feedback-consequence`, que estava nesta
+  lista, saiu em 16/10 (`c0bf304`): a consequência da alternativa deixou de ser exibida na
+  tela de contexto (`fdd0cb6`)
 - `news-game-plugin/public/css/skins/skin-drama.css` e `skin-mono.css` — o par
 - `news-game-plugin/public/css/skins/skin-pixel.css` — a regra de componente anterior
 - `news-game-plugin/public/css/skins/skin-default.css` — o par da Padrão, desde `79f34be`
