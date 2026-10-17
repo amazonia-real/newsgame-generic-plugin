@@ -110,14 +110,16 @@
   --ng-option-escolhida-rotulo: #1B480C;
 }
 
-/* Desktop: redeclara só o que muda. A borda copia o 1.5px DECLARADO no JDA;
-   o Chrome devolve 1px no estilo computado, lá e aqui (medido em densidade 1
-   e 2). */
+/* Desktop: redeclara só o que muda. A borda é 1px: o JDA DECLARA 1.5px, mas o
+   Chrome desenha e devolve 1px no estilo computado, lá e aqui (medido em
+   densidade 1 e 2). Declarar 1px dá o mesmo traço e faz o painel de contexto,
+   que se estende pela largura DECLARADA da borda, coincidir com o cartão — com
+   1.5px ele passava 0,5px de cada lado (16/10). */
 @media (min-width: 1025px) {
   .ng-game-wrap.ng-skin-default {
     --ng-card-bg:              rgba(0, 0, 0, 0.28);
     --ng-card-borda-cor:       rgba(74, 222, 128, 0.55);
-    --ng-card-borda-largura:   1.5px;
+    --ng-card-borda-largura:   1px;
     --ng-card-sombra-y:        20px;
     --ng-card-sombra-desfoque: 60px;
     --ng-card-sombra-alfa:     0.3;
@@ -181,13 +183,19 @@
  * clara sob o véu de 42%: repouso 1,91:1 até 1024px e 3,95:1 a partir de
  * 1025px (era 4,70); hover 1,72 e 3,27. É o que o JDA tem. Pendência do bloco
  * (c). FICAM DE FORA: foco, sombra e halo neon do hover, blur e `translateY`.
+ *
+ * Desde o cartão único (16/10) a alternativa fica sobre o cartão, e não sobre
+ * a foto. O hover até 1024px desceu de .38 (o do JDA) para .29: com .38, o
+ * texto dava 3,82:1 e o rótulo 3,66:1 sobre o cartão; com .29, 4,94 e 4,70
+ * (percentil 5 por pixel, 390 e 768px). O hover segue distinto do repouso pela
+ * borda (.40 → .65) e pela tinta (.92 → .96).
  */
 .ng-game-wrap.ng-skin-default .ng-btn-option {
   border-width: 1px;
 }
 
 .ng-game-wrap.ng-skin-default .ng-btn-option:hover:not(:disabled) {
-  background:   rgba(255, 255, 255, 0.38);
+  background:   rgba(255, 255, 255, 0.29);
   border-color: rgba(255, 255, 255, 0.65);
   color:        rgba(255, 255, 255, 0.96);
 }
