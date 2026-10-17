@@ -356,6 +356,10 @@
     var conjunto   = data.dilemas;
     var tamPartida = Math.min(limitarPartida(data.round_size), conjunto.length);
     var dilemas    = [];
+    /* Ordem das alternativas de cada pergunta da partida, sorteada junto com
+       ela em iniciarPartida() e reusada pela tela de contexto — ordens[i] vale
+       para dilemas[i]. */
+    var ordens     = [];
     var title    = data.title || 'News-Game';
     var idx      = -1;   // -1 = tela inicial
     var creditoEl = wrap.querySelector('.ng-photo-credit');
@@ -541,9 +545,13 @@
 
     /* Começo de partida — pela capa e por "Jogar novamente". Zera o acumulador
        do veredito e sorteia de novo, sem recarregar a página. */
+    /* A ordem das alternativas é sorteada aqui, uma vez por pergunta, e não a
+       cada render: a tela de contexto remonta o palco e tem de mostrar a mesma
+       ordem da pergunta. "Jogar novamente" passa por aqui e sorteia tudo de novo. */
     function iniciarPartida() {
       idx = 0; vetor = {}; pesoCount = 0;
       dilemas = embaralhar(conjunto).slice(0, tamPartida);
+      ordens  = dilemas.map(function () { return embaralhar(optKeys); });
       renderDilema();
     }
 
@@ -616,11 +624,12 @@
     /* Alternativas do palco. Sem `pick`, são os botões da pergunta; com `pick`,
        a escolhida e as outras, desabilitadas, da tela de contexto.
 
-       O rótulo "Opção A/B/C" é só para leitor de tela (o CSS o oculta) e vem da
-       POSIÇÃO na tela — A é a de cima —, não da letra interna, que segue no
-       `data-pick` e decide os pesos. */
+       A ORDEM é a sorteada para esta pergunta (`ordens[idx]`); a letra interna
+       segue no `data-pick` e decide pesos, escolhida e veredito — nunca a
+       posição. O rótulo "Opção A/B/C" é só para leitor de tela (o CSS o oculta)
+       e vem da POSIÇÃO na tela, A é a de cima. */
     function buildOpcoes(d, pick) {
-      return optKeys.map(function (key, i) {
+      return (ordens[idx] || optKeys).map(function (key, i) {
         var opt  = d['option_' + key] || {};
         var abre = pick
           ? '<button class="ng-btn-option ' + (key === pick ? 'is-chosen' : 'is-other') + '" disabled>'
