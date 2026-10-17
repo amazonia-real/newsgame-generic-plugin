@@ -41,6 +41,18 @@
      instância, porque configuração exige coluna, UI e migração — item à parte. */
   var LOCK_SEGUNDOS = 8;
 
+  /* Espera até a luz começar a contornar o cartão da pergunta. Espelha os
+     5000 ms do `startNeonTravel` do JDA (jogo-amazonia.js:514). O JS só marca o
+     cartão com `ng-neon`; o desenho e o movimento vivem na folha da skin (hoje
+     só a Padrão desenha), e skin sem regra para a classe não muda nada. */
+  var NEON_ESPERA_MS = 5000;
+
+  /* O giro anima uma propriedade registrada por `@property`. Onde ela não existe,
+     a animação viraria um salto entre dois ângulos — melhor não marcar o cartão e
+     deixar o fio estático. `CSS.registerProperty` é da mesma especificação
+     (Properties and Values API) e chegou junto com o `@property` nos navegadores. */
+  var NEON_SUPORTADO = !!(window.CSS && typeof window.CSS.registerProperty === 'function');
+
   /* ── Barra de progresso ────────────────────────────────
      Extraída porque os dois estados montavam o mesmo HTML duplicado — e com
      isso os DOIS atributos de estilo de largura viram UM, o que baixa a
@@ -437,6 +449,7 @@
     var pesoCount = 0;   // quantos dilemas tinham axis_weights
 
     var lockTimer  = null;   /* intervalo do contador de leitura */
+    var neonTimer  = null;   /* espera até a luz do cartão começar */
     var escHandler = null;   /* listener de Esc do modal aberto */
 
     /*
@@ -446,6 +459,7 @@
      */
     function limparTimers() {
       if (lockTimer) { clearInterval(lockTimer); lockTimer = null; }
+      if (neonTimer) { clearTimeout(neonTimer); neonTimer = null; }
       if (escHandler) {
         document.removeEventListener('keydown', escHandler);
         escHandler = null;
@@ -663,9 +677,25 @@
 
       aplicarProgresso(inner);
       ligarInfo();
+      agendarNeon();
       inner.querySelectorAll('.ng-btn-option').forEach(function (btn) {
         btn.addEventListener('click', function () { renderFeedback(btn.dataset.pick); });
       });
+    }
+
+    /* A luz do cartão começa NEON_ESPERA_MS depois de a pergunta entrar e vale
+       só enquanto a pergunta espera: escolher leva ao renderFeedback(), cujo
+       limparTimers() cancela a espera, e o palco remontado nasce sem a classe.
+       Por isso a luz para ao escolher e recomeça do zero na pergunta seguinte e
+       em "Jogar novamente" — ao contrário do JDA, que a mantém na tela de
+       contexto (decisão de 16/10: a tela de contexto é de leitura). */
+    function agendarNeon() {
+      if (!NEON_SUPORTADO) { return; }
+      neonTimer = setTimeout(function () {
+        neonTimer = null;
+        var card = inner.querySelector('.ng-stage:not(.is-feedback) .ng-card');
+        if (card) { card.classList.add('ng-neon'); }
+      }, NEON_ESPERA_MS);
     }
 
     /* ── Tela de feedback ──────────────────────────────────

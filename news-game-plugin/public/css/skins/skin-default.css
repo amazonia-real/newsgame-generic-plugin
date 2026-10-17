@@ -447,3 +447,74 @@
     line-height: 1.65;
   }
 }
+
+/*
+ * ── Borda luminosa (neon) ──────────────────────────────
+ * O `.glass-card::after` do JDA (`jda-base.css:944-978`): um anel de 1.5px,
+ * recortado por máscara XOR, pintado por um `conic-gradient` cujo ângulo de
+ * partida gira — `@property` registra o ângulo como <angle>, e só assim a
+ * animação o interpola. Feixe verde (hue 150) com o pico em 88% da volta, uma
+ * volta a cada 3.5s, linear. Sem halo próprio: o brilho estático do desktop é a
+ * sombra do cartão, que já vem do JDA nos tokens acima.
+ *
+ * O ANEL EXISTE SEMPRE e fica invisível; a classe `ng-neon` (o JS a põe 5s
+ * depois de a pergunta entrar) só o acende e o faz girar, com a mesma
+ * transição de opacidade de 0.6s do JDA — o estático e o animado são o mesmo
+ * elemento, então não há salto quando a luz começa. O "fio" estático é a borda
+ * do próprio cartão: verde no desktop e branca até 1024px, como no JDA.
+ *
+ * Diferenças do JDA, por decisão: (1) o anel cobre a BORDA do cartão — `inset`
+ * negativo da largura dela, o mesmo retângulo do cartão e do painel de contexto
+ * —, e não a área interna; (2) é o `::before`, e não o `::after`: posicionado e
+ * sem z-index, é pintado antes do (i) e do painel (z-index 50), que ficam por
+ * cima dele sem precisar de z-index novo; (3) a luz para ao escolher (o JS
+ * remonta o cartão sem a classe); (4) com movimento reduzido o anel não acende,
+ * em vez de ficar parado num ângulo qualquer como no JDA.
+ */
+@property --ng-neon-angulo {
+  syntax:        '<angle>';
+  inherits:      false;
+  initial-value: 0deg;
+}
+
+@keyframes ng-neon-volta {
+  from { --ng-neon-angulo: 0deg; }
+  to   { --ng-neon-angulo: 360deg; }
+}
+
+.ng-game-wrap.ng-skin-default .ng-card::before {
+  content:        '';
+  position:       absolute;
+  inset:          calc(-1 * var(--ng-card-borda-largura));
+  border-radius:  var(--ng-radius);
+  padding:        1.5px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--ng-neon-angulo, 0deg),
+    transparent               0%,
+    transparent               65%,
+    hsla(150, 80%, 60%, 0.15) 75%,
+    hsl(150, 90%, 78%)        88%,
+    hsla(150, 80%, 60%, 0.15) 95%,
+    transparent               100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite:         exclude;
+  opacity:    0;
+  transition: opacity 0.6s ease;
+}
+
+.ng-game-wrap.ng-skin-default .ng-card.ng-neon::before {
+  opacity:   1;
+  animation: ng-neon-volta 3.5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ng-game-wrap.ng-skin-default .ng-card.ng-neon::before {
+    opacity:   0;
+    animation: none;
+  }
+}
