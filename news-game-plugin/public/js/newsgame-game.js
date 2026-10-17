@@ -614,15 +614,19 @@
     }
 
     /* Alternativas do palco. Sem `pick`, são os botões da pergunta; com `pick`,
-       a escolhida e as outras, desabilitadas, da tela de contexto. */
+       a escolhida e as outras, desabilitadas, da tela de contexto.
+
+       O rótulo "Opção A/B/C" é só para leitor de tela (o CSS o oculta) e vem da
+       POSIÇÃO na tela — A é a de cima —, não da letra interna, que segue no
+       `data-pick` e decide os pesos. */
     function buildOpcoes(d, pick) {
-      return optKeys.map(function (key) {
+      return optKeys.map(function (key, i) {
         var opt  = d['option_' + key] || {};
         var abre = pick
           ? '<button class="ng-btn-option ' + (key === pick ? 'is-chosen' : 'is-other') + '" disabled>'
           : '<button class="ng-btn-option" data-pick="' + key + '">';
         return abre +
-          '<span class="ng-opt-label">Opção ' + key.toUpperCase() + '</span>' +
+          '<span class="ng-opt-label">Opção ' + 'ABC'.charAt(i) + '</span>' +
           esc(opt.texto || '') +
         '</button>';
       }).join('');

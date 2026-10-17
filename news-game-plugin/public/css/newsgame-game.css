@@ -701,6 +701,7 @@
    declarar, e continua correto se uma skin trocar a fonte de um subtrecho em
    vez do wrap inteiro. */
 .ng-btn-option {
+  position:        relative;   /* âncora do rótulo visualmente oculto */
   background:      var(--ng-option-bg);
   border:          2px solid var(--ng-option-borda);
   border-radius:   var(--ng-radius);
@@ -742,6 +743,30 @@
   letter-spacing:  0.1em;
   text-transform:  uppercase;
   margin-bottom:   0.4rem;
+}
+
+/*
+ * O rótulo "Opção A/B/C" fica SÓ para leitor de tela, nas 7 skins (decisão de
+ * 16/10; o JDA não o mostra). O texto continua no DOM e no nome acessível do
+ * botão, e vem da POSIÇÃO na tela, não da letra interna. Padrão "visualmente
+ * oculto": `clip` em vez de `display: none`, que o tiraria da árvore de
+ * acessibilidade. A âncora é o `position: relative` do `.ng-btn-option`, para o
+ * elemento oculto não escapar do botão e criar rolagem.
+ *
+ * As propriedades visuais da regra acima (e as das skins: cor, fonte, tamanho)
+ * ficaram sem efeito e NÃO foram apagadas — estão listadas como órfãs.
+ */
+.ng-opt-label {
+  position:    absolute;
+  width:       1px;
+  height:      1px;
+  margin:      -1px;
+  padding:     0;
+  overflow:    hidden;
+  clip:        rect(0 0 0 0);
+  clip-path:   inset(50%);
+  white-space: nowrap;
+  border:      0;
 }
 
 
