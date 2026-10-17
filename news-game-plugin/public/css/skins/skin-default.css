@@ -126,6 +126,17 @@
     --ng-option-bg:            rgba(255, 255, 255, 0.10);
     --ng-option-borda:         rgba(255, 255, 255, 0.22);
   }
+
+  /* Cartão em 900px, o `max-width` do `.glass-card` do JDA no desktop
+     (`jda-desktop.css:174`). O inner acompanha com a mesma folga de 40px de
+     cada lado que o base tem entre 660 e 740. Só nas telas de pergunta e de
+     contexto (`ng-bg-dilema`, a classe de momento que o JS põe no wrap): o inner
+     também segura a capa e o veredito, que ficam em 740 (16/10). Abaixo de
+     1025px nada muda. */
+  .ng-game-wrap.ng-skin-default.ng-bg-dilema {
+    --ng-card-max-lg:          900px;
+    --ng-inner-max:            980px;
+  }
 }
 
 /*

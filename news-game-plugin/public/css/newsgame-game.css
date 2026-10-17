@@ -224,6 +224,14 @@
    * --ng-game-inner, que é 740px.
    */
   --ng-card-max-lg:  660px;
+  /*
+   * Limite do `.ng-game-inner`, o contêiner que segura a barra de progresso e o
+   * palco. Era literal até 16/10; virou token para uma skin poder alargar o
+   * cartão no desktop sem que o inner o estrangule (a Padrão: cartão 900,
+   * inner 980). O padrão, 740px, é o valor de antes — as skins que não o
+   * declaram ficam idênticas.
+   */
+  --ng-inner-max:    740px;
   /* Altura mínima do cartão SÓ durante o feedback: sem ela o cartão curto faz o
      texto explicativo transbordar; aplicada sempre, o dilema curto ganharia um
      vão vazio embaixo. Por isso é classe (.is-feedback), não regra geral. */
@@ -300,7 +308,7 @@
 
 .ng-game-inner {
   width:     100%;
-  max-width: 740px;
+  max-width: var(--ng-inner-max);
   /*
    * Centralização vertical por margem automática, e NÃO por
    * `align-items: center` no wrap. Com `center`, conteúdo mais alto que os 85vh
