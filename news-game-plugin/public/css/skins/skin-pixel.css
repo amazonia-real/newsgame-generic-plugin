@@ -506,35 +506,40 @@
    * ── Altura livre: a caixa cresce com o texto, sem barra de rolagem ──
    *
    * O base fixa o painel em `inset: 0` com `overflow-y: auto`, ou seja altura
-   * IGUAL à do palco e rolagem interna quando o texto não cabe. Com a
+   * IGUAL à do cartão e rolagem interna quando o texto não cabe. Com a
    * consequência em Press Start 2P — maior por glifo — isso passou a acionar a
    * barra no desktop, e barra de rolagem dentro de uma caixa de diálogo de RPG
    * é o oposto do que a skin promete. (07/10: com a Pixelify o painel ficou
    * mais baixo, mas a regra continua — ela não custa nada quando o texto cabe,
    * e é o que segura uma consequência longa sem barra.)
    *
-   * `inset: 0 0 auto 0` solta APENAS o `bottom`. Topo, esquerda e direita
-   * continuam colados no palco, então o painel mantém posição e largura — e
+   * O `inset` com `auto` embaixo solta APENAS o `bottom`. Topo, esquerda e direita
+   * continuam colados no cartão, então o painel mantém posição e largura — e
    * `position: absolute` continua, o que preserva a SOBREPOSIÇÃO: o dilema e as
    * alternativas seguem atrás. Trocar para `position: relative` resolveria o
    * overflow e quebraria isso, empilhando o painel abaixo das alternativas em
    * vez de sobre elas — e a sobreposição é a transição herdada do JDA, não
    * enfeite.
    *
-   * `min-height: 100%` mantém o painel cobrindo o palco inteiro quando o texto
+   * O `min-height` mantém o painel cobrindo o cartão inteiro quando o texto
    * é curto, que é o caso comum; `height: auto` deixa passar disso quando é
    * longo. O `align-items: center` do base continua centralizando na folga.
    *
    * ⚠️ CONSEQUÊNCIA ACEITA: com texto longo o painel passa a se estender ABAIXO
-   * do palco, porque um elemento absoluto não empurra o contêiner que o
+   * do cartão, porque um elemento absoluto não empurra o contêiner que o
    * ancora. Ele avança sobre o padding inferior do wrap — que existe e é de
-   * 3.5rem no desktop. Fazer o palco crescer junto exigiria o painel entrar no
+   * 3.5rem no desktop. Fazer o cartão crescer junto exigiria o painel entrar no
    * fluxo, o que é exatamente o que o parágrafo acima descarta. A barra de
    * rolagem foi trocada por transbordo controlado, de propósito.
+   *
+   * Desde o cartão único (16/10) o painel mora DENTRO do cartão, e o base o
+   * estende pela largura da borda dele para cobrir o mesmo retângulo. Aqui o
+   * topo e os lados fazem o mesmo, e o `min-height` soma as duas bordas, para
+   * o painel curto ainda cobrir o cartão até o pé.
    */
-  inset:      0 0 auto 0;
+  inset:      calc(-1 * var(--ng-card-borda-largura)) calc(-1 * var(--ng-card-borda-largura)) auto;
   height:     auto;
-  min-height: 100%;
+  min-height: calc(100% + 2 * var(--ng-card-borda-largura));
   overflow-y: visible;
 }
 
