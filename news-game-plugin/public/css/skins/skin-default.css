@@ -150,25 +150,10 @@
 }
 
 /*
- * O título da pergunta fica SÓ para leitor de tela na Padrão (decisão de
- * 16/10), como no JDA, que não o mostra. Continua no DOM como `h2`, com o
- * texto, e segue na árvore de acessibilidade: padrão "visualmente oculto", com
- * `clip` e não `display: none`. A âncora é o `.ng-card-corpo`, que já é
- * `position: relative`. As outras skins seguem mostrando o título. A cor e as
- * sombras acima ficaram sem efeito visual e NÃO foram apagadas.
+ * O título da pergunta, que esta folha escondia desde 16/10, passou a ser
+ * escondido no base, em todas as skins (18/10) — ver `.ng-dilema-title` em
+ * newsgame-game.css. A cor acima e as sombras abaixo seguem sem efeito visual.
  */
-.ng-game-wrap.ng-skin-default .ng-dilema-title {
-  position:    absolute;
-  width:       1px;
-  height:      1px;
-  margin:      -1px;
-  padding:     0;
-  overflow:    hidden;
-  clip:        rect(0 0 0 0);
-  clip-path:   inset(50%);
-  white-space: nowrap;
-  border:      0;
-}
 
 /*
  * `text-shadow` do JDA, só no que ele sombreia dentro do cartão: até 1024px,

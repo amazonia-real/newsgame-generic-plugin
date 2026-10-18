@@ -462,11 +462,29 @@
   .ng-card { background: var(--ng-card); }
 }
 
+/*
+ * O título da pergunta fica SÓ para leitor de tela em TODAS as skins (decisão
+ * de 18/10; na Padrão desde 16/10, como no JDA, que não o mostra). Continua no
+ * DOM como `h2`, com o texto, e na árvore de acessibilidade: padrão
+ * "visualmente oculto", com `clip` e não `display: none`. A âncora é o
+ * `.ng-card-corpo`, que é `position: relative`. Fonte, peso e cor seguem
+ * declarados (e as regras das skins sobre o título, também) — sem efeito
+ * visual, valem para quando ele voltar a aparecer.
+ */
 .ng-dilema-title {
+  position:        absolute;
+  width:           1px;
+  height:          1px;
+  margin:          -1px;
+  padding:         0;
+  overflow:        hidden;
+  clip:            rect(0 0 0 0);
+  clip-path:       inset(50%);
+  white-space:     nowrap;
+  border:          0;
   font-size:       var(--ng-fs-dilema);
   font-weight:     var(--ng-peso-leitura);
   color:           var(--ng-accent-texto);
-  margin:          0 0 1rem;
   line-height:     1.3;
   letter-spacing:  0.01em;
 }
