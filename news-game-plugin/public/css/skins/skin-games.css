@@ -140,6 +140,14 @@
   --ng-card-sombra-desfoque:     0;
   --ng-card-sombra-alfa:         1;
 
+  /* Radar sobre placa BRANCA (18/10): os tons escuros do verde, do vermelho e
+     do cinza — 5,94 / 5,98 / 5,94 contra o branco. Ver o bloco do radar no base. */
+  --ng-radar-positive:           #157334;
+  --ng-radar-positive-fill:      rgba(21, 115, 52, 0.2);
+  --ng-radar-negative:           #be281e;
+  --ng-radar-negative-fill:      rgba(190, 40, 30, 0.18);
+  --ng-radar-neutral:            #5a6668;
+
   /* Alternativas: brancas com contorno; a escolhida preta com tinta clara. */
   --ng-option-bg:                var(--ng-card-chapado);
   --ng-option-borda:             rgb(var(--ng-on-rgb));

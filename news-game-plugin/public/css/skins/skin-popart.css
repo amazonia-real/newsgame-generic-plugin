@@ -112,6 +112,14 @@
   --ng-card-sombra-desfoque:     0;
   --ng-card-sombra-alfa:         1;
 
+  /* Radar sobre placa CREME (18/10): os tons escuros do verde, do vermelho e
+     do cinza — 5,92 / 5,95 / 5,92 contra o creme. Ver o bloco do radar no base. */
+  --ng-radar-positive:           #157334;
+  --ng-radar-positive-fill:      rgba(21, 115, 52, 0.2);
+  --ng-radar-negative:           #be281e;
+  --ng-radar-negative-fill:      rgba(190, 40, 30, 0.18);
+  --ng-radar-neutral:            #5a6668;
+
   /* Alternativas: creme com contorno; a escolhida amarela, tinta preta. */
   --ng-option-bg:                var(--ng-card-chapado);
   --ng-option-borda:             rgb(var(--ng-on-rgb));
@@ -143,15 +151,25 @@
  *   CAPA      · explosão creme no centro, raios amarelos — o título fica dentro
  *   DILEMA    · raios azuis, centro liso
  *   RESULTADO · raios rosa, estrelas e explosão amarela à direita
+ *
+ * COR DE RESERVA POR MOMENTO (18/10): cada cena só começa a baixar quando o
+ * wrap ganha a classe do momento, e até ela chegar aparece o `background-color`.
+ * Com o `--ng-bg` creme, o veredito nascia BRANCO e virava rosa quando a
+ * `fim.webp` chegava (~680 ms com 300 ms de latência). A reserva passa a ser a
+ * cor dominante de cada cena, medida nos WebP: creme 255,255,240 na capa (o
+ * `--ng-bg`, sem regra própria), azul 97,192,239 na pergunta e rosa 239,97,120
+ * no veredito. Não muda o token: só o fundo do wrap em cada momento.
  */
 .ng-game-wrap.ng-skin-popart.ng-bg-capa {
   background-image: url('../../images/skins/popart/capa.webp');
 }
 
 .ng-game-wrap.ng-skin-popart.ng-bg-dilema {
+  background-color: rgb(97, 192, 239);
   background-image: url('../../images/skins/popart/dilema.webp');
 }
 
 .ng-game-wrap.ng-skin-popart.ng-bg-fim {
+  background-color: rgb(239, 97, 120);
   background-image: url('../../images/skins/popart/fim.webp');
 }

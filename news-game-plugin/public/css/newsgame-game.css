@@ -111,12 +111,19 @@
    * RESULTADO do jogador, não a identidade do veículo, e por decisão NÃO
    * seguem a skin: não derivam dos canais. Uma redação que troque a marca
    * para roxo não deve ganhar um radar roxo onde antes lia "positivo".
+   *
+   * Desde 18/10 o radar fica sobre a PLACA (`.ng-radar-wrap`), opaca, na cor de
+   * cartão da skin. Estes valores são os da placa ESCURA: verde, vermelho e
+   * cinza claros, medidos contra os cartões da padrão, mono, pixel e drama
+   * (pior caso 4,65:1, o vermelho na padrão). As skins de placa CLARA (games,
+   * popart, minimal) redeclaram os cinco com os tons escuros — continua verde
+   * e vermelho, só na luminância que a placa pede.
    */
-  --ng-radar-positive:      #27ae60;
-  --ng-radar-positive-fill: rgba(46, 204, 113, 0.25);
-  --ng-radar-negative:      #E74C3C;
-  --ng-radar-negative-fill: rgba(231, 76, 60, 0.2);
-  --ng-radar-neutral:       #95A5A6;
+  --ng-radar-positive:      #4ade80;
+  --ng-radar-positive-fill: rgba(74, 222, 128, 0.25);
+  --ng-radar-negative:      #ff8a80;
+  --ng-radar-negative-fill: rgba(255, 138, 128, 0.2);
+  --ng-radar-neutral:       #c4cdce;
   /*
    * Aviso de instância sem dilemas (`.ng-empty-msg`). Semântica pelo mesmo
    * motivo das cores de cima: é "erro", não identidade do veículo, e não segue
@@ -127,13 +134,24 @@
    * CROMO — grade, eixos, rótulos e centro. Estas SEGUEM a skin, derivadas
    * de --ng-on-rgb como --ng-text e --ng-muted: são branco-sobre-escuro, e
    * numa skin de fundo claro ficariam invisíveis se fossem fixas.
+   *
+   * Alfas desde 18/10, medidos contra a placa das 7 skins: 0,56 é o menor que
+   * dá traço >= 3:1 em todas (o pior caso é a minimal, azul sobre branco), e
+   * 0,72 o menor que dá rótulo >= 4,5:1. A hierarquia entre a grade interna e
+   * a externa fica na espessura (0,7 e 1,3 no SVG), não mais no alfa.
    */
-  --ng-radar-grid:          rgba(var(--ng-on-rgb), 0.07);
-  --ng-radar-grid-outer:    rgba(var(--ng-on-rgb), 0.18);
-  --ng-radar-axis:          rgba(var(--ng-on-rgb), 0.18);
-  --ng-radar-dot-stroke:    rgba(var(--ng-on-rgb), 0.5);
-  --ng-radar-label:         rgba(var(--ng-on-rgb), 0.65);
-  --ng-radar-center:        rgba(var(--ng-on-rgb), 0.35);
+  --ng-radar-grid:          rgba(var(--ng-on-rgb), 0.56);
+  --ng-radar-grid-outer:    rgba(var(--ng-on-rgb), 0.56);
+  --ng-radar-axis:          rgba(var(--ng-on-rgb), 0.56);
+  --ng-radar-dot-stroke:    rgba(var(--ng-on-rgb), 0.56);
+  --ng-radar-label:         rgba(var(--ng-on-rgb), 0.72);
+  --ng-radar-center:        rgba(var(--ng-on-rgb), 0.56);
+
+  /* Placa do radar: estrutura igual em todas as skins. 692 é a largura útil do
+     veredito a 1340 px nas seis skins de contêiner 740 (740 − 2 × 24); com ela a
+     pixel, de contêiner 860, deixa de ter o radar maior que as outras. */
+  --ng-radar-placa-max:     692px;
+  --ng-radar-placa-pad:     12px;
 
   /* Vidro do card, do feedback e do modal. Derivam dos canais, então seguem
      a skin — é o que faz o card FLUTUAR sobre a foto em vez de tapá-la. */
@@ -1026,9 +1044,24 @@
 }
 
 /* ── Gráfico triangular de perfil ────────────────────── */
+/*
+ * PLACA (18/10): o radar fica sobre uma caixa opaca na cor de cartão da skin,
+ * com a borda e o raio do cartão. Sem ela, o radar ficava sobre a cena do fim
+ * (a grade e os rótulos competiam com o caderno da games e os traços da
+ * minimal) e, na mono, sobre o preto. Mesma largura máxima em todas as skins —
+ * a pixel, de contêiner 860, deixava o radar 120 px mais largo que as outras.
+ * O padding desconta a borda, para o radar ter o MESMO tamanho com borda de
+ * 1, 2 ou 3 px.
+ */
 .ng-radar-wrap {
-  margin-bottom:   2rem;
-  padding:         0.5rem 0;
+  box-sizing:      border-box;
+  width:           100%;
+  max-width:       var(--ng-radar-placa-max);
+  margin:          0 auto 2rem;
+  padding:         calc(var(--ng-radar-placa-pad) - var(--ng-card-borda-largura));
+  background:      var(--ng-card-chapado);
+  border:          var(--ng-card-borda-largura) solid var(--ng-card-borda-cor);
+  border-radius:   var(--ng-radius);
 }
 
 /*
