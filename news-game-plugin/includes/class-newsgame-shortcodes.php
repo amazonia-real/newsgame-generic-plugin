@@ -151,19 +151,31 @@ class Newsgame_Shortcodes {
         return array_unique( $ids );
     }
 
+    /**
+     * Versão de um arquivo do jogo para o `?ver=` da URL: a data de modificação
+     * do arquivo, e não a constante NEWSGAME_VERSION. Com a constante parada, a
+     * URL nunca mudava, e o navegador seguia usando a cópia antiga em cache
+     * depois de uma atualização (o Apache não manda Cache-Control; a validade
+     * fica por heurística). Arquivo ausente cai na constante.
+     */
+    private static function versao( $rel ) {
+        $mtime = @filemtime( NEWSGAME_DIR . $rel );
+        return $mtime ? (string) $mtime : NEWSGAME_VERSION;
+    }
+
     /** Folha base e lógica do jogo. Idempotente: o handle é sempre o mesmo. */
     private static function enqueue_base() {
         wp_enqueue_style(
             'newsgame-game',
             NEWSGAME_URL . 'public/css/newsgame-game.css',
             array(),
-            NEWSGAME_VERSION
+            self::versao( 'public/css/newsgame-game.css' )
         );
         wp_enqueue_script(
             'newsgame-game',
             NEWSGAME_URL . 'public/js/newsgame-game.js',
             array(),
-            NEWSGAME_VERSION,
+            self::versao( 'public/js/newsgame-game.js' ),
             true  // footer
         );
     }
@@ -197,7 +209,7 @@ class Newsgame_Shortcodes {
             'newsgame-skin-' . $skin,
             NEWSGAME_URL . 'public/css/skins/skin-' . $skin . '.css',
             array( 'newsgame-game' ),
-            NEWSGAME_VERSION
+            self::versao( 'public/css/skins/skin-' . $skin . '.css' )
         );
     }
 
