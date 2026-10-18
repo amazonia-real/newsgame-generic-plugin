@@ -610,9 +610,14 @@
  *
  * O prefixo do Safari antigo vai em regra separada: um pseudo desconhecido
  * invalidaria a lista inteira.
+ *
+ * Folga lateral de 16 px em tela cheia (18/10): até 1024 px o wrap tem 12 px
+ * de padding lateral, e em tela cheia, sem as faixas do tema, o cartão ficava a
+ * 12 px da borda da tela. A partir de 1025 px o padding já é 16 px (1rem), e
+ * nada muda. Fora da tela cheia, nada muda em largura nenhuma.
  */
-.ng-game-wrap:fullscreen         { overflow-y: auto; }
-.ng-game-wrap:-webkit-full-screen { overflow-y: auto; }
+.ng-game-wrap:fullscreen         { overflow-y: auto; padding-left: 16px; padding-right: 16px; }
+.ng-game-wrap:-webkit-full-screen { overflow-y: auto; padding-left: 16px; padding-right: 16px; }
 
 /*
  * ── Modal de contexto ──────────────────────────────────
