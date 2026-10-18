@@ -83,3 +83,24 @@
      pixel, em 390, 768 e 1340px. Só a borda: a primária segue em 82. */
   --ng-option-borda: rgb(98, 98, 98);
 }
+
+/*
+ * Placa do gráfico do veredito MAIS CLARA que o cartão (18/10). Na cor de
+ * cartão (23) ela quase sumia sobre o fundo da cena (10): 1,10:1. Com 54, a
+ * placa fica a 1,63:1 do fundo, e contra ela o traço do radar dá 4,33, o
+ * rótulo 6,04 e o vermelho 5,29 (o mais apertado) — acima de 3 e 4,5. O cinza
+ * mais claro que ainda respeitaria os limites seria 64 (vermelho a 4,54).
+ */
+.ng-game-wrap.ng-skin-mono .ng-radar-wrap {
+  background: rgb(54, 54, 54);
+}
+
+/*
+ * Título do veredito menor (18/10): de 28 px (`--ng-fs-11`) para 24,48 px, o
+ * maior tamanho em que o mesmo título em Georgia 700 caberia nas linhas de
+ * hoje, com todos os nomes de perfil, a 360, 390 e 1340 px (o limite vem de
+ * 360). O peso segue o de hoje.
+ */
+.ng-game-wrap.ng-skin-mono .ng-verdict-result h2 {
+  font-size: 1.53rem;
+}
