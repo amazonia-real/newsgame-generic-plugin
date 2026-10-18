@@ -152,6 +152,16 @@
      pixel, de contêiner 860, deixa de ter o radar maior que as outras. */
   --ng-radar-placa-max:     692px;
   --ng-radar-placa-pad:     12px;
+  /* Bloco do gráfico (rótulos em HTML, ao lado do triângulo, desde 18/10).
+     Largura do SVG do triângulo: no celular, a que ocupa quase toda a altura
+     útil da placa sem fazê-la crescer — a 390 px, 128 px de SVG (triângulo de
+     ~115 × 99) para ~113 px de altura útil numa placa de ~137. No desktop,
+     190 px (abaixo dos ~200 do radar antigo). Rótulo e percentual: 10,5 e
+     13 px no celular (9,5 px no rótulo abaixo de 375 px); 14 e 20 px a partir
+     de 600 px (o radar antigo dava ~6 e ~9 px a 390 e ~15 e ~24 px a 1340). */
+  --ng-radar-tri:           clamp(104px, 33vw, 128px);
+  --ng-radar-fs-rotulo:     10.5px;
+  --ng-radar-fs-pct:        13px;
 
   /* Vidro do card, do feedback e do modal. Derivam dos canais, então seguem
      a skin — é o que faz o card FLUTUAR sobre a foto em vez de tapá-la. */
@@ -1101,7 +1111,7 @@
 }
 
 /*
- * O SVG do radar é montado em `buildRadarSVG` (newsgame-game.js). As cores
+ * O SVG do radar é montado em `radarSVG` (newsgame-game.js). As cores
  * vinham em atributo `fill=`/`stroke=` gerado ali dentro; agora o JS emite
  * apenas a classe e a pintura vive aqui.
  *
@@ -1114,23 +1124,99 @@
  * 'unsafe-inline'` na CSP do site hospedeiro — contra o que o A1 conquistou.
  * A propriedade CSS `fill` sobre elemento SVG não tem nenhuma dessas dúvidas.
  */
+/*
+ * Bloco do gráfico (18/10): grade de três colunas com o triângulo no meio,
+ * ocupando as duas linhas. À esquerda, em cima, o rótulo do vértice de CIMA
+ * (eixo1), alinhado ao topo do triângulo e com texto à direita, encostado na
+ * ponta; à esquerda, embaixo, o do vértice inferior esquerdo (eixo3), pela
+ * base; à direita, o do vértice inferior direito (eixo2), um pouco acima da
+ * base. Os rótulos são HTML, em px de verdade, e não escalam com o desenho.
+ *
+ * Geometria (em frações da largura do SVG, `--ng-radar-tri`): o triângulo tem
+ * 0,8965 de largura e 0,7764 de altura, e o vértice de cima fica a 0,052 do
+ * topo da caixa. A aresta esquerda, a uma profundidade d abaixo do vértice,
+ * está a (0,5 − d × 0,5774 / largura) da borda esquerda da caixa.
+ */
 .ng-radar {
+  display:               grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows:    auto 1fr;
+  grid-template-areas:   "e1 tri e2" "e3 tri e2";
+  column-gap:            0.35rem;
+}
+
+.ng-radar-svg {
+  grid-area:       tri;
   display:         block;
-  margin:          0 auto;
+  width:           var(--ng-radar-tri);
+  height:          auto;
+}
+
+.ng-radar-eixo {
+  display:         flex;
+  flex-direction:  column;
+  min-width:       0;
+}
+
+/* Vértice de cima: o rótulo avança para dentro da caixa do SVG até 0,26 da
+   largura dela (mais o espaço entre colunas). Com um rótulo de 2 linhas, a
+   aresta esquerda, na altura da base dele, fica a ~0,32 — a folga é de ~7 px
+   a 390 e a 360 px, e de ~12 px no desktop. Topo alinhado ao vértice (0,052). */
+.ng-radar-eixo-1 {
+  grid-area:       e1;
+  align-self:      start;
+  justify-self:    end;
+  align-items:     flex-end;
+  text-align:      right;
+  margin-top:      calc(var(--ng-radar-tri) * 0.052);
+  margin-right:    calc(var(--ng-radar-tri) * -0.26 - 0.35rem);
+}
+
+/* Vértice inferior esquerdo: pela base, como antes. */
+.ng-radar-eixo-3 {
+  grid-area:       e3;
+  align-self:      end;
+  justify-self:    end;
+  align-items:     flex-end;
+  text-align:      right;
+}
+
+/* Vértice inferior direito: ~15% da altura do triângulo acima da base (0,17
+   da largura do SVG conta também a margem de 0,052 abaixo do vértice). */
+.ng-radar-eixo-2 {
+  grid-area:       e2;
+  align-self:      end;
+  justify-self:    start;
+  align-items:     flex-start;
+  text-align:      left;
+  margin-bottom:   calc(var(--ng-radar-tri) * 0.17);
 }
 
 .ng-radar-grid       { stroke: var(--ng-radar-grid); }
 .ng-radar-grid-outer { stroke: var(--ng-radar-grid-outer); }
 .ng-radar-axis       { stroke: var(--ng-radar-axis); }
 .ng-radar-center     { fill:   var(--ng-radar-center); }
-/* A fonte do radar vinha fixa em atributo (`font-family="system-ui,sans-serif"`),
-   um stack diferente do resto do jogo. Passa a seguir o token. Nas três
-   plataformas principais `system-ui` e o stack de --ng-font resolvem para a
-   mesma face (Segoe UI no Windows, SF no macOS, Roboto no Android), então a
-   mudança visual tende a zero — o ganho é o radar deixar de ter tipografia
-   própria e passar a seguir a skin. */
-.ng-radar-label { fill: var(--ng-radar-label); font-family: var(--ng-font); }
-.ng-radar-pct   { font-family: var(--ng-font); }
+
+/* Rótulos na fonte da skin, como antes. Tamanhos por token: 10,5 e 13 px no
+   celular, 14 e 20 px a partir de 600 px. */
+.ng-radar-label {
+  color:           var(--ng-radar-label);
+  font-family:     var(--ng-font);
+  font-size:       var(--ng-radar-fs-rotulo);
+  font-weight:     700;
+  line-height:     1.2;
+  /* Caixa normal (antes: caixa alta): palavra longa em maiúsculas não cabia na
+     coluna lateral do celular. Palavra nunca é partida no meio; abaixo de
+     375 px o rótulo desce para 9,5 px (ver o fim do bloco do radar). */
+  overflow-wrap:   normal;
+}
+
+.ng-radar-pct {
+  font-family:     var(--ng-font);
+  font-size:       var(--ng-radar-fs-pct);
+  font-weight:     800;
+  line-height:     1.15;
+}
 
 .ng-radar-poly.is-positive {
   fill:            var(--ng-radar-positive-fill);
@@ -1144,14 +1230,28 @@
 
 .ng-radar-dot { stroke: var(--ng-radar-dot-stroke); }
 
-.ng-radar-dot.is-positive,
-.ng-radar-pct.is-positive { fill: var(--ng-radar-positive); }
+.ng-radar-dot.is-positive { fill: var(--ng-radar-positive); }
+.ng-radar-dot.is-negative { fill: var(--ng-radar-negative); }
+.ng-radar-dot.is-neutral  { fill: var(--ng-radar-neutral); }
 
-.ng-radar-dot.is-negative,
-.ng-radar-pct.is-negative { fill: var(--ng-radar-negative); }
+.ng-radar-pct.is-positive { color: var(--ng-radar-positive); }
+.ng-radar-pct.is-negative { color: var(--ng-radar-negative); }
+.ng-radar-pct.is-neutral  { color: var(--ng-radar-neutral); }
 
-.ng-radar-dot.is-neutral,
-.ng-radar-pct.is-neutral  { fill: var(--ng-radar-neutral); }
+/* Rótulo do gráfico a 9,5 px nos celulares mais estreitos (360 px), em vez de
+   partir palavra longa no meio. */
+@media (max-width: 374px) {
+  .ng-game-wrap { --ng-radar-fs-rotulo: 9.5px; }
+}
+
+/* Triângulo e rótulos do gráfico no tamanho do desktop a partir de 600 px. */
+@media (min-width: 600px) {
+  .ng-game-wrap {
+    --ng-radar-tri:       190px;
+    --ng-radar-fs-rotulo: 14px;
+    --ng-radar-fs-pct:    20px;
+  }
+}
 
 /*
  * ── Responsividade ─────────────────────────────────────────────────────
@@ -1313,7 +1413,10 @@ body.newsgame-fullscreen .wp-block-post-title { display: none; }
      (align-items: flex-end); padding e max-height continuam. */
   .ng-modal          { padding: 0.75rem; }
   .ng-modal-content  { max-height: 72vh; }
-  .ng-verdict-result { padding: 1.5rem 0.75rem; }
+  /* 2.5rem em cima (18/10): o botão de tela cheia ocupa de 16 a 52 px do topo
+     do wrap, e com 1.5rem o veredito encostava nele quando ficava alto (medido
+     a 360 px em 5 skins antes do radar novo). 20 do wrap + 40 = 60 px. */
+  .ng-verdict-result { padding: 2.5rem 0.75rem 1.5rem; }
   /* Alvo de toque: o avançar ocupa a largura, em vez de ficar num canto */
   .ng-feedback .ng-btn-next { width: 100%; padding: 0.9rem 1rem; }
   /* 28px é pequeno para o dedo — o (i) cresce só aqui */

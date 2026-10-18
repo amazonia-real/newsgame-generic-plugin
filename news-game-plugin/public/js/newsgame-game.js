@@ -180,84 +180,92 @@
     return 'is-neutral';
   }
 
-  function buildRadarSVG(vetor, eixos) {
-    var W = 480, H = 230, cx = 240, cy = 132, r = 83;
+  /* Geometria do triângulo, em unidades do SVG: circunraio 100 e centro na
+     origem; topo → eixo1, direita-baixo → eixo2, esquerda-baixo → eixo3. A
+     caixa (viewBox) é JUSTA ao triângulo, só com margem para os pontos, e a
+     largura do triângulo na tela vem do CSS (`--ng-radar-tri`). Os rótulos
+     ficam FORA do SVG, em HTML, ao lado do triângulo (ver buildRadar) — antes
+     moravam dentro dele, encolhiam junto com o desenho (cerca de 6 px no
+     celular) e os da direita saíam cortados. */
+  var RADAR_R   = 100;
+  var RADAR_M   = 10;
+  var RADAR_ANG = [-90, 30, 150].map(function (a) { return a * Math.PI / 180; });
 
-    var norms  = [vetor.eixo1 || 0, vetor.eixo2 || 0, vetor.eixo3 || 0];
-    var pcts   = norms.map(function (n) { return Math.min(100, Math.max(-100, n * 100)); });
-    var labels = [
-      (eixos.eixo1 && eixos.eixo1.nome) || 'Eixo 1',
-      (eixos.eixo2 && eixos.eixo2.nome) || 'Eixo 2',
-      (eixos.eixo3 && eixos.eixo3.nome) || 'Eixo 3',
+  function radarPonto(n, i) {
+    return [
+      +(n * RADAR_R * Math.cos(RADAR_ANG[i])).toFixed(2),
+      +(n * RADAR_R * Math.sin(RADAR_ANG[i])).toFixed(2),
     ];
-    // Topo → eixo1, direita-baixo → eixo2, esquerda-baixo → eixo3
-    var angRad = [-90, 30, 150].map(function (a) { return a * Math.PI / 180; });
+  }
 
-    // Pontos do polígono (valores negativos cruzam o centro — efeito fratura)
-    var pts = norms.map(function (n, i) {
-      return [
-        +(cx + n * r * Math.cos(angRad[i])).toFixed(2),
-        +(cy + n * r * Math.sin(angRad[i])).toFixed(2),
-      ];
-    });
+  /* Percentual com sinal, como antes: o sinal sai do valor sem arredondar. */
+  function radarPct(n) {
+    var pct = Math.min(100, Math.max(-100, n * 100));
+    return (pct >= 0 ? '+' : '') + Math.round(pct) + '%';
+  }
 
-    // Grid: triângulos concêntricos em 25/50/75/100% do raio (paleta escura)
-    var gridSVG = [0.25, 0.5, 0.75, 1.0].map(function (lv) {
-      var gPts = angRad.map(function (a) {
-        return (cx + lv * r * Math.cos(a)).toFixed(2) + ',' +
-               (cy + lv * r * Math.sin(a)).toFixed(2);
-      }).join(' ');
-      return '<polygon points="' + gPts + '" fill="none"' +
-             ' class="' + (lv === 1.0 ? 'ng-radar-grid-outer' : 'ng-radar-grid') + '"' +
-             ' stroke-width="' + (lv === 1.0 ? 1.3 : 0.7) + '"/>';
+  /* Só o desenho. Os traços não escalam com o SVG (`non-scaling-stroke`): as
+     espessuras são em px na tela, do celular ao desktop. */
+  function radarSVG(norms, dotCls) {
+    var meia  = RADAR_R * Math.cos(Math.PI / 6) + RADAR_M;
+    var caixa = [-meia, -(RADAR_R + RADAR_M), 2 * meia, 1.5 * RADAR_R + 2 * RADAR_M]
+      .map(function (v) { return +v.toFixed(2); }).join(' ');
+    var fixo  = ' vector-effect="non-scaling-stroke"';
+    var grade = [0.25, 0.5, 0.75, 1].map(function (lv) {
+      var p = [0, 1, 2].map(function (i) { return radarPonto(lv, i).join(','); }).join(' ');
+      return '<polygon points="' + p + '" fill="none"' +
+             ' class="' + (lv === 1 ? 'ng-radar-grid-outer' : 'ng-radar-grid') + '"' +
+             ' stroke-width="' + (lv === 1 ? 1.2 : 0.7) + '"' + fixo + '/>';
     }).join('');
-
-    // Eixos do centro aos vértices
-    var axesSVG = angRad.map(function (a) {
-      return '<line x1="' + cx + '" y1="' + cy + '"' +
-             ' x2="' + (cx + r * Math.cos(a)).toFixed(2) + '"' +
-             ' y2="' + (cy + r * Math.sin(a)).toFixed(2) + '"' +
-             ' class="ng-radar-axis" stroke-width="1"/>';
+    var eixos = [0, 1, 2].map(function (i) {
+      var v = radarPonto(1, i);
+      return '<line x1="0" y1="0" x2="' + v[0] + '" y2="' + v[1] + '"' +
+             ' class="ng-radar-axis" stroke-width="0.8"' + fixo + '/>';
     }).join('');
-
-    // Polígono de dados: a classe de sinal governa a cor, que vive no CSS
-    var avgNorm = (norms[0] + norms[1] + norms[2]) / 3;
-    var polyCls = polySignClass(avgNorm);
-    var polyPts = pts.map(function (p) { return p.join(','); }).join(' ');
-
-    // Círculos nos vértices, com classe de sinal própria por eixo
-    var dotCls  = norms.map(dotSignClass);
-    var dotsSVG = pts.map(function (pt, i) {
-      return '<circle cx="' + pt[0] + '" cy="' + pt[1] + '" r="6"' +
-             ' class="ng-radar-dot ' + dotCls[i] + '" stroke-width="2"/>';
+    // Valores negativos cruzam o centro — efeito fratura, como antes
+    var pts    = norms.map(radarPonto);
+    var media  = (norms[0] + norms[1] + norms[2]) / 3;
+    var pontos = pts.map(function (p, i) {
+      return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="7"' +
+             ' class="ng-radar-dot ' + dotCls[i] + '" stroke-width="2"' + fixo + '/>';
     }).join('');
-
-    // Rótulos: nome do eixo + percentual com sinal
-    var labelOff  = 24;
-    var labelsSVG = angRad.map(function (a, i) {
-      var lx     = +(cx + (r + labelOff) * Math.cos(a)).toFixed(1);
-      var ly     = +(cy + (r + labelOff) * Math.sin(a)).toFixed(1);
-      var pctTxt = (pcts[i] >= 0 ? '+' : '') + Math.round(pcts[i]) + '%';
-      var anchor = Math.cos(a) > 0.15 ? 'start' : Math.cos(a) < -0.15 ? 'end' : 'middle';
-      return '<text x="' + lx + '" y="' + (ly - 4) + '"' +
-               ' text-anchor="' + anchor + '" font-size="11" font-weight="700"' +
-               ' letter-spacing="0.5" class="ng-radar-label">' +
-               esc(labels[i].toUpperCase()) + '</text>' +
-             '<text x="' + lx + '" y="' + (ly + 14) + '"' +
-               ' text-anchor="' + anchor + '" font-size="17" font-weight="800"' +
-               ' class="ng-radar-pct ' + dotCls[i] + '">' + pctTxt + '</text>';
-    }).join('');
-
-    return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" class="ng-radar"' +
-           ' role="img" aria-label="Gráfico de perfil: ' + esc(labels.join(', ')) + '">' +
-      '<g>' + gridSVG + '</g>' +
-      '<g>' + axesSVG + '</g>' +
-      '<polygon points="' + polyPts + '" class="ng-radar-poly ' + polyCls + '"' +
-               ' stroke-width="2.5" stroke-linejoin="round"/>' +
-      '<g>' + dotsSVG + '</g>' +
-      '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" class="ng-radar-center"/>' +
-      '<g>' + labelsSVG + '</g>' +
+    return '<svg class="ng-radar-svg" viewBox="' + caixa + '" aria-hidden="true" focusable="false">' +
+      '<g>' + grade + '</g>' +
+      '<g>' + eixos + '</g>' +
+      '<polygon points="' + pts.map(function (p) { return p.join(','); }).join(' ') + '"' +
+               ' class="ng-radar-poly ' + polySignClass(media) + '"' +
+               ' stroke-width="2" stroke-linejoin="round"' + fixo + '/>' +
+      '<g>' + pontos + '</g>' +
+      '<circle cx="0" cy="0" r="4" class="ng-radar-center"/>' +
     '</svg>';
+  }
+
+  /* Rótulo de um eixo: nome (pode quebrar em linhas) e percentual com a cor do
+     sinal. `aria-hidden`: quem lê é o `aria-label` do bloco. */
+  function radarEixo(i, nome, n, cls) {
+    return '<div class="ng-radar-eixo ng-radar-eixo-' + (i + 1) + '" aria-hidden="true">' +
+        '<span class="ng-radar-label">' + esc(nome) + '</span>' +
+        '<span class="ng-radar-pct ' + cls + '">' + radarPct(n) + '</span>' +
+      '</div>';
+  }
+
+  /* Gráfico de perfil: eixo1 acima do triângulo; eixo3 à esquerda e eixo2 à
+     direita, ao lado dos vértices de baixo (grade de três colunas no CSS).
+     Para leitor de tela, o bloco é UMA imagem com nomes e percentuais no
+     `aria-label`; rótulos e desenho ficam `aria-hidden`, sem leitura duplicada. */
+  function buildRadar(vetor, eixos) {
+    var norms  = [vetor.eixo1 || 0, vetor.eixo2 || 0, vetor.eixo3 || 0];
+    var nomes  = ['eixo1', 'eixo2', 'eixo3'].map(function (k, i) {
+      return (eixos[k] && eixos[k].nome) || 'Eixo ' + (i + 1);
+    });
+    var dotCls = norms.map(dotSignClass);
+    var resumo = nomes.map(function (nome, i) { return nome + ' ' + radarPct(norms[i]); }).join(', ');
+    return '<div class="ng-radar" role="img" aria-label="Gráfico de perfil: ' + esc(resumo) + '">' +
+        radarEixo(0, nomes[0], norms[0], dotCls[0]) +
+        radarEixo(2, nomes[2], norms[2], dotCls[2]) +
+        radarSVG(norms, dotCls) +
+        radarEixo(1, nomes[1], norms[1], dotCls[1]) +
+      '</div>';
   }
 
   /* ── Lição e desfecho num bloco contínuo ───────────────
@@ -885,7 +893,7 @@
        O perfil continua sendo escolhido localmente por distância euclidiana em
        renderEnd(); o que saiu daqui foi a narrativa por eixo. */
     function renderVerdictNarrativa(perfil, vetorNorm) {
-      var radar = (vetorNorm && data.eixos) ? buildRadarSVG(vetorNorm, data.eixos) : '';
+      var radar = (vetorNorm && data.eixos) ? buildRadar(vetorNorm, data.eixos) : '';
       medir('ng_fim', { tela: 'veredito', perfil: String(perfil.nome || '').slice(0, 100) });
 
       inner.innerHTML =
