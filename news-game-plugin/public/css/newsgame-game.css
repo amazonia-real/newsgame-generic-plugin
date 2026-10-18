@@ -286,6 +286,14 @@
    * --ng-font da skin — a `mono` mantém a serifada no título sem declarar nada.
    */
   --ng-font-title:   var(--ng-font);
+  /*
+   * Peso do TEXTO DE LEITURA (18/10): título e situação da pergunta,
+   * alternativas, feedback, texto do (i) e corpo do veredito. Antes vinha do
+   * tema (300 no Twenty Twenty-Five) e ficava fino no celular. 600 nas 7 skins,
+   * no mesmo tamanho; Georgia e Courier New não têm 600 e o navegador usa o
+   * bold (700) — aceito. A Padrão aplica o mesmo token na própria folha.
+   */
+  --ng-peso-leitura: 600;
   --ng-fs-1:         0.68rem;
   --ng-fs-2:         0.7rem;
   --ng-fs-3:         12px;  /* px de propósito: não controlamos a raiz do tema hospedeiro */
@@ -456,7 +464,7 @@
 
 .ng-dilema-title {
   font-size:       var(--ng-fs-dilema);
-  font-weight:     700;
+  font-weight:     var(--ng-peso-leitura);
   color:           var(--ng-accent-texto);
   margin:          0 0 1rem;
   line-height:     1.3;
@@ -465,6 +473,7 @@
 
 .ng-dilema-body {
   font-size:       var(--ng-fs-option);
+  font-weight:     var(--ng-peso-leitura);
   line-height:     1.65;
   color:           var(--ng-text);
   margin:          0;
@@ -671,6 +680,7 @@
   margin:      0.4rem 0 1.25rem;
   color:       var(--ng-text);
   font-size:   var(--ng-fs-6);
+  font-weight: var(--ng-peso-leitura);
   line-height: 1.7;
 }
 
@@ -735,6 +745,7 @@
   cursor:          pointer;
   font-family:     inherit;
   font-size:       var(--ng-fs-7);
+  font-weight:     var(--ng-peso-leitura);
   line-height:     1.55;
   padding:         1rem 1.2rem;
   text-align:      left;
@@ -878,6 +889,7 @@
   margin:      0 0 0.25rem;
   color:       var(--ng-feedback-ink);
   font-size:   var(--ng-fs-option);
+  font-weight: var(--ng-peso-leitura);
   line-height: 1.65;
   text-align:  left;
 }
@@ -1030,6 +1042,7 @@
   margin:          0 auto 2rem;
   color:           var(--ng-text);
   font-size:       var(--ng-fs-10);
+  font-weight:     var(--ng-peso-leitura);
   line-height:     1.55;
   text-align:      center;
 }

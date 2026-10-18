@@ -317,6 +317,8 @@
  * regra do modal, acima), dica 500, título da capa e do veredito 800 (família
  * pelo `--ng-font-title`), texto do veredito 400. Inter: alternativas 500,
  * resumo do painel 500, "Continuar" 700, CTA da capa 700 e "Compartilhar" 700.
+ * ⚠️ Desde 18/10, situação, alternativas, texto do modal e texto do veredito
+ * saíram dos pesos do JDA e usam o `--ng-peso-leitura` (600) — ver abaixo.
  *
  * SEM PAR NO JDA, muda só a família: título da pergunta, título "Contexto" do
  * modal e subtítulo da capa em Manrope; "Opção A" (herda da alternativa) e
@@ -347,15 +349,24 @@
   font-family: 'Newsgame Inter', var(--ng-font);
 }
 
-.ng-game-wrap.ng-skin-default .ng-modal-text      { font-weight: 300; }
-.ng-game-wrap.ng-skin-default .ng-verdict-summary { font-weight: 400; }
-
+/*
+ * TEXTO DE LEITURA no peso do token do base (18/10), como nas outras 6 skins:
+ * situação (era 700), alternativas (500), texto do modal (300) e texto do
+ * veredito (400) passam a 600 — decisão de 18/10, que deixa de seguir o JDA
+ * nestes quatro pesos. O feedback herdava o 300 do tema e o título da pergunta
+ * (oculto na Padrão) o 700 do base; os dois vêm do base agora.
+ */
+.ng-game-wrap.ng-skin-default .ng-dilema-body,
 .ng-game-wrap.ng-skin-default .ng-btn-option,
+.ng-game-wrap.ng-skin-default .ng-modal-text,
+.ng-game-wrap.ng-skin-default .ng-verdict-summary {
+  font-weight: var(--ng-peso-leitura);
+}
+
 .ng-game-wrap.ng-skin-default .ng-feedback-hint {
   font-weight: 500;
 }
 
-.ng-game-wrap.ng-skin-default .ng-dilema-body,
 .ng-game-wrap.ng-skin-default .ng-feedback .ng-btn-next,
 .ng-game-wrap.ng-skin-default .ng-screen .ng-btn-cta,
 .ng-game-wrap.ng-skin-default .ng-btn-share {
