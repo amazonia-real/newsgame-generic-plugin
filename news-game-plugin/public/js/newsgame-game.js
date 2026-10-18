@@ -342,6 +342,46 @@
     } catch (e) { /* medição falhou: o jogo segue */ }
   }
 
+  /* ── Compartilhar ─────────────────────────────────────────
+     Como no JDA (jogo-amazonia.js, "Compartilhar"): o menu nativo do aparelho
+     (`navigator.share`) quando existe; sem ele, a cópia do link. A URL é a da
+     página do jogo sem parâmetros de rastreio e sem âncora. */
+  var PARAMS_RASTREIO = /^(utm_[a-z_]+|fbclid|gclid|gbraid|wbraid|dclid|msclkid|mc_cid|mc_eid|igshid|_ga|_gl)$/i;
+
+  function urlCompartilhavel() {
+    var u = new URL(window.location.href);
+    Array.from(u.searchParams.keys()).forEach(function (k) {
+      if (PARAMS_RASTREIO.test(k)) { u.searchParams.delete(k); }
+    });
+    u.hash = '';
+    return u.href;
+  }
+
+  /* A cópia de sempre, com a mesma confirmação no botão. */
+  function copiarLink(btn, url) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        btn.textContent = '✓ Link copiado!';
+      });
+    }
+  }
+
+  /* Cancelar o menu (AbortError) não faz nada — quem cancelou não pediu cópia.
+     Qualquer outro erro cai na cópia do link. */
+  function compartilhar(btn, titulo, perfil) {
+    var url   = urlCompartilhavel();
+    var dados = { title: titulo, text: perfil ? titulo + ' — ' + perfil : titulo, url: url };
+    if (typeof navigator.share !== 'function' ||
+        (typeof navigator.canShare === 'function' && !navigator.canShare(dados))) {
+      copiarLink(btn, url);
+      return;
+    }
+    navigator.share(dados).catch(function (e) {
+      if (e && e.name === 'AbortError') { return; }
+      copiarLink(btn, url);
+    });
+  }
+
   /* ── Instância do jogo ───────────────────────────────── */
   function NgGame(wrap) {
     var gid     = wrap.id.replace('ng-game-', '');
@@ -875,12 +915,7 @@
         '</div>';
 
       inner.querySelector('.ng-btn-share').addEventListener('click', function () {
-        var btn = this;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(window.location.href).then(function () {
-            btn.textContent = '✓ Link copiado!';
-          });
-        }
+        compartilhar(this, title, perfil.nome);
       });
 
       inner.querySelector('.ng-btn-restart').addEventListener('click', jogarNovamente);
