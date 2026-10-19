@@ -35,6 +35,11 @@ class GenerateRequest(BaseModel):
     characters: List[CharacterDef] = Field(default_factory=list)
     num_options: Literal[2, 3] = 2
     slot_index: int = Field(ge=0, default=0)    # posição no lote (0-based); rotação de personagens
+    # Grupo da pergunta (item 58): "geral" ou o slug de um dos `characters`.
+    # Substitui o rodízio por slot_index. Ausente (None) = rodízio de antes, para
+    # o plugin antigo e o backend do VPS seguirem compatíveis. Slug fora da lista
+    # é recusado com 422 pela rota, antes de qualquer chamada ao provedor.
+    grupo: str | None = Field(default=None, max_length=100)
     nivel_padrao: str = Field(default='pedagogico')  # 'ludico' | 'pedagogico' | 'complexo'
     fontes_usadas: List[str]   = Field(default_factory=list)
     axis_matrix:   dict | None = Field(default=None)

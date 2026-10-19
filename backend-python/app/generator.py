@@ -1332,13 +1332,50 @@ def tom_do_nivel(nivel_padrao: str) -> tuple[int, str]:
     return _NIVEL_MAP.get(nivel_padrao, (1, "PEDAGÓGICO"))
 
 
+GRUPO_GERAL = "geral"
+
+
+class GrupoInvalido(ValueError):
+    """`grupo` que não é "geral" nem slug de um personagem da instância."""
+
+
+def escolher_grupo(req: GenerateRequest) -> tuple[str, str | None, str | None, list[str]]:
+    """
+    Grupo da pergunta: (personagem_tipo, rótulo, descrição, consultas de RAG).
+
+    - grupo="geral": pergunta geral, com as consultas do tema e SEM personagem no
+      prompt, mesmo que a instância tenha personagens (item 58). Antes, instância
+      com personagens nunca gerava geral.
+    - grupo=<slug>: aquele personagem. Slug fora de `characters` → GrupoInvalido.
+    - grupo ausente: o rodízio de antes, por slot_index (compatibilidade).
+    """
+    if req.grupo == GRUPO_GERAL:
+        char = None
+    elif req.grupo is not None:
+        char = next((c for c in req.characters if c.slug == req.grupo), None)
+        if char is None:
+            raise GrupoInvalido(req.grupo)
+    else:
+        char = req.characters[req.slot_index % len(req.characters)] if req.characters else None
+
+    if char is None:
+        return GRUPO_GERAL, None, None, [req.theme_prompt, f"perspectiva ampla sobre {req.theme_prompt}"]
+    return char.slug, char.label, char.description, [
+        f"{char.description} {req.theme_prompt}",
+        f"{char.label} {req.theme_prompt}",
+        char.description,
+        req.theme_prompt,
+    ]
+
+
 def generate_one_dilema(
     req: GenerateRequest, api_key: str, provedor: str = PROVEDOR_DEFAULT
 ) -> DilemaNg | None:
     """
     Gera exatamente 1 dilema de forma síncrona.
     O nível narrativo é determinado 100% por req.nivel_padrao (escolha do painel WP).
-    req.slot_index é usado apenas para rotação de personagens nas queries RAG.
+    O grupo (geral ou personagem) vem de escolher_grupo(): req.grupo, ou o
+    rodízio por req.slot_index quando ele não vem.
 
     `api_key` chega JÁ RESOLVIDO pela rota (header > body > env). A resolução
     não pode acontecer aqui: o header não existe dentro do Request model.
@@ -1350,24 +1387,7 @@ def generate_one_dilema(
     # Nível obedece cegamente ao campo enviado pelo WordPress
     nivel, nivel_nome = tom_do_nivel(req.nivel_padrao)
 
-    # Personagem: rotação por slot para diversificar as queries RAG
-    n_chars = len(req.characters)
-    if n_chars > 0:
-        char            = req.characters[req.slot_index % n_chars]
-        personagem_tipo = char.slug
-        char_label      = char.label
-        char_desc       = char.description
-        queries         = [
-            f"{char.description} {req.theme_prompt}",
-            f"{char.label} {req.theme_prompt}",
-            char.description,
-            req.theme_prompt,
-        ]
-    else:
-        personagem_tipo = "geral"
-        char_label      = None
-        char_desc       = None
-        queries         = [req.theme_prompt, f"perspectiva ampla sobre {req.theme_prompt}"]
+    personagem_tipo, char_label, char_desc, queries = escolher_grupo(req)
 
     contexto_rag = mmr_search(
         db,

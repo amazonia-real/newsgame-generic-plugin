@@ -57,15 +57,24 @@ class Newsgame_Generator {
 
         $characters = json_decode( $instance->characters ?? '[]', true ) ?: array();
 
+        // Grupo do lote (item 58): 'geral' ou o slug de um personagem da
+        // instância. Sem ele, a meta é a do conjunto inteiro, como antes.
+        $grupo = isset( $_POST['grupo'] ) ? sanitize_key( wp_unslash( $_POST['grupo'] ) ) : null;
+        $metas = Newsgame_Status::receita_da_instancia( $instance )['metas'];
+        if ( null !== $grupo && ! isset( $metas[ $grupo ] ) ) {
+            wp_send_json_error( array( 'msg' => "Grupo desconhecido nesta instância: '$grupo'. Recarregue a tela." ) );
+        }
+
         // Déficit = meta − (aprovadas + pendentes). Descartadas não contam: não vão
         // ao jogo. Antes só as aprovadas contavam, e cada clique com pendentes na
         // Mesa gerava a meta inteira de novo — medido em 02/10 na instância 8:
         // 3 pendentes, 4 chamadas na segunda rodada, posição 1 repetida.
-        $contagem = self::contar_vivas( $instance_id );
+        // Com grupo, a conta é só das perguntas dele, contra a meta dele.
+        $contagem = self::contar_vivas( $instance_id, $grupo );
         if ( null === $contagem ) {
             wp_send_json_error( array( 'msg' => 'Não foi possível ler as perguntas da instância. Verifique o log do servidor.' ) );
         }
-        $density = (int) $instance->density;
+        $density = null === $grupo ? (int) $instance->density : $metas[ $grupo ];
         $deficit = $density - $contagem['approved'] - $contagem['pending'];
 
         if ( $deficit <= 0 ) {
@@ -97,6 +106,8 @@ class Newsgame_Generator {
                 'theme_prompt'  => $instance->theme_prompt,
                 'density'       => $deficit,
                 'characters'    => $characters,
+                // Ausente (null) = rodízio por slot_index no backend, como antes.
+                'grupo'         => $grupo,
                 'num_options'   => (int) ( $instance->num_options   ?? 2 ),
                 'nivel_padrao'  => $instance->nivel_padrao ?? 'pedagogico',
                 'axis_matrix'   => $instance->axis_matrix
@@ -107,17 +118,20 @@ class Newsgame_Generator {
     }
 
     /**
-     * Aprovadas e pendentes da instância — as que contam para a meta.
+     * Aprovadas e pendentes da instância — as que contam para a meta. Com
+     * `$grupo`, só as daquele grupo (`character_slug`).
      * Devolve null em erro de SELECT, para o chamador abortar.
      */
-    private static function contar_vivas( int $instance_id ): ?array {
+    private static function contar_vivas( int $instance_id, ?string $grupo = null ): ?array {
         global $wpdb;
-        $linhas = $wpdb->get_results( $wpdb->prepare(
-            "SELECT review_status, COUNT(*) AS n FROM {$wpdb->prefix}newsgame_dilemas
-              WHERE instance_id = %d AND review_status IN ('approved', 'pending')
-              GROUP BY review_status",
-            $instance_id
-        ) );
+        $sql  = "SELECT review_status, COUNT(*) AS n FROM {$wpdb->prefix}newsgame_dilemas
+                  WHERE instance_id = %d AND review_status IN ('approved', 'pending')";
+        $args = array( $instance_id );
+        if ( null !== $grupo ) {
+            $sql   .= ' AND character_slug = %s';
+            $args[] = $grupo;
+        }
+        $linhas = $wpdb->get_results( $wpdb->prepare( $sql . ' GROUP BY review_status', $args ) );
         if ( $wpdb->last_error ) {
             error_log( '[Newsgame] contar_vivas: ' . $wpdb->last_error );
             return null;
@@ -318,6 +332,10 @@ class Newsgame_Generator {
             wp_send_json_error( array( 'msg' => 'Dados inválidos ou lista de dilemas vazia.' ) );
         }
 
+        // Grupo pedido no lote (item 58). Pergunta que volta de OUTRO grupo não é
+        // gravada: entraria na meta errada sem ninguém ver. Sem grupo, nada muda.
+        $grupo = isset( $_POST['grupo'] ) ? sanitize_key( wp_unslash( $_POST['grupo'] ) ) : null;
+
         /*
          * A posição que vem do navegador é só um PEDIDO: foi calculada no clique
          * (ajax_start), e uma devolução na Mesa no meio do lote pode tê-la
@@ -326,11 +344,18 @@ class Newsgame_Generator {
          * perguntas com a mesma posição pedida no mesmo POST não colidem.
          * A sentinela continua o retorno de save_dilema(), nunca o insert_id.
          */
-        $saved    = 0;
-        $failed   = 0;
-        $posicoes = array();
+        $saved          = 0;
+        $failed         = 0;
+        $grupo_recusado = 0;
+        $posicoes       = array();
         foreach ( $dilemas as $d ) {
             if ( ! is_array( $d ) ) continue;
+            if ( null !== $grupo && sanitize_key( $d['personagem_tipo'] ?? 'geral' ) !== $grupo ) {
+                error_log( "[Newsgame] ajax_save_matrix: pergunta do grupo '" . sanitize_key( $d['personagem_tipo'] ?? 'geral' ) . "' recusada num lote de '$grupo'." );
+                $grupo_recusado++;
+                $failed++;
+                continue;
+            }
             $pedida  = (int) ( $d['position'] ?? 0 );
             $gravada = self::posicao_para_gravar( $instance_id, $pedida );
             if ( null !== $gravada ) {
@@ -351,6 +376,13 @@ class Newsgame_Generator {
             error_log( "[Newsgame] ajax_save_matrix: $failed inserts falharam de " . count( $dilemas ) . ' recebidos. Verifique error_log acima.' );
         }
 
+        if ( $saved === 0 && $grupo_recusado > 0 ) {
+            wp_send_json_error( array(
+                'msg'            => "Nenhuma pergunta foi salva: $grupo_recusado voltou de outro grupo, e não de '$grupo'.",
+                'failed'         => $failed,
+                'grupo_recusado' => $grupo_recusado,
+            ) );
+        }
         if ( $saved === 0 && $failed > 0 ) {
             wp_send_json_error( array(
                 'msg'    => "Nenhuma pergunta foi salva ($failed erros de INSERT). Verifique o log do servidor.",
@@ -362,19 +394,22 @@ class Newsgame_Generator {
         // (Newsgame_Status) e passa a "Em revisão" sozinho quando houver
         // perguntas e matriz. Com isso saiu a terceira escrita do C13.
         wp_send_json_success( array(
-            'saved'     => $saved,
-            'failed'    => $failed,
-            'posicoes'  => $posicoes,
-            'contagens' => self::contagens_para_painel( $instance_id ),
+            'saved'          => $saved,
+            'failed'         => $failed,
+            'grupo_recusado' => $grupo_recusado,
+            'posicoes'       => $posicoes,
+            'contagens'      => self::contagens_para_painel( $instance_id, $grupo ),
         ) );
     }
 
     /**
      * Contagens no formato do evento `ng:contagens` (as chaves são as abas da
      * Mesa) mais o déficit da meta, para o lote atualizar o painel sem
-     * recarregar. Null em erro de SELECT ou instância inexistente.
+     * recarregar. Com `$grupo`, o déficit é o do grupo, contra a meta dele: é ele
+     * que faz o lote parar. As abas seguem contando a instância inteira.
+     * Null em erro de SELECT ou instância inexistente.
      */
-    private static function contagens_para_painel( int $instance_id ): ?array {
+    private static function contagens_para_painel( int $instance_id, ?string $grupo = null ): ?array {
         global $wpdb;
         $instance = Newsgame_Admin_Instances::get( $instance_id );
         $linhas   = $wpdb->get_results( $wpdb->prepare(
@@ -392,6 +427,14 @@ class Newsgame_Generator {
             }
         }
         $c['deficit'] = max( 0, (int) $instance->density - $c['approved'] - $c['pending'] );
+        if ( null !== $grupo ) {
+            $metas = Newsgame_Status::receita_da_instancia( $instance )['metas'];
+            $vivas = self::contar_vivas( $instance_id, $grupo );
+            if ( null === $vivas || ! isset( $metas[ $grupo ] ) ) {
+                return null;
+            }
+            $c['deficit'] = max( 0, $metas[ $grupo ] - $vivas['approved'] - $vivas['pending'] );
+        }
         return $c;
     }
 

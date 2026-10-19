@@ -111,8 +111,18 @@ def generate_one(
     """
     Gera 1 dilema de forma síncrona. O JS do painel chama este endpoint
     em loop (uma vez por dilema) para evitar timeout de conexão.
-    req.slot_index (0-based) controla distribuição personagem/nível.
+    req.grupo escolhe "geral" ou um personagem; sem ele, req.slot_index (0-based)
+    faz o rodízio de personagens de antes.
     """
+    # Grupo inválido é erro do pedido, e não do provedor: 422 ANTES de resolver
+    # chave e de tocar no ChromaDB ou no LLM.
+    try:
+        generator.escolher_grupo(req)
+    except generator.GrupoInvalido as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Grupo desconhecido: '{exc}'. Use 'geral' ou o slug de um personagem da instância.",
+        ) from exc
     # Resolução FORA do try: um 401 de chave ausente não deve ser confundido
     # com falha de geração. O `except HTTPException: raise` abaixo já o
     # repassaria, mas resolver antes deixa a ordem explícita.
