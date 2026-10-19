@@ -97,6 +97,89 @@ class Newsgame_Status {
         return min( self::FATOR_DECIMOS_MAX, max( self::FATOR_DECIMOS_MIN, $d ) );
     }
 
+    /**
+     * Painel da receita por grupo, lendo o banco: uma query agrupada por
+     * `character_slug`. Descartadas não contam.
+     *
+     * Órfã = pergunta viva (aprovada ou pendente) de um slug que não é 'geral'
+     * nem personagem atual da instância: personagem removido ou renomeado.
+     *
+     * @return array{grupos:array, total_meta:int, pendentes:int, orfas:int, sem_gerais:bool}|null
+     */
+    public static function grupos( $instance_id ) {
+        $inst = Newsgame_Admin_Instances::get( $instance_id );
+        if ( ! $inst ) {
+            return null;
+        }
+
+        global $wpdb;
+        $linhas = $wpdb->get_results( $wpdb->prepare(
+            "SELECT character_slug AS slug,
+                    SUM(review_status = 'approved') AS aprovadas,
+                    SUM(review_status = 'pending')  AS pendentes
+               FROM {$wpdb->prefix}newsgame_dilemas
+              WHERE instance_id = %d
+              GROUP BY character_slug",
+            (int) $instance_id
+        ) );
+
+        $contagem = array();
+        foreach ( (array) $linhas as $l ) {
+            $contagem[ (string) $l->slug ] = array( (int) $l->aprovadas, (int) $l->pendentes );
+        }
+        return self::avaliar_grupos( $inst, $contagem );
+    }
+
+    /**
+     * A regra do painel, pura: recebe a instância e a contagem por slug
+     * (slug => [aprovadas, pendentes]).
+     */
+    public static function avaliar_grupos( $inst, array $contagem ) {
+        $receita = self::receita_da_instancia( $inst );
+        $chars   = json_decode( $inst->characters ?? '[]', true );
+        $rotulos = array( self::GRUPO_GERAL => 'Gerais' );
+        foreach ( is_array( $chars ) ? $chars : array() as $c ) {
+            if ( isset( $c['slug'] ) && ! isset( $rotulos[ $c['slug'] ] ) ) {
+                $rotulos[ $c['slug'] ] = (string) ( $c['label'] ?? $c['slug'] );
+            }
+        }
+
+        $grupos = array();
+        foreach ( $receita['metas'] as $slug => $meta ) {
+            list( $aprovadas, $pendentes ) = $contagem[ $slug ] ?? array( 0, 0 );
+            $grupos[] = array(
+                'slug'      => $slug,
+                'rotulo'    => $rotulos[ $slug ] ?? $slug,
+                'na_partida'=> self::GRUPO_GERAL === $slug ? $receita['gerais_partida'] : $receita['por_personagem'],
+                'meta'      => $meta,
+                'aprovadas' => $aprovadas,
+                'pendentes' => $pendentes,
+                'faltam'    => max( 0, $meta - $aprovadas ),
+                'pronto'    => $aprovadas >= $meta,
+            );
+        }
+
+        $pendentes = 0;
+        $orfas     = 0;
+        foreach ( $contagem as $slug => $n ) {
+            $pendentes += $n[1];
+            if ( ! isset( $receita['metas'][ $slug ] ) ) {
+                $orfas += $n[0] + $n[1];
+            }
+        }
+
+        return array(
+            'grupos'     => $grupos,
+            'total_meta' => $receita['total'],
+            'pendentes'  => $pendentes,
+            'orfas'      => $orfas,
+            // Com personagens e nenhuma geral aprovada: o jogo (rodada C) cai no
+            // sorteio antigo. Sem personagens, "sem gerais" é "sem perguntas", e
+            // o selo já diz isso.
+            'sem_gerais' => count( $receita['metas'] ) > 1 && 0 === ( $contagem[ self::GRUPO_GERAL ][0] ?? 0 ),
+        );
+    }
+
     /** Receita de uma linha de wp_newsgame_instances. */
     public static function receita_da_instancia( $inst ) {
         $chars = json_decode( $inst->characters ?? '[]', true );

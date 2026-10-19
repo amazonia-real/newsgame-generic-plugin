@@ -672,6 +672,44 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     </span>
   </p>
 
+  <?php
+  // Receita por grupo (item 58), SÓ LEITURA. Calculado na carga da tela: ações
+  // na Mesa só aparecem aqui depois de recarregar.
+  $painel = Newsgame_Status::grupos( $id );
+  ?>
+  <?php if ( $painel ) : ?>
+    <table class="widefat striped" id="ng-receita-grupos" style="max-width:600px;margin:0 0 .75rem">
+      <thead>
+        <tr><th>Grupo</th><th>Na partida</th><th>Aprovadas / meta</th><th>Pendentes</th><th>Situação</th></tr>
+      </thead>
+      <tbody>
+      <?php foreach ( $painel['grupos'] as $g ) : ?>
+        <tr>
+          <td><?php echo esc_html( $g['rotulo'] ); ?></td>
+          <td><?php echo (int) $g['na_partida']; ?></td>
+          <td><?php echo (int) $g['aprovadas']; ?> / <?php echo (int) $g['meta']; ?></td>
+          <td><?php echo (int) $g['pendentes']; ?></td>
+          <td><?php echo $g['pronto'] ? '✅ Pronto' : esc_html( sprintf( 'faltam %d', $g['faltam'] ) ); ?></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+    <p style="margin:0 0 .75rem">
+      A revisar na Mesa: <strong><?php echo (int) $painel['pendentes']; ?></strong> pendente(s).
+      Meta do conjunto: <strong><?php echo (int) $painel['total_meta']; ?></strong> aprovadas.
+    </p>
+    <?php if ( $painel['orfas'] > 0 ) : ?>
+      <div class="notice notice-warning inline" style="margin:0 0 .75rem;max-width:600px"><p>
+        <?php echo esc_html( sprintf( '%d pergunta(s) de personagem que não existe mais nesta instância (removido ou renomeado). Elas ficam fora do jogo.', $painel['orfas'] ) ); ?>
+      </p></div>
+    <?php endif; ?>
+    <?php if ( $painel['sem_gerais'] ) : ?>
+      <div class="notice notice-info inline" style="margin:0 0 .75rem;max-width:600px"><p>
+        Esta instância ainda não tem gerais: o jogo usa o sorteio antigo.
+      </p></div>
+    <?php endif; ?>
+  <?php endif; ?>
+
   <button type="button" id="ng-generate-btn" class="button button-primary button-large">
     <?php if ( $dilema_count > 0 && $deficit > 0 ) : ?>
       &#9654; Gerar as que faltam (<?php echo (int) $deficit; ?>)
