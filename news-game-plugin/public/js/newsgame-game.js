@@ -424,6 +424,11 @@
      */
     var conjunto   = data.dilemas;
     var receita    = data.receita;   // ausente ou null = sorteio de antes
+    /* Tela de personagem (H3, rodada B): o shortcode só manda `personagens` com
+       o interruptor ligado e 2 ou mais Prontos. `escolhido` é o slug da escolha;
+       sem a tela, ele fica null e o personagem é sorteado, como antes. */
+    var personagens = data.personagens;
+    var escolhido   = null;
     var tamPartida = tamanhoDaPartida();
     var dilemas    = [];
     /* Ordem das alternativas de cada pergunta da partida, sorteada junto com
@@ -672,7 +677,9 @@
       var gerais = embaralhar(doGrupo('geral'));
       var prontos = receita.personagens || [];
       if (!prontos.length) { return gerais.slice(0, tamPartida); }
-      var slug = prontos[Math.floor(Math.random() * prontos.length)];
+      var slug = prontos.indexOf(escolhido) >= 0
+        ? escolhido
+        : prontos[Math.floor(Math.random() * prontos.length)];
       return embaralhar(gerais.slice(0, receita.gerais)
         .concat(embaralhar(doGrupo(slug)).slice(0, receita.por_personagem)));
     }
@@ -691,8 +698,10 @@
       renderDilema();
     }
 
+    /* "Jogar novamente" volta à tela de personagem quando ela existe, para o
+       jogador poder trocar; sem ela, vai direto à pergunta 1. */
     function jogarNovamente() {
-      iniciarPartida();
+      if (personagens) { renderPersonagem(); } else { iniciarPartida(); }
       wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -749,7 +758,7 @@
       montarTelaCheia();
       aplicarFundo(null);
       inner.innerHTML = buildCapa(data.capa);
-      inner.querySelector('.ng-btn-cta').addEventListener('click', data.regras ? renderRegras : iniciarPartida);
+      inner.querySelector('.ng-btn-cta').addEventListener('click', data.regras ? renderRegras : depoisDasRegras);
     }
 
     /* ── Tela Regras (H3, rodada A) ──
@@ -774,8 +783,52 @@
           '</div>' +
           '<button class="ng-btn-cta">Entendi, vamos jogar ›</button>' +
         '</div>';
-      inner.querySelector('.ng-btn-cta').addEventListener('click', iniciarPartida);
+      inner.querySelector('.ng-btn-cta').addEventListener('click', depoisDasRegras);
       inner.querySelector('.ng-regras h2').focus();
+    }
+
+    /* Depois da capa (ou das regras): a tela de personagem, se existir, ou a
+       primeira pergunta. */
+    function depoisDasRegras() {
+      if (personagens) { renderPersonagem(); } else { iniciarPartida(); }
+    }
+
+    /* ── Tela de personagem (H3, rodada B) ──
+       Como o "ESCOLHA SEU PERSONAGEM" do JDA: um botão por personagem Pronto,
+       com o nome e, se houver, a apresentação. Botões nativos num grupo rotulado
+       pelo título — Tab e Enter/Espaço escolhem, sem teclado próprio. Eles usam a
+       classe das alternativas (`.ng-btn-option`) dentro de um `.ng-card`, então
+       cada skin já os veste como as alternativas da pergunta. A tela é do momento
+       da capa (idx = -1), também quando se chega por "Jogar novamente". */
+    function renderPersonagem() {
+      limparTimers();
+      montarTelaCheia();
+      idx = -1;
+      aplicarFundo(null);
+      var tituloId = (wrap.id || 'ng-game') + '-personagens-titulo';
+      inner.innerHTML =
+        '<div class="ng-screen ng-personagens">' +
+          '<h2 id="' + esc(tituloId) + '" tabindex="-1">Escolha seu personagem</h2>' +
+          '<div class="ng-card ng-personagens-cartao">' +
+            '<div class="ng-personagens-lista" role="group" aria-labelledby="' + esc(tituloId) + '">' +
+              personagens.map(buildPersonagem).join('') +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      inner.querySelectorAll('.ng-personagem').forEach(function (b) {
+        b.addEventListener('click', function () {
+          escolhido = b.dataset.slug;
+          iniciarPartida();
+        });
+      });
+      inner.querySelector('.ng-personagens h2').focus();
+    }
+
+    function buildPersonagem(p) {
+      return '<button type="button" class="ng-btn-option ng-personagem" data-slug="' + esc(p.slug) + '">' +
+          '<span class="ng-personagem-nome">' + esc(p.nome) + '</span>' +
+          (p.apresentacao ? '<span class="ng-personagem-apresentacao">' + esc(p.apresentacao) + '</span>' : '') +
+        '</button>';
     }
 
     /* Capa (H3, rodada A). Sem `data.capa` — nenhum campo preenchido —, o HTML é

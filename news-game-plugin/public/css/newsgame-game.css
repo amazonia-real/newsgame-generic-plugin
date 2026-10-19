@@ -1064,6 +1064,34 @@
 /* Alvo de foco programático (tabindex="-1"), não controle: sem anel. */
 .ng-regras h2:focus { outline: none; }
 
+/* ── Tela de personagem (H3, rodada B) ──────────────────
+   Os botões são `.ng-btn-option`, dentro de um `.ng-card`: as cores, a borda,
+   o hover e o foco são os das alternativas de cada skin. Aqui só o arranjo — uma
+   coluna, nome em destaque e a apresentação embaixo. */
+.ng-personagens-cartao {
+  max-width: 34em;
+  margin:    0 auto;
+}
+
+.ng-personagens-lista {
+  display: grid;
+  gap:     0.75rem;
+}
+
+.ng-personagem-nome {
+  display:     block;
+  font-weight: 700;
+}
+
+.ng-personagem-apresentacao {
+  display:     block;
+  margin-top:  0.25rem;
+  font-size:   var(--ng-fs-6);
+  font-weight: var(--ng-peso-leitura);
+}
+
+.ng-personagens h2:focus { outline: none; }
+
 .ng-btn-cta {
   background:      var(--ng-primary);
   border:          none;
@@ -1525,4 +1553,8 @@ body.newsgame-fullscreen .wp-block-post-title { display: none; }
   .ng-btn-fullscreen:hover           { transform: none; }
   .ng-btn-info:hover,
   .ng-btn-info[aria-expanded="true"] { transform: none; }
+  /* Só os cartões de personagem: as alternativas da pergunta seguem como eram.
+     `!important` porque as skins sobem o botão no hover com seletores mais
+     específicos. */
+  .ng-personagem:hover:not(:disabled) { transform: none !important; }
 }
