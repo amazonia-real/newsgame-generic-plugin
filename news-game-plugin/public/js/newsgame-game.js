@@ -47,6 +47,12 @@
      só a Padrão desenha), e skin sem regra para a classe não muda nada. */
   var NEON_ESPERA_MS = 5000;
 
+  /* Pausa entre a escolha e a subida do painel de contexto, em todas as skins.
+     Sem ela, a escolhida marcada aparecia só por dois quadros antes de o painel
+     cobri-la — na PopArt, um piscar amarelo que parecia erro. Com a pausa, a
+     marca vira confirmação da escolha. O mesmo tempo da transição do painel. */
+  var PAUSA_ESCOLHA_MS = 350;
+
   /* O giro anima uma propriedade registrada por `@property`. Onde ela não existe,
      a animação viraria um salto entre dois ângulos — melhor não marcar o cartão e
      deixar o fio estático. `CSS.registerProperty` é da mesma especificação
@@ -551,6 +557,7 @@
 
     var lockTimer  = null;   /* intervalo do contador de leitura */
     var neonTimer  = null;   /* espera até a luz do cartão começar */
+    var pausaTimer = null;   /* pausa entre a escolha e o painel de contexto */
     var escHandler = null;   /* listener de Esc do modal aberto */
 
     /*
@@ -561,6 +568,7 @@
     function limparTimers() {
       if (lockTimer) { clearInterval(lockTimer); lockTimer = null; }
       if (neonTimer) { clearTimeout(neonTimer); neonTimer = null; }
+      if (pausaTimer) { clearTimeout(pausaTimer); pausaTimer = null; }
       if (escHandler) {
         document.removeEventListener('keydown', escHandler);
         escHandler = null;
@@ -846,6 +854,28 @@
        O dilema e as opções continuam ATRÁS, desfocados pelo vidro, e o card
        explicativo entra sobreposto. É a transição do JDA, não uma troca de
        tela — e é por isso que o palco sai do mesmo buildPalco() da pergunta. */
+    /* O cartão do contexto tem altura mínima (`.is-feedback`, --ng-feedback-min)
+       e o inner é centralizado por `margin-block: auto`: quando o cartão da
+       pergunta é mais baixo que esse mínimo, crescer no clique subia o bloco
+       inteiro metade do que cresceu — à vista durante PAUSA_ESCOLHA_MS, com a
+       escolhida marcada. Aqui progresso e palco voltam ao lugar de antes por
+       deslocamento RELATIVO, que não mexe no fluxo: o que o cartão cresceu cabe
+       na folga de baixo, que só existia porque havia centralização. Os dois nós
+       são novos a cada tela, então o deslocamento morre com eles. */
+    function topoDoPalco() {
+      var palco = inner.querySelector('.ng-stage');
+      return palco ? palco.getBoundingClientRect().top : null;
+    }
+
+    function segurarPosicao(topoAntes) {
+      var depois = topoDoPalco();
+      if (topoAntes === null || depois === null || Math.abs(topoAntes - depois) < 1) { return; }
+      inner.querySelectorAll('.ng-progress, .ng-stage').forEach(function (el) {
+        el.style.position = 'relative';
+        el.style.top      = (topoAntes - depois) + 'px';
+      });
+    }
+
     function renderFeedback(pick) {
       limparTimers();
       montarTelaCheia();
@@ -860,20 +890,25 @@
       acumularPesos(pesos);
       medir('ng_resposta', paramsResposta(pick, pesos));
 
+      var topoAntes = topoDoPalco();
       inner.innerHTML =
         buildProgress(idx + 1, idx + 1, dilemas.length) +
         buildPalco(d, pick, false, buildFeedback(verd));
+      segurarPosicao(topoAntes);
 
       aplicarProgresso(inner);
       var feedback = inner.querySelector('.ng-feedback');
       var btn      = inner.querySelector('.ng-btn-next');
       var hint     = inner.querySelector('.ng-feedback-hint');
 
-      /* Dois frames: um para o nó entrar no documento com opacity 0, outro para
-         a classe mudar — sem isso a transição não dispara. Padrão do JDA. */
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () { feedback.classList.add('is-visible'); });
-      });
+      /* O painel nasce com opacity 0 e só começa a subir depois da pausa
+         (PAUSA_ESCOLHA_MS): até lá, a escolhida marcada fica à vista. O nó já
+         está no documento há muito mais que dois quadros quando a classe muda,
+         então a transição dispara sem o rAF duplo de antes. */
+      pausaTimer = setTimeout(function () {
+        pausaTimer = null;
+        feedback.classList.add('is-visible');
+      }, PAUSA_ESCOLHA_MS);
 
       iniciarLock(btn, hint, nextLbl);
       btn.addEventListener('click', avancar);
