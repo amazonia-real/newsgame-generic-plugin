@@ -581,7 +581,8 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     // Recolhida por padrão (<details> nativo); abre sozinha quando algum campo
     // dela está preenchido. Recolher não tira os campos do POST: o salvamento
     // continua recebendo todos, aberta ou fechada.
-    $capa_aberta = '' !== implode( '', $capa_campos ) || $capa_imagens['capa_imagem_id']['id'] || $capa_imagens['logo_id']['id'];
+    $pagina_inteira = $is_edit && ! empty( $inst->pagina_inteira );
+    $capa_aberta    = '' !== implode( '', $capa_campos ) || $capa_imagens['capa_imagem_id']['id'] || $capa_imagens['logo_id']['id'] || $pagina_inteira;
     ?>
     <details class="ng-capa-secao"<?php echo $capa_aberta ? ' open' : ''; ?>>
     <summary><h2 class="ng-section-title">Capa e regras (opcional)</h2></summary>
@@ -650,6 +651,16 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
             <input type="url" id="ng-apoio-url" name="apoio_url" class="regular-text"
                    value="<?php echo esc_attr( $capa_campos['apoio_url'] ); ?>" placeholder="https://">
           </p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">Página inteira</th>
+        <td>
+          <input type="hidden" name="pagina_inteira" value="0">
+          <label>
+            <input type="checkbox" name="pagina_inteira" value="1"<?php checked( $pagina_inteira ); ?>>
+            Abrir em página inteira (esconde o tema do site)
+          </label>
         </td>
       </tr>
       <tr>

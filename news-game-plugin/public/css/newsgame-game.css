@@ -1504,6 +1504,67 @@ body.newsgame-fullscreen .post-title,
 body.newsgame-fullscreen h1.page-title,
 body.newsgame-fullscreen .wp-block-post-title { display: none; }
 
+/*
+ * ── Modo página inteira (item 75) ─────────────────────
+ * Opção da instância, desligada por padrão. O jogo sai do fluxo do tema e
+ * ocupa a janela: `position: fixed` com `inset: 0`, e não full-bleed por
+ * margens — no tema Newspaper do site real, as margens negativas saíam
+ * deslocadas, e o fixo deu 0 a 852 px. O body não rola (o tema fica atrás), e
+ * quem rola é o wrap.
+ *
+ * Classe PRÓPRIA no body (`newsgame-pagina-inteira`, posta por body_class()
+ * só quando alguma instância da página pede o modo) e no wrap
+ * (`ng-pagina-inteira`). O wrap repetido três vezes e os `!important` vencem
+ * qualquer regra de tema sobre o contêiner — a mesma família de cuidado do
+ * item 76. A barra do WordPress, para quem está logado, fica ATRÁS do jogo:
+ * medido no localhost, ela é impressa no início do body (wp_body_open), antes
+ * do jogo, e com o mesmo z-index vence quem vem depois. Só o editor a veria.
+ *
+ * ⚠️ Como a classe do body, só existe com o shortcode no `post_content`; vindo
+ * de construtor de página ou de template, o body não a recebe, e então o wrap
+ * fica fixo, mas a página atrás dele continua rolando.
+ */
+body.newsgame-pagina-inteira { overflow: hidden !important; }
+
+body.newsgame-pagina-inteira .ng-game-wrap.ng-pagina-inteira.ng-pagina-inteira {
+  position:   fixed !important;
+  inset:      0 !important;
+  width:      100vw !important;
+  max-width:  none !important;
+  height:     100vh !important;
+  height:     100dvh !important;
+  margin:     0 !important;
+  overflow-y: auto !important;
+  z-index:    99999 !important;
+}
+
+/* "Voltar ao site": no canto oposto ao botão de tela cheia, com o mesmo vidro
+   claro e a mesma tinta dele (canal --ng-on-rgb), que é o tratamento medido
+   como legível sobre as cenas das 7 skins. Rola com o conteúdo, como o ⛶. */
+.ng-voltar-site {
+  position:        absolute;
+  top:             1rem;
+  left:            1rem;
+  z-index:         100;
+  padding:         0.4rem 0.75rem;
+  background:      rgba(var(--ng-on-rgb), 0.25);
+  border:          1px solid rgba(var(--ng-on-rgb), 0.5);
+  border-radius:   var(--ng-radius-md);
+  box-shadow:      0 2px 8px rgba(var(--ng-shadow-rgb), 0.3);
+  color:           rgb(var(--ng-on-rgb)) !important;
+  font-family:     var(--ng-font) !important;
+  font-size:       var(--ng-fs-3);
+  line-height:     1.2;
+  text-decoration: none;
+}
+
+.ng-voltar-site:hover { text-decoration: underline; }
+
+.ng-voltar-site:focus-visible {
+  outline:        2px solid var(--ng-accent-contorno);
+  outline-offset: 2px;
+}
+
 /* ── Tablet ────────────────────────────────────────────
    O JDA capa o card em 560px aqui para a linha de texto não esticar numa
    viewport quase quadrada — iPad em retrato é 810×1080. */

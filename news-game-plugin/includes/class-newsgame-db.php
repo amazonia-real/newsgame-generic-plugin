@@ -7,7 +7,7 @@ class Newsgame_DB {
      * Versão interna do schema — incrementar aqui ao adicionar colunas.
      * Independente da versão do plugin: só muda quando o banco muda.
      */
-    const SCHEMA_VERSION = '1.10';
+    const SCHEMA_VERSION = '1.11';
 
     /* ── Ponto de entrada público ──────────────────────────── */
 
@@ -165,6 +165,15 @@ class Newsgame_DB {
             'escolher_personagem',
             "TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = o jogador escolhe o personagem numa tela' AFTER `apoio_url`"
         );
+        /*
+         * Modo página inteira (item 75, schema 1.11). Desligado por padrão: as
+         * instâncias que já existem continuam dentro do tema, como antes.
+         */
+        self::add_column_if_missing(
+            $instances,
+            'pagina_inteira',
+            "TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = o jogo ocupa a janela e esconde o tema' AFTER `escolher_personagem`"
+        );
 
         // wp_newsgame_dilemas
         self::add_column_if_missing(
@@ -233,6 +242,7 @@ class Newsgame_DB {
             apoio_texto     VARCHAR(200)    NOT NULL DEFAULT '' COMMENT 'Texto curto do apoio; alt do logo',
             apoio_url       VARCHAR(2048)   NOT NULL DEFAULT '' COMMENT 'Link opcional do apoio',
             escolher_personagem TINYINT(1)  NOT NULL DEFAULT 0 COMMENT '1 = o jogador escolhe o personagem numa tela',
+            pagina_inteira  TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '1 = o jogo ocupa a janela e esconde o tema',
             num_options   TINYINT         NOT NULL DEFAULT 2 COMMENT '2 ou 3 opcoes de resposta por pergunta',
             enable_levels TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '0=nivel unico, 1=Aprendiz/Pro',
             nivel_padrao  VARCHAR(20)     NOT NULL DEFAULT 'pedagogico' COMMENT 'ludico | pedagogico | complexo',

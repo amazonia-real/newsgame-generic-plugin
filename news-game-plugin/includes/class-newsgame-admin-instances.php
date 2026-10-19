@@ -392,12 +392,14 @@ class Newsgame_Admin_Instances {
             $fmt[]         = is_int( $valor ) ? '%d' : '%s';
         }
 
-        // Interruptor da tela de personagem (H3, rodada B). O formulário manda um
-        // oculto "0" antes do checkbox, então desmarcado também chega; ausente do
-        // POST (outro formulário, POST forjado) não entra no write.
-        if ( isset( $_POST['escolher_personagem'] ) ) {
-            $row['escolher_personagem'] = '1' === (string) wp_unslash( $_POST['escolher_personagem'] ) ? 1 : 0;
-            $fmt[]                      = '%d';
+        // Interruptores: a tela de personagem (H3, rodada B) e a página inteira
+        // (item 75). O formulário manda um oculto "0" antes de cada checkbox:
+        // desmarcado também chega, e ausente do POST não entra no write.
+        foreach ( array( 'escolher_personagem', 'pagina_inteira' ) as $chave ) {
+            if ( isset( $_POST[ $chave ] ) ) {
+                $row[ $chave ] = '1' === (string) wp_unslash( $_POST[ $chave ] ) ? 1 : 0;
+                $fmt[]         = '%d';
+            }
         }
 
         /*

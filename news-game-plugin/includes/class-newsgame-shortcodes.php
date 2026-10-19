@@ -452,7 +452,11 @@ class Newsgame_Shortcodes {
         // A classe da skin é o que dá especificidade ao seletor do arquivo dela.
         // 'default' também recebe a sua (`ng-skin-default`), por uniformidade e
         // porque vira gancho de CSS sem custo.
-        return '<div id="ng-game-' . $id . '" class="ng-game-wrap ng-skin-' . esc_attr( $skin ) . '">'
+        // Modo página inteira (item 75): classe no wrap e o link "Voltar ao site".
+        // Desligado, nada disto sai, e o HTML é o de antes.
+        $pagina_inteira = ! empty( $instance->pagina_inteira );
+        return '<div id="ng-game-' . $id . '" class="ng-game-wrap ng-skin-' . esc_attr( $skin ) . ( $pagina_inteira ? ' ng-pagina-inteira' : '' ) . '">'
+             . ( $pagina_inteira ? '<a class="ng-voltar-site" href="' . esc_url( home_url( '/' ) ) . '">← Voltar ao site</a>' : '' )
              . '<script type="application/json" id="ng-game-data-' . $id . '">'
              . $json  // JSON_HEX_TAG no wp_json_encode impede fechar </script> de dentro do JSON
              . '</script>'
@@ -481,6 +485,16 @@ class Newsgame_Shortcodes {
         global $post;
         if ( $post && has_shortcode( $post->post_content, 'news-game' ) ) {
             $classes[] = 'newsgame-fullscreen';
+            // Modo página inteira (item 75): classe PRÓPRIA, só quando alguma
+            // instância da página o pede. A `newsgame-fullscreen` acima marca
+            // toda página com o jogo e não serve para isto.
+            foreach ( self::instance_ids_in( $post->post_content ) as $id ) {
+                $instance = Newsgame_Admin_Instances::get( $id );
+                if ( $instance && ! empty( $instance->pagina_inteira ) ) {
+                    $classes[] = 'newsgame-pagina-inteira';
+                    break;
+                }
+            }
         }
         return $classes;
     }
