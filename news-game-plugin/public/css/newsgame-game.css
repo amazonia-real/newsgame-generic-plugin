@@ -764,7 +764,9 @@
 .ng-btn-info:focus-visible,
 .ng-modal-close:focus-visible,
 .ng-modal-link:focus-visible,
-.ng-btn-next:focus-visible {
+.ng-btn-next:focus-visible,
+.ng-btn-cta:focus-visible,
+.ng-capa-apoio-link:focus-visible {
   outline:        2px solid var(--ng-accent-contorno);
   outline-offset: 2px;
 }
@@ -996,6 +998,48 @@
   font-size:       var(--ng-fs-8);
   margin:          0 0 2rem;
   line-height:     1.6;
+}
+
+/* ── Capa com campos da instância (H3, rodada A) ────────
+   Tudo opcional: sem foto, linha-fina nem apoio, a capa não ganha a classe
+   `.ng-capa` e fica como era. As cores são as da tela sobre a cena
+   (--ng-muted-cena, --ng-accent-texto), as mesmas do título e da contagem. */
+.ng-capa { padding-top: 2rem; }
+
+.ng-capa-foto {
+  display:       block;
+  width:         100%;
+  max-width:     34rem;
+  max-height:    40vh;
+  object-fit:    cover;
+  margin:        0 auto 1.5rem;
+  border-radius: var(--ng-radius);
+}
+
+.ng-screen .ng-capa-linha-fina {
+  font-size: var(--ng-fs-9);
+  margin:    0 0 1rem;
+}
+
+/* Uma peça só, sem rótulo: o logo ou o texto do apoio. */
+.ng-capa-apoio {
+  display:         flex;
+  justify-content: center;
+  margin-top:      2rem;
+  color:           var(--ng-muted-cena) !important;
+  font-size:       var(--ng-fs-3);
+}
+
+.ng-capa-apoio-link {
+  color:           var(--ng-accent-texto) !important;
+  text-decoration: underline;
+}
+
+.ng-capa-apoio-logo {
+  display:    block;
+  max-height: 3rem;
+  max-width:  10rem;
+  width:      auto;
 }
 
 .ng-btn-cta {

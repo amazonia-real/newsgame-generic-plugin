@@ -748,13 +748,42 @@
       limparTimers();
       montarTelaCheia();
       aplicarFundo(null);
-      inner.innerHTML =
-        '<div class="ng-screen">' +
-          '<h2>' + esc(title) + '</h2>' +
+      inner.innerHTML = buildCapa(data.capa);
+      inner.querySelector('.ng-btn-cta').addEventListener('click', iniciarPartida);
+    }
+
+    /* Capa (H3, rodada A). Sem `data.capa` — nenhum campo preenchido —, o HTML é
+       o de antes, byte a byte. A foto é decorativa (alt vazio) e o título da
+       capa, quando existe, troca só o texto do <h2>. */
+    function buildCapa(c) {
+      c = c || {};
+      var extra = c.foto || c.linha_fina || c.apoio;
+      return '<div class="ng-screen' + (extra ? ' ng-capa' : '') + '">' +
+          (c.foto ? '<img class="ng-capa-foto" src="' + esc(safeUrl(c.foto)) + '" alt="">' : '') +
+          '<h2>' + esc(c.titulo || title) + '</h2>' +
+          (c.linha_fina ? '<p class="ng-capa-linha-fina">' + esc(c.linha_fina) + '</p>' : '') +
           '<p>' + tamPartida + ' perguntas para você responder.</p>' +
           '<button class="ng-btn-cta">Iniciar jogo ›</button>' +
+          buildApoio(c.apoio) +
         '</div>';
-      inner.querySelector('.ng-btn-cta').addEventListener('click', iniciarPartida);
+    }
+
+    /* Apoio no pé da capa, sem rótulo: aparece com o texto OU o logo. Com logo,
+       só o logo, e o texto é o alt dele — sem texto, um alt padrão, para nunca
+       ficar mudo (sobretudo dentro do link). Sem logo, o próprio texto. O link,
+       se houver, abre em outra aba para não derrubar a partida. */
+    var ALT_LOGO_PADRAO = 'Logotipo do apoio';
+
+    function buildApoio(a) {
+      if (!a || !(a.texto || a.logo)) { return ''; }
+      var marca = a.logo
+        ? '<img class="ng-capa-apoio-logo" src="' + esc(safeUrl(a.logo)) + '" alt="' + esc(a.texto || ALT_LOGO_PADRAO) + '">'
+        : esc(a.texto);
+      if (a.url) {
+        marca = '<a class="ng-capa-apoio-link" href="' + esc(safeUrl(a.url)) +
+          '" target="_blank" rel="noopener noreferrer">' + marca + '</a>';
+      }
+      return '<div class="ng-capa-apoio">' + marca + '</div>';
     }
 
     /* Alternativas do palco. Sem `pick`, são os botões da pergunta; com `pick`,
