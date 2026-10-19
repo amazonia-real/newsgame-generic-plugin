@@ -55,6 +55,16 @@
  * CONTRASTE MEDIDO (WCAG, mínimo AA 4.5:1): texto/card 12.5:1 · acento como
  * texto/card 17.9:1 · branco/primária 7.8:1 · fundo/acento 19.8:1.
  */
+
+/*
+ * Convenção do item 76: toda declaração `color` e `font-family` desta folha leva
+ * `!important`. Motivo: temas vencem o jogo por empate de especificidade e
+ * ordem — no Newspaper, `.td-page-content p` (0,1,1) empata com `.ng-screen p`
+ * e ganha por carregar depois; e `p { font-family }` de plugin de fontes vence a
+ * herança. Entre as regras do próprio plugin a cascata segue igual (todas são
+ * `!important`, então decidem especificidade e ordem, como antes). Regra nova
+ * de cor ou fonte de texto: com `!important`. Fora: @font-face e @keyframes.
+ */
 .ng-game-wrap.ng-skin-mono {
   /* Canais — sem matiz: os três valores de cada cor são iguais, de propósito. */
   --ng-bg-rgb:       10, 10, 10;      /* #0A0A0A — quase preto */

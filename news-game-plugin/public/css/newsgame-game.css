@@ -1,6 +1,24 @@
 /* News-Game — frontend do jogo. Paleta: verde terra / Mint (mesma identidade do jogo-amazonia). */
 
 /*
+ * Convenção do item 76: toda declaração `color` e `font-family` desta folha leva
+ * `!important`. Motivo: temas vencem o jogo por empate de especificidade e
+ * ordem — no Newspaper, `.td-page-content p` (0,1,1) empata com `.ng-screen p`
+ * e ganha por carregar depois; e `p { font-family }` de plugin de fontes vence a
+ * herança. Entre as regras do próprio plugin a cascata segue igual (todas são
+ * `!important`, então decidem especificidade e ordem, como antes). Regra nova
+ * de cor ou fonte de texto: com `!important`. Fora: @font-face e @keyframes.
+ */
+
+/* Herança de cor e fonte nos elementos de texto, contra regra de tag do tema
+ * (item 76). Fica no TOPO: com 0,1,0, perde para toda regra de texto do plugin
+ * (0,1,0 ou mais, e depois desta), que também é `!important`. */
+.ng-game-wrap :where(p, h1, h2, h3, h4, h5, h6, li, a, button, label, blockquote, figcaption) {
+  color:       inherit !important;
+  font-family: inherit !important;
+}
+
+/*
  * ── Camada de tokens (H2, fase 1) ──────────────────────────────────────
  * Trocar os valores DESTE bloco troca 100% da aparência do jogo. Nenhuma
  * cor, raio ou tamanho de fonte deve voltar a aparecer literal fora daqui.
@@ -332,8 +350,8 @@
   background-position: center;
   background-repeat:   no-repeat;
   position:          relative;   /* âncora do crédito da foto */
-  color:             var(--ng-text);
-  font-family:       var(--ng-font);
+  color:             var(--ng-text) !important;
+  font-family:       var(--ng-font) !important;
   min-height:        85vh;
   display:           flex;
   align-items:       flex-start;
@@ -363,7 +381,7 @@
   right:         0.9rem;
   bottom:        0.6rem;
   font-size:     var(--ng-fs-1);
-  color:         var(--ng-muted-cena);
+  color:         var(--ng-muted-cena) !important;
   letter-spacing: 0.02em;
   max-width:     60%;
   text-align:    right;
@@ -416,7 +434,7 @@
 
 .ng-progress-label {
   font-size:       var(--ng-fs-3);
-  color:           var(--ng-muted-cena);
+  color:           var(--ng-muted-cena) !important;
   white-space:     nowrap;
   min-width:       3.5rem;
   text-align:      right;
@@ -494,7 +512,7 @@
   border:          0;
   font-size:       var(--ng-fs-dilema);
   font-weight:     var(--ng-peso-leitura);
-  color:           var(--ng-accent-texto);
+  color:           var(--ng-accent-texto) !important;
   line-height:     1.3;
   letter-spacing:  0.01em;
 }
@@ -503,7 +521,7 @@
   font-size:       var(--ng-fs-option);
   font-weight:     var(--ng-peso-leitura);
   line-height:     1.65;
-  color:           var(--ng-text);
+  color:           var(--ng-text) !important;
   margin:          0;
 }
 
@@ -536,9 +554,9 @@
   border:          none;
   border-radius:   50%;   /* geometria de círculo, não tema — igual ao spinner */
   box-shadow:      0 1px 5px rgba(var(--ng-shadow-rgb), 0.22);
-  color:           var(--ng-card);
+  color:           var(--ng-card) !important;
   cursor:          pointer;
-  font-family:     var(--ng-font-serif);
+  font-family:     var(--ng-font-serif) !important;
   font-size:       var(--ng-fs-9);
   font-style:      italic;
   font-weight:     900;
@@ -610,7 +628,7 @@
   border:          1px solid rgba(var(--ng-on-rgb), 0.5);
   border-radius:   var(--ng-radius-md);
   box-shadow:      0 2px 8px rgba(var(--ng-shadow-rgb), 0.3);
-  color:           rgb(var(--ng-on-rgb));
+  color:           rgb(var(--ng-on-rgb)) !important;
   cursor:          pointer;
   transition:      background 0.18s, color 0.18s, transform 0.14s;
 }
@@ -619,7 +637,7 @@
 
 .ng-btn-fullscreen:hover {
   background: var(--ng-primary);
-  color:      var(--ng-on-primary);
+  color:      var(--ng-on-primary) !important;
   transform:  translateY(-1px);
 }
 
@@ -699,19 +717,19 @@
   padding:     0.25rem;
   background:  transparent;
   border:      none;
-  color:       var(--ng-muted);
+  color:       var(--ng-muted) !important;
   cursor:      pointer;
-  font-family: inherit;
+  font-family: inherit !important;
   font-size:   var(--ng-fs-10);
   line-height: 1;
   transition:  color 0.18s;
 }
 
-.ng-modal-close:hover { color: var(--ng-text); }
+.ng-modal-close:hover { color: var(--ng-text) !important; }
 
 .ng-modal-text {
   margin:      0.4rem 0 1.25rem;
-  color:       var(--ng-text);
+  color:       var(--ng-text) !important;
   font-size:   var(--ng-fs-6);
   font-weight: var(--ng-peso-leitura);
   line-height: 1.7;
@@ -727,7 +745,7 @@
 .ng-modal-link {
   display:         table;
   margin-left:     auto;
-  color:           var(--ng-accent-texto);
+  color:           var(--ng-accent-texto) !important;
   font-size:       var(--ng-fs-4);
   font-weight:     700;
   letter-spacing:  0.08em;
@@ -774,9 +792,9 @@
   background:      var(--ng-option-bg);
   border:          2px solid var(--ng-option-borda);
   border-radius:   var(--ng-radius);
-  color:           var(--ng-text);
+  color:           var(--ng-text) !important;
   cursor:          pointer;
-  font-family:     inherit;
+  font-family:     inherit !important;
   font-size:       var(--ng-fs-7);
   font-weight:     var(--ng-peso-leitura);
   line-height:     1.55;
@@ -797,7 +815,7 @@
 .ng-btn-option.is-chosen {
   background:      var(--ng-option-escolhida-bg);
   border-color:    var(--ng-accent-contorno);
-  color:           var(--ng-option-escolhida-ink);
+  color:           var(--ng-option-escolhida-ink) !important;
   --ng-option-rotulo: var(--ng-option-escolhida-rotulo);
 }
 
@@ -809,7 +827,7 @@
   display:         block;
   font-size:       var(--ng-fs-2);
   font-weight:     700;
-  color:           var(--ng-option-rotulo, var(--ng-accent-texto));
+  color:           var(--ng-option-rotulo, var(--ng-accent-texto)) !important;
   letter-spacing:  0.1em;
   text-transform:  uppercase;
   margin-bottom:   0.4rem;
@@ -847,7 +865,7 @@
   display:         block;
   font-size:       var(--ng-fs-1);
   font-weight:     700;
-  color:           var(--ng-accent-texto);
+  color:           var(--ng-accent-texto) !important;
   letter-spacing:  0.12em;
   text-transform:  uppercase;
   margin-bottom:   0.3rem;
@@ -859,10 +877,10 @@
   background:      var(--ng-primary);
   border:          none;
   border-radius:   var(--ng-radius-md);
-  color:           var(--ng-on-primary);
+  color:           var(--ng-on-primary) !important;
   cursor:          pointer;
   display:         block;
-  font-family:     inherit;
+  font-family:     inherit !important;
   font-size:       var(--ng-fs-8);
   font-weight:     600;
   margin-left:     auto;
@@ -872,7 +890,7 @@
 
 .ng-btn-next:hover {
   background:      var(--ng-accent);
-  color:           var(--ng-on-accent);
+  color:           var(--ng-on-accent) !important;
   transform:       translateY(-1px);
 }
 
@@ -910,7 +928,7 @@
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .ng-feedback { background: var(--ng-card); }
   .ng-feedback .ng-feedback-hint,
-  .ng-feedback .ng-feedback-text { color: var(--ng-text); }
+  .ng-feedback .ng-feedback-text { color: var(--ng-text) !important; }
 }
 
 .ng-feedback-inner { width: 100%; text-align: center; }
@@ -920,7 +938,7 @@
    frase curta, não para dois parágrafos. */
 .ng-feedback-text {
   margin:      0 0 0.25rem;
-  color:       var(--ng-feedback-ink);
+  color:       var(--ng-feedback-ink) !important;
   font-size:   var(--ng-fs-option);
   font-weight: var(--ng-peso-leitura);
   line-height: 1.65;
@@ -930,7 +948,7 @@
 /* ── Trava de leitura ──────────────────────────────────── */
 .ng-feedback-hint {
   margin:     0.75rem 0 0.35rem;
-  color:      var(--ng-feedback-ink);
+  color:      var(--ng-feedback-ink) !important;
   font-size:  var(--ng-fs-2);
   font-style: italic;
   opacity:    0.7;
@@ -948,7 +966,7 @@
 
 .ng-btn-next:disabled:hover {
   background: var(--ng-primary);
-  color:      var(--ng-on-primary);
+  color:      var(--ng-on-primary) !important;
   transform:  none;
 }
 
@@ -967,14 +985,14 @@
 }
 
 .ng-screen h2 {
-  font-family:     var(--ng-font-title);
+  font-family:     var(--ng-font-title) !important;
   font-size:       var(--ng-fs-12);
-  color:           var(--ng-accent-texto);
+  color:           var(--ng-accent-texto) !important;
   margin:          0 0 0.75rem;
 }
 
 .ng-screen p {
-  color:           var(--ng-muted-cena);
+  color:           var(--ng-muted-cena) !important;
   font-size:       var(--ng-fs-8);
   margin:          0 0 2rem;
   line-height:     1.6;
@@ -984,9 +1002,9 @@
   background:      var(--ng-primary);
   border:          none;
   border-radius:   var(--ng-radius-md);
-  color:           var(--ng-on-primary);
+  color:           var(--ng-on-primary) !important;
   cursor:          pointer;
-  font-family:     inherit;
+  font-family:     inherit !important;
   font-size:       var(--ng-fs-9);
   font-weight:     600;
   padding:         0.85rem 2.5rem;
@@ -995,7 +1013,7 @@
 
 .ng-btn-cta:hover {
   background:      var(--ng-accent);
-  color:           var(--ng-on-accent);
+  color:           var(--ng-on-accent) !important;
   transform:       translateY(-2px);
 }
 
@@ -1024,7 +1042,7 @@
    do seletor composto dos botões acima. */
 .ng-game-wrap .ng-empty-msg {
   padding:         2rem;
-  color:           var(--ng-error-text);
+  color:           var(--ng-error-text) !important;
 }
 
 /* Erro de instância sem perguntas aprovadas, emitido pelo shortcode FORA do
@@ -1033,7 +1051,7 @@
    seguem sem: a classe modificadora mantém o visual só onde ele existia. */
 .newsgame-error.newsgame-error-vazio {
   padding:         1.5rem;
-  font-family:     monospace;
+  font-family:     monospace !important;
 }
 
 /* ── Spinner de cálculo do perfil ────────────────────── */
@@ -1057,9 +1075,9 @@
 }
 
 .ng-verdict-result h2 {
-  font-family:     var(--ng-font-title);
+  font-family:     var(--ng-font-title) !important;
   font-size:       var(--ng-fs-11);
-  color:           var(--ng-accent-texto);
+  color:           var(--ng-accent-texto) !important;
   margin:          0 0 1.5rem;
   text-align:      center;
   line-height:     1.3;
@@ -1073,7 +1091,7 @@
 .ng-verdict-summary {
   max-width:       34em;
   margin:          0 auto 2rem;
-  color:           var(--ng-text);
+  color:           var(--ng-text) !important;
   font-size:       var(--ng-fs-10);
   font-weight:     var(--ng-peso-leitura);
   line-height:     1.55;
@@ -1082,7 +1100,7 @@
 
 .ng-verdict-share-text {
   font-size:       var(--ng-fs-6);
-  color:           var(--ng-muted);
+  color:           var(--ng-muted) !important;
   font-style:      italic;
   text-align:      center;
   margin:          1rem 0 1.75rem;
@@ -1200,8 +1218,8 @@
 /* Rótulos na fonte da skin, como antes. Tamanhos por token: 10,5 e 13 px no
    celular, 14 e 20 px a partir de 600 px. */
 .ng-radar-label {
-  color:           var(--ng-radar-label);
-  font-family:     var(--ng-font);
+  color:           var(--ng-radar-label) !important;
+  font-family:     var(--ng-font) !important;
   font-size:       var(--ng-radar-fs-rotulo);
   font-weight:     700;
   line-height:     1.2;
@@ -1212,7 +1230,7 @@
 }
 
 .ng-radar-pct {
-  font-family:     var(--ng-font);
+  font-family:     var(--ng-font) !important;
   font-size:       var(--ng-radar-fs-pct);
   font-weight:     800;
   line-height:     1.15;
@@ -1234,9 +1252,9 @@
 .ng-radar-dot.is-negative { fill: var(--ng-radar-negative); }
 .ng-radar-dot.is-neutral  { fill: var(--ng-radar-neutral); }
 
-.ng-radar-pct.is-positive { color: var(--ng-radar-positive); }
-.ng-radar-pct.is-negative { color: var(--ng-radar-negative); }
-.ng-radar-pct.is-neutral  { color: var(--ng-radar-neutral); }
+.ng-radar-pct.is-positive { color: var(--ng-radar-positive) !important; }
+.ng-radar-pct.is-negative { color: var(--ng-radar-negative) !important; }
+.ng-radar-pct.is-neutral  { color: var(--ng-radar-neutral) !important; }
 
 /* Rótulo do gráfico a 9,5 px nos celulares mais estreitos (360 px), em vez de
    partir palavra longa no meio. */

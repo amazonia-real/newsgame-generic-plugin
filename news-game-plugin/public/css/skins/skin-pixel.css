@@ -71,6 +71,16 @@
  */
 
 /*
+ * Convenção do item 76: toda declaração `color` e `font-family` desta folha leva
+ * `!important`. Motivo: temas vencem o jogo por empate de especificidade e
+ * ordem — no Newspaper, `.td-page-content p` (0,1,1) empata com `.ng-screen p`
+ * e ganha por carregar depois; e `p { font-family }` de plugin de fontes vence a
+ * herança. Entre as regras do próprio plugin a cascata segue igual (todas são
+ * `!important`, então decidem especificidade e ordem, como antes). Regra nova
+ * de cor ou fonte de texto: com `!important`. Fora: @font-face e @keyframes.
+ */
+
+/*
  * ── Fonte: Pixelify Sans, AUTO-HOSPEDADA ──────────────────────────────
  *
  * ⚠️ NÃO TROCAR POR GOOGLE FONTS. A regra registrada em `skin-mono.css` é que
@@ -341,7 +351,7 @@
 .ng-game-wrap.ng-skin-pixel .ng-progress-label,
 .ng-game-wrap.ng-skin-pixel .ng-btn-next,
 .ng-game-wrap.ng-skin-pixel .ng-btn-cta {
-  font-family: var(--ng-font-display);
+  font-family: var(--ng-font-display) !important;
 }
 
 /*
@@ -430,7 +440,7 @@
 .ng-game-wrap.ng-skin-pixel .ng-btn-option {
   background:   rgb(var(--ng-primary-rgb));
   border:       3px solid rgb(var(--ng-on-primary-rgb));
-  color:        var(--ng-on-primary);
+  color:        var(--ng-on-primary) !important;
 }
 
 /* "OPÇÃO A" — no base é `--ng-accent`, amarelo claro, que sobre a caixa amarela
@@ -440,7 +450,7 @@
    espaçada; a Pixelify é proporcional, e o rótulo em caixa-alta pede o
    espaçamento do base, como nas outras skins. */
 .ng-game-wrap.ng-skin-pixel .ng-opt-label {
-  color: rgba(var(--ng-on-primary-rgb), 0.7);
+  color: rgba(var(--ng-on-primary-rgb), 0.7) !important;
 }
 
 /* Hover: clareia para o acento, mantendo a moldura preta. Preto sobre #FFE566
@@ -548,7 +558,7 @@
    aplica `opacity: 0.7`. */
 .ng-game-wrap.ng-skin-pixel .ng-feedback-text,
 .ng-game-wrap.ng-skin-pixel .ng-feedback-hint {
-  color: var(--ng-text);
+  color: var(--ng-text) !important;
 }
 
 /*

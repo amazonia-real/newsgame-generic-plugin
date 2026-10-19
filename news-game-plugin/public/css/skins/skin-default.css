@@ -17,6 +17,16 @@
  */
 
 /*
+ * Convenção do item 76: toda declaração `color` e `font-family` desta folha leva
+ * `!important`. Motivo: temas vencem o jogo por empate de especificidade e
+ * ordem — no Newspaper, `.td-page-content p` (0,1,1) empata com `.ng-screen p`
+ * e ganha por carregar depois; e `p { font-family }` de plugin de fontes vence a
+ * herança. Entre as regras do próprio plugin a cascata segue igual (todas são
+ * `!important`, então decidem especificidade e ordem, como antes). Regra nova
+ * de cor ou fonte de texto: com `!important`. Fora: @font-face e @keyframes.
+ */
+
+/*
  * Fontes do JDA, auto-hospedadas em `public/fonts/` com a licença ao lado
  * (`OFL-manrope.txt`, `OFL-inter.txt`; OFL 1.1, sem nome reservado), pela
  * regra da §5.3: nada de Google Fonts. No JDA a Manrope vem do tema WordPress e
@@ -146,7 +156,7 @@
  * mostra título de pergunta; o branco segue a cor da situação dele.
  */
 .ng-game-wrap.ng-skin-default .ng-dilema-title {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 /*
@@ -214,7 +224,7 @@
 .ng-game-wrap.ng-skin-default .ng-btn-option:hover:not(:disabled) {
   background:   rgba(255, 255, 255, 0.29);
   border-color: rgba(255, 255, 255, 0.65);
-  color:        rgba(255, 255, 255, 0.96);
+  color:        rgba(255, 255, 255, 0.96) !important;
 }
 
 .ng-game-wrap.ng-skin-default .ng-btn-option.is-chosen {
@@ -226,7 +236,7 @@
 }
 
 .ng-game-wrap.ng-skin-default .ng-btn-option:not(.is-chosen) .ng-opt-label {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.92) !important;
 }
 
 @media (min-width: 1025px) {
@@ -267,29 +277,29 @@
  */
 .ng-game-wrap.ng-skin-default .ng-modal-content {
   background:              rgba(247, 255, 247, 0.95);
-  color:                   #1B480C;
+  color:                   #1B480C !important;
   border-radius:           22px;
   -webkit-backdrop-filter: blur(25px) saturate(2);
   backdrop-filter:         blur(25px) saturate(2);
 }
 
 .ng-game-wrap.ng-skin-default .ng-modal-text {
-  color: #163824;
+  color: #163824 !important;
 }
 
 .ng-game-wrap.ng-skin-default .ng-modal-link {
-  color:          #1B480C;
+  color:          #1B480C !important;
   font-weight:    800;
   text-transform: none;
 }
 
 .ng-game-wrap.ng-skin-default .ng-modal-content .ng-verd-label {
-  color: #1B480C;
+  color: #1B480C !important;
 }
 
 .ng-game-wrap.ng-skin-default .ng-modal-close,
 .ng-game-wrap.ng-skin-default .ng-modal-close:hover {
-  color: #2A5C1A;
+  color: #2A5C1A !important;
 }
 
 /*
@@ -322,7 +332,7 @@
 .ng-game-wrap.ng-skin-default .ng-feedback-hint,
 .ng-game-wrap.ng-skin-default .ng-screen p,
 .ng-game-wrap.ng-skin-default .ng-verdict-summary {
-  font-family: 'Newsgame Manrope', var(--ng-font);
+  font-family: 'Newsgame Manrope', var(--ng-font) !important;
 }
 
 .ng-game-wrap.ng-skin-default .ng-btn-option,
@@ -331,7 +341,7 @@
 .ng-game-wrap.ng-skin-default .ng-screen .ng-btn-cta,
 .ng-game-wrap.ng-skin-default .ng-btn-share,
 .ng-game-wrap.ng-skin-default .ng-btn-restart {
-  font-family: 'Newsgame Inter', var(--ng-font);
+  font-family: 'Newsgame Inter', var(--ng-font) !important;
 }
 
 /*

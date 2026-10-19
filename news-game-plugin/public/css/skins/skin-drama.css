@@ -41,6 +41,16 @@
  */
 
 /*
+ * Convenção do item 76: toda declaração `color` e `font-family` desta folha leva
+ * `!important`. Motivo: temas vencem o jogo por empate de especificidade e
+ * ordem — no Newspaper, `.td-page-content p` (0,1,1) empata com `.ng-screen p`
+ * e ganha por carregar depois; e `p { font-family }` de plugin de fontes vence a
+ * herança. Entre as regras do próprio plugin a cascata segue igual (todas são
+ * `!important`, então decidem especificidade e ordem, como antes). Regra nova
+ * de cor ou fonte de texto: com `!important`. Fora: @font-face e @keyframes.
+ */
+
+/*
  * ── Fonte: Pacifico, AUTO-HOSPEDADA, só nos títulos ───────────────────
  *
  * Mesma regra da fonte da `pixel`: nada de Google Fonts por <link> ou @import
