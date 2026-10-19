@@ -68,6 +68,33 @@ class Newsgame_Shortcodes {
     }
 
     /**
+     * Personagens da tela de escolha (H3, rodada B): slug, nome e apresentação
+     * dos Prontos, na ordem do formulário. A descrição para a IA NUNCA entra.
+     * Null — sem tela — com o interruptor desligado, sem receita (a reserva do
+     * sorteio antigo) ou com menos de 2 Prontos.
+     */
+    private static function personagens_do_jogo( $instance, $receita ) {
+        $prontos = $receita['personagens'] ?? array();
+        if ( empty( $instance->escolher_personagem ) || count( $prontos ) < 2 ) {
+            return null;
+        }
+        $chars = json_decode( $instance->characters ?? '[]', true );
+        $lista = array();
+        foreach ( is_array( $chars ) ? $chars : array() as $c ) {
+            if ( ! in_array( $c['slug'] ?? '', $prontos, true ) ) {
+                continue;
+            }
+            $item = array( 'slug' => (string) $c['slug'], 'nome' => (string) ( $c['label'] ?? $c['slug'] ) );
+            $apresentacao = trim( (string) ( $c['apresentacao'] ?? '' ) );
+            if ( '' !== $apresentacao ) {
+                $item['apresentacao'] = $apresentacao;
+            }
+            $lista[] = $item;
+        }
+        return count( $lista ) >= 2 ? $lista : null;
+    }
+
+    /**
      * Campos da capa para o JSON do jogo (H3, rodada A), só os preenchidos.
      * Imagens resolvidas para URL aqui, como no image_payload(): anexo apagado
      * some do payload. Devolve null quando nada está preenchido.
@@ -396,6 +423,12 @@ class Newsgame_Shortcodes {
         $regras = trim( (string) ( $instance->regras ?? '' ) );
         if ( '' !== $regras ) {
             $dados['regras'] = $regras;
+        }
+        // Tela de personagem (H3, rodada B): só com o interruptor ligado e 2 ou
+        // mais personagens Prontos; sem isso a chave não entra e o jogo sorteia.
+        $personagens = self::personagens_do_jogo( $instance, $partida['receita'] );
+        if ( $personagens ) {
+            $dados['personagens'] = $personagens;
         }
 
         $json = wp_json_encode(
