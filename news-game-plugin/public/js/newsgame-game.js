@@ -417,7 +417,8 @@
      * leem dele, e não do conjunto.
      */
     var conjunto   = data.dilemas;
-    var tamPartida = Math.min(limitarPartida(data.round_size), conjunto.length);
+    var receita    = data.receita;   // ausente ou null = sorteio de antes
+    var tamPartida = tamanhoDaPartida();
     var dilemas    = [];
     /* Ordem das alternativas de cada pergunta da partida, sorteada junto com
        ela em iniciarPartida() e reusada pela tela de contexto — ordens[i] vale
@@ -639,6 +640,35 @@
       wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    /* ── Receita da partida (item 58) ──────────────────────────
+       Com `receita`, o shortcode já mandou só as gerais e os personagens
+       Prontos: a partida é `receita.gerais` gerais + `receita.por_personagem`
+       de UM personagem Pronto, sorteado a cada partida — é onde a tela de
+       personagem entrará. Sem personagem Pronto, só gerais. Sem `receita`
+       (gerais insuficientes), o sorteio de antes, sobre o conjunto inteiro. */
+    function doGrupo(slug) {
+      return conjunto.filter(function (d) { return (d.grupo || 'geral') === slug; });
+    }
+
+    function tamanhoDaPartida() {
+      var n = limitarPartida(data.round_size);
+      if (!receita) { return Math.min(n, conjunto.length); }
+      if (receita.personagens && receita.personagens.length) {
+        return receita.gerais + receita.por_personagem;
+      }
+      return Math.min(n, doGrupo('geral').length);
+    }
+
+    function sortearPartida() {
+      if (!receita) { return embaralhar(conjunto).slice(0, tamPartida); }
+      var gerais = embaralhar(doGrupo('geral'));
+      var prontos = receita.personagens || [];
+      if (!prontos.length) { return gerais.slice(0, tamPartida); }
+      var slug = prontos[Math.floor(Math.random() * prontos.length)];
+      return embaralhar(gerais.slice(0, receita.gerais)
+        .concat(embaralhar(doGrupo(slug)).slice(0, receita.por_personagem)));
+    }
+
     /* Começo de partida — pela capa e por "Jogar novamente". Zera o acumulador
        do veredito e sorteia de novo, sem recarregar a página. */
     /* A ordem das alternativas é sorteada aqui, uma vez por pergunta, e não a
@@ -646,7 +676,7 @@
        ordem da pergunta. "Jogar novamente" passa por aqui e sorteia tudo de novo. */
     function iniciarPartida() {
       idx = 0; vetor = {}; pesoCount = 0;
-      dilemas = embaralhar(conjunto).slice(0, tamPartida);
+      dilemas = sortearPartida();
       ordens  = dilemas.map(function () { return embaralhar(optKeys); });
       partidaN++;
       medir('ng_inicio', { n: dilemas.length, conjunto: conjunto.length });

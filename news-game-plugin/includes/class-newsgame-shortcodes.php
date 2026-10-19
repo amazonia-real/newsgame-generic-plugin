@@ -152,6 +152,53 @@ class Newsgame_Shortcodes {
     }
 
     /**
+     * Receita da partida no lado do jogador (item 58, rodada C), pura: recebe a
+     * instância e as linhas APROVADAS e devolve as que vão ao jogo e a receita
+     * que o JS segue no sorteio.
+     *
+     * - Gerais aprovadas abaixo do que a partida pede (G, ou N sem personagens):
+     *   receita null e TODAS as aprovadas, para o jogo usar o sorteio de antes.
+     *   É a reserva das instâncias sem gerais.
+     * - Senão: as gerais e as perguntas dos personagens Prontos. Personagem não
+     *   Pronto e órfã (slug fora da instância) não são enviados. A partida é G
+     *   gerais + Y de UM personagem Pronto sorteado; sem personagem Pronto, só
+     *   gerais.
+     *
+     * @return array{rows:array, receita:array|null}
+     */
+    public static function partida_do_jogo( $inst, array $rows ) {
+        $receita   = Newsgame_Status::receita_da_instancia( $inst );
+        $por_grupo = array();
+        foreach ( $rows as $r ) {
+            $slug = (string) ( $r->character_slug ?? Newsgame_Status::GRUPO_GERAL );
+            $por_grupo[ $slug ] = ( $por_grupo[ $slug ] ?? 0 ) + 1;
+        }
+
+        if ( ( $por_grupo[ Newsgame_Status::GRUPO_GERAL ] ?? 0 ) < $receita['gerais_partida'] ) {
+            return array( 'rows' => $rows, 'receita' => null );
+        }
+
+        // Pronto só depende das aprovadas: as pendentes vão como 0.
+        $contagem = array();
+        foreach ( $por_grupo as $slug => $n ) {
+            $contagem[ $slug ] = array( $n, 0 );
+        }
+        $prontos   = Newsgame_Status::prontidao( $inst, $contagem )['prontos'];
+        $enviados  = array_merge( array( Newsgame_Status::GRUPO_GERAL ), $prontos );
+
+        return array(
+            'rows'    => array_values( array_filter( $rows, function ( $r ) use ( $enviados ) {
+                return in_array( (string) ( $r->character_slug ?? Newsgame_Status::GRUPO_GERAL ), $enviados, true );
+            } ) ),
+            'receita' => array(
+                'gerais'         => $receita['gerais_partida'],
+                'por_personagem' => $receita['por_personagem'],
+                'personagens'    => $prontos,
+            ),
+        );
+    }
+
+    /**
      * Versão de um arquivo do jogo para o `?ver=` da URL: a data de modificação
      * do arquivo, e não a constante NEWSGAME_VERSION. Com a constante parada, a
      * URL nunca mudava, e o navegador seguia usando a cópia antiga em cache
@@ -249,10 +296,17 @@ class Newsgame_Shortcodes {
                  . 'não tem perguntas aprovadas para o jogo. Acesse o painel para revisar e aprovar as perguntas geradas.</p>';
         }
 
+        // Receita da partida (item 58): decide QUAIS aprovadas vão ao jogador e
+        // como o jogo as sorteia. Sem receita (gerais insuficientes), o conjunto
+        // inteiro vai, e o jogo usa o sorteio de antes.
+        $partida = self::partida_do_jogo( $instance, $rows );
+        $rows    = $partida['rows'];
+
         $dilemas = array();
         foreach ( $rows as $d ) {
             $item = array(
                 'id'           => (int) $d->id,
+                'grupo'        => (string) ( $d->character_slug ?? 'geral' ),
                 'title'        => $d->title,
                 'body'         => $d->body,
                 'option_a'     => json_decode( $d->option_a  ?? '{}', true ) ?: array(),
@@ -295,6 +349,7 @@ class Newsgame_Shortcodes {
                 'dilemas'             => $dilemas,
                 'num_options'         => (int) ( $instance->num_options   ?? 2 ),
                 'round_size'          => (int) ( $instance->round_size    ?? 10 ),
+                'receita'             => $partida['receita'],
                 'perfis'              => $matriz['perfis'],
                 'eixos'               => $matriz['eixos'],
             ),
