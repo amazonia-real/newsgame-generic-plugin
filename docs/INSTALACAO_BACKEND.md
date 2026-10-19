@@ -307,5 +307,18 @@ Teste no ensaio: o modelo de embeddings
 (`paraphrase-multilingual-MiniLM-L12-v2`) gera vetores de 384 dimensões no CPU,
 carregando em ~2 s, com ~0,12 s para uma frase e ~0,13 s para um lote de 32.
 
+### Indexação do acervo (ensaio em WordPress real, 19/10/2026)
+
+Site `site-de-ensaio.example` falando com o backend deste servidor (1 vCPU, 3,8 GB):
+
+| Medida | Valor |
+|---|---|
+| itens enviados pela sincronização | 350 |
+| itens indexados | 345 (5 ignorados; o painel ainda não diz quais nem por quê) |
+| lotes | 7 lotes de 50 |
+| tempo por lote | ~35 s |
+| tempo por artigo | ~1,4 s |
+| tempo total | ~4 min |
+
 **Pendente:** a alternativa sem Docker (uvicorn + systemd), não executada nem
 provada.

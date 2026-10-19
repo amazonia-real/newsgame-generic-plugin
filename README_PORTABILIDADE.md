@@ -117,6 +117,20 @@ ln -s /caminho/para/news-game/news-game-plugin /var/www/html/wordpress/wp-conten
 > Se configurada no painel, ela é enviada no body de cada requisição e tem
 > precedência sobre a variável de ambiente.
 
+### Cache do site — depois de instalar ou atualizar o plugin
+
+Se o site usa plugin de cache (LiteSpeed Cache, WP Rocket, W3 Total Cache e afins) ou
+CDN, **esvazie o cache de página e o de CSS/JS** depois de instalar ou atualizar o
+News Game — no LiteSpeed Cache, **"Purge All"**. A **minificação** e a **combinação
+de CSS/JS** desses plugins geram cópias próprias dos arquivos e podem prender uma versão
+antiga, mesmo com o plugin já atualizado: o jogo aparece com a skin ou o comportamento
+anteriores.
+
+No ensaio em WordPress real (19/10/2026, LiteSpeed Cache), as skins Minimal e Pixel só
+passaram a aparecer depois do "Purge All". O plugin versiona os próprios arquivos pela
+data de modificação, o que resolve o cache do navegador, mas não o cache que o plugin de
+cache guarda no servidor.
+
 ---
 
 ## 3. Sincronizar o acervo
