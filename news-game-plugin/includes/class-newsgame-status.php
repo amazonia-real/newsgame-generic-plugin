@@ -155,6 +155,9 @@ class Newsgame_Status {
                 'aprovadas' => $aprovadas,
                 'pendentes' => $pendentes,
                 'faltam'    => max( 0, $meta - $aprovadas ),
+                // O que o botão do grupo gera: a mesma conta do ajax_start() com
+                // grupo — as pendentes já contam, porque ainda podem ser aprovadas.
+                'a_gerar'   => max( 0, $meta - $aprovadas - $pendentes ),
                 'pronto'    => $aprovadas >= $meta,
             );
         }

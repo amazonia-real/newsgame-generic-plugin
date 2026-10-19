@@ -21,7 +21,10 @@
 
   var cfg = window.ngGenCfg || {};
 
-  var genBtn      = document.getElementById('ng-generate-btn');
+  // Um botão por grupo (item 58): "geral" ou o slug de um personagem, no
+  // data-grupo. Um lote por vez: enquanto um roda, todos ficam travados.
+  var botoes      = Array.prototype.slice.call(document.querySelectorAll('.ng-gen-grupo'));
+  var ativo       = null;               // botão do lote em curso
   var genStatus   = document.getElementById('ng-gen-status');
   var resetBtn    = document.getElementById('ng-reset-btn');
   var wrap        = document.getElementById('ng-progress-wrap');
@@ -34,11 +37,11 @@
   var nonce       = cfg.nonce;
   var reviewNonce = cfg.reviewNonce;
 
-  // Âncora única: #ng-generate-btn só existe quando a seção de geração é
-  // renderizada. Se ele está no DOM, a barra de progresso e o status também
-  // estão — são irmãos no mesmo bloco de markup. O #ng-reset-btn é o único
-  // condicional de verdade, e tem guarda própria lá embaixo.
-  if (!genBtn) { return; }
+  // Âncora única: #ng-gen-status só existe quando a seção de geração é
+  // renderizada. Se ele está no DOM, a barra de progresso também está — são
+  // irmãos no mesmo bloco de markup. Os botões de grupo podem faltar todos
+  // (grupos prontos ou só com pendentes), e o reset tem guarda própria.
+  if (!genStatus) { return; }
 
   // Tetos do lote — decididos em 02/10. O plano gratuito do Gemini tem 20
   // requisições por DIA, então cada chamada desperdiçada é cara.
@@ -53,26 +56,37 @@
     pPct.textContent = pct + '%';
   }
 
+  function travarBotoes(travar) {
+    botoes.forEach(function (b) { b.disabled = travar; });
+    if (!travar) { ativo = null; }
+  }
+
   function setError(msg) {
     genStatus.style.color = '#c00';
     genStatus.textContent = '✗ ' + msg;
-    genBtn.disabled = false;
+    travarBotoes(false);
   }
 
   /* ── Clique: o WP devolve déficit, posições livres e fontes já usadas ── */
-  // O botão fica desabilitado do clique até o fim do lote: só setError() e
-  // concluir() o reabilitam — e concluir() não o reabilita quando vai recarregar.
-  genBtn.addEventListener('click', function () {
-    genBtn.disabled = true;
+  // Os botões ficam desabilitados do clique até o fim do lote: só setError() e
+  // concluir() os reabilitam — e concluir() não o faz quando vai recarregar.
+  botoes.forEach(function (b) {
+    b.addEventListener('click', function () { iniciarGrupo(b); });
+  });
+
+  function iniciarGrupo(botao) {
+    travarBotoes(true);
+    ativo = botao;
     esconderRelatorio();
     genStatus.style.color = '#666';
-    genStatus.textContent = 'Iniciando…';
+    genStatus.textContent = 'Iniciando — ' + botao.dataset.rotulo + '…';
     wrap.style.display = 'none';
 
     var fd = new FormData();
     fd.append('action',      cfg.actionStart);
     fd.append('nonce',       nonce);
     fd.append('instance_id', instId);
+    fd.append('grupo',       botao.dataset.grupo);
 
     fetch(ajaxurl, { method: 'POST', body: fd })
       .then(function (r) { return r.json(); })
@@ -92,7 +106,7 @@
         iniciarLote(r.data.payload, posicoes, r.data.fontes_usadas || []);
       })
       .catch(function (e) { setError(e.message); });
-  });
+  }
 
   /* ── Lote: um estado só, um passo por chamada ao proxy ── */
   function novoEstado(posicoes, fontes) {
@@ -250,6 +264,8 @@
     fd.append('action',      cfg.actionSave);
     fd.append('nonce',       nonce);
     fd.append('instance_id', instId);
+    // O servidor recusa a pergunta que voltar de outro grupo (item 58).
+    fd.append('grupo',       ativo ? ativo.dataset.grupo : '');
     fd.append('dilemas',     JSON.stringify([dilema]));
 
     return fetch(ajaxurl, { method: 'POST', body: fd })
@@ -363,11 +379,12 @@
     }
     genStatus.textContent = '';
     mostrarRelatorio(rel, true);
-    genBtn.disabled = false;
+    travarBotoes(false);
   }
 
   function montarRelatorio(st, saved, failed) {
-    var linhas = ['Salvas ' + saved + ' de ' + st.alvo + ' pergunta(s) que faltavam para a meta.'];
+    var grupo  = ativo ? ' de ' + ativo.dataset.rotulo : '';
+    var linhas = ['Salvas ' + saved + ' de ' + st.alvo + ' pergunta(s) que faltavam para a meta' + grupo + '.'];
     if (failed > 0) {
       linhas.push(failed + ' gerada(s) não foram gravadas no banco — veja o log do servidor (error_log).');
     }
@@ -399,8 +416,8 @@
       box.appendChild(p);
     });
     box.style.display = 'block';
-    if (atualizarBotao && rel.faltam > 0) {
-      genBtn.textContent = '▶ Gerar as que faltam (' + rel.faltam + ')';
+    if (atualizarBotao && ativo && rel.faltam > 0) {
+      ativo.textContent = '▶ Gerar as que faltam (' + rel.faltam + ')';
     }
   }
 
@@ -429,32 +446,22 @@
 
   restaurarRelatorio();
 
-  /* ── Painel em dia sem F5, depois de ações na Mesa Editorial ── */
-  // A Mesa já reconta as abas a cada ação e avisa por `ng:contagens`. Aqui se
-  // refaz a conta do PHP (page-instance-form.php): meta − aprovadas − pendentes.
-  // A meta é a gravada (cfg.meta), a mesma do ajax_start().
-  function textoMeta(deficit) {
-    if (deficit <= 0) { return 'A meta já está preenchida.'; }
-    if (deficit === 1) { return 'Será gerada apenas 1 pergunta, a que falta.'; }
-    return 'Serão geradas apenas as ' + deficit + ' que faltam.';
-  }
-
+  /* ── Linha de contagem em dia sem F5, depois de ações na Mesa ── */
+  // A Mesa já reconta as abas a cada ação e avisa por `ng:contagens`. O déficit
+  // agora é por grupo (item 58) e fica na tabela, calculada na carga da tela:
+  // aqui só a linha de aprovadas e pendentes da instância se atualiza.
   function pintarPainel(c) {
-    var deficit = (parseInt(cfg.meta, 10) || 0) - c.approved - c.pending;
-    var linha   = document.getElementById('ng-gen-contagem');
+    var linha = document.getElementById('ng-gen-contagem');
     if (linha) {
       linha.textContent = c.approved + c.pending > 0
-        ? 'Aprovadas: ' + c.approved + ', pendentes: ' + c.pending + '. ' + textoMeta(deficit)
+        ? 'Aprovadas: ' + c.approved + ', pendentes: ' + c.pending + '.'
         : '';
     }
-    genBtn.textContent = c.approved + c.pending + c.discarded > 0 && deficit > 0
-      ? '▶ Gerar as que faltam (' + deficit + ')'
-      : '▶ Gerar Perguntas Agora';
   }
 
   document.addEventListener('ng:contagens', function (ev) {
-    // Lote em curso, ou recarga agendada: o rótulo é do lote, não da Mesa.
-    if (genBtn.disabled) { return; }
+    // Lote em curso, ou recarga agendada: o painel é do lote, não da Mesa.
+    if (ativo) { return; }
     pintarPainel(ev.detail);
   });
 

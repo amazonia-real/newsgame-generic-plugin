@@ -210,9 +210,8 @@ class Newsgame_Admin_Instances {
         wp_enqueue_script( 'newsgame-admin-generation', $base . 'newsgame-admin-generation.js', array(), NEWSGAME_VERSION, true );
         wp_localize_script( 'newsgame-admin-generation', 'ngGenCfg', array(
             'instanceId'        => $id,
-            // Meta GRAVADA, e não o campo #ng-density, que pode estar editado e
-            // não salvo: é contra ela que o ajax_start() conta o déficit.
-            'meta'              => (int) ( $inst->density ?? 10 ),
+            // Sem `meta` desde o item 58: o déficit é por grupo, e cada botão o
+            // pede ao ajax_start() com o grupo dele.
             'nonce'             => wp_create_nonce( Newsgame_Generator::NONCE_GENERATE ),
             // O reset é da Mesa Editorial (AJAX_CLEAR), e por isso viaja com o
             // nonce dela, e não com o da geração. Era assim no bloco inline.

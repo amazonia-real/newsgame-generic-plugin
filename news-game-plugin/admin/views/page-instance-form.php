@@ -636,9 +636,8 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           $id
       )
   );
-  // Mesma conta de Newsgame_Generator::ajax_start(): aprovadas + pendentes contra
-  // a meta. Se as duas divergirem, a tela promete um número e o lote gera outro.
-  $deficit = $density - $approved_count - $pending_count;
+  // O déficit por grupo (a mesma conta do ajax_start() com grupo) vem de
+  // Newsgame_Status::grupos(), no painel abaixo.
   ?>
   <?php if ( $dilema_count > 0 ) : ?>
     <div class="notice notice-info inline" style="margin:0 0 1rem">
@@ -657,17 +656,11 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     // O span existe sempre, mesmo vazio: o JS o reescreve depois de ações na
     // Mesa Editorial (evento `ng:contagens`, newsgame-admin-generation.js).
     ?>
+    <?php // Sem o déficit: ele é por grupo, na tabela abaixo (item 58). ?>
     <span id="ng-gen-contagem">
     <?php if ( $approved_count + $pending_count > 0 ) : ?>
       Aprovadas: <strong><?php echo (int) $approved_count; ?></strong>,
       pendentes: <strong><?php echo (int) $pending_count; ?></strong>.
-      <?php if ( $deficit <= 0 ) : ?>
-        A meta já está preenchida.
-      <?php elseif ( 1 === $deficit ) : ?>
-        Será gerada apenas <strong>1</strong> pergunta, a que falta.
-      <?php else : ?>
-        Serão geradas apenas as <strong><?php echo (int) $deficit; ?></strong> que faltam.
-      <?php endif; ?>
     <?php endif; ?>
     </span>
   </p>
@@ -680,7 +673,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
   <?php if ( $painel ) : ?>
     <table class="widefat striped" id="ng-receita-grupos" style="max-width:600px;margin:0 0 .75rem">
       <thead>
-        <tr><th>Grupo</th><th>Na partida</th><th>Aprovadas / meta</th><th>Pendentes</th><th>Situação</th></tr>
+        <tr><th>Grupo</th><th>Na partida</th><th>Aprovadas / meta</th><th>Pendentes</th><th>Situação</th><th>Gerar</th></tr>
       </thead>
       <tbody>
       <?php foreach ( $painel['grupos'] as $g ) : ?>
@@ -690,6 +683,18 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           <td><?php echo (int) $g['aprovadas']; ?> / <?php echo (int) $g['meta']; ?></td>
           <td><?php echo (int) $g['pendentes']; ?></td>
           <td><?php echo $g['pronto'] ? '✅ Pronto' : esc_html( sprintf( 'faltam %d', $g['faltam'] ) ); ?></td>
+          <td>
+            <?php if ( $g['a_gerar'] > 0 ) : ?>
+              <?php // Um lote por vez: o JS trava os outros botões enquanto este roda. ?>
+              <button type="button" class="button button-primary ng-gen-grupo"
+                      data-grupo="<?php echo esc_attr( $g['slug'] ); ?>"
+                      data-rotulo="<?php echo esc_attr( $g['rotulo'] ); ?>">
+                &#9654; Gerar os que faltam (<?php echo (int) $g['a_gerar']; ?>)
+              </button>
+            <?php elseif ( ! $g['pronto'] ) : ?>
+              <span class="description">revise as pendentes</span>
+            <?php endif; ?>
+          </td>
         </tr>
       <?php endforeach; ?>
       </tbody>
@@ -710,14 +715,8 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     <?php endif; ?>
   <?php endif; ?>
 
-  <button type="button" id="ng-generate-btn" class="button button-primary button-large">
-    <?php if ( $dilema_count > 0 && $deficit > 0 ) : ?>
-      &#9654; Gerar as que faltam (<?php echo (int) $deficit; ?>)
-    <?php else : ?>
-      &#9654; Gerar Perguntas Agora
-    <?php endif; ?>
-  </button>
-  <span id="ng-gen-status" style="margin-left:12px;font-size:13px;font-weight:600"></span>
+  <?php // A geração é por grupo, nos botões da tabela acima (item 58). ?>
+  <span id="ng-gen-status" style="font-size:13px;font-weight:600"></span>
   <?php /* Relatório do último lote. Preenchido pelo JS — inclusive depois do reload,
            via sessionStorage — e nunca pelo PHP. */ ?>
   <div id="ng-gen-report" class="notice inline" style="display:none;margin:1rem 0 0;max-width:600px"></div>
