@@ -10,6 +10,8 @@ $title         = $is_edit ? $inst->title        : '';
 $theme         = $is_edit ? $inst->theme_prompt : '';
 $density       = $is_edit ? (int) $inst->density : 10;
 $round_size    = $is_edit ? (int) ( $inst->round_size ?? 10 ) : 10;
+$gerais_pct    = $is_edit ? (int) ( $inst->gerais_pct ?? Newsgame_Status::GERAIS_PCT_PADRAO ) : Newsgame_Status::GERAIS_PCT_PADRAO;
+$fator_decimos = Newsgame_Status::fator_decimos( $is_edit ? ( $inst->pronto_fator ?? null ) : null );
 $num_options   = $is_edit ? (int) ( $inst->num_options   ?? 2 ) : 2;
 $nivel_padrao  = $is_edit ? ( $inst->nivel_padrao ?? 'pedagogico' ) : 'pedagogico';
 /*
@@ -216,10 +218,6 @@ $page_title = $is_edit
     <div class="notice notice-error"><p>O nome do jogo é obrigatório.</p></div>
   <?php endif; ?>
 
-  <?php if ( isset( $_GET['error'] ) && 'meta_menor_que_partida' === $_GET['error'] ) : ?>
-    <div class="notice notice-error"><p>A meta de perguntas aprovadas não pode ser menor que o número de perguntas por partida. Nada foi salvo.</p></div>
-  <?php endif; ?>
-
   <?php if ( isset( $_GET['error'] ) && 'db_write' === $_GET['error'] ) : ?>
     <div class="notice notice-error"><p>Não foi possível gravar a instância no banco — nada foi salvo, e as alterações deste envio se perderam. A causa está no log do servidor (<code>error_log</code>).</p></div>
   <?php endif; ?>
@@ -339,23 +337,6 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     <table class="form-table" role="presentation">
       <tr>
         <th scope="row">
-          <label for="ng-density">Meta de perguntas aprovadas</label>
-        </th>
-        <td>
-          <input type="number" id="ng-density" name="density"
-                 value="<?php echo (int) $density; ?>"
-                 min="4" max="120" step="1"
-                 style="width:80px;vertical-align:middle">
-          &nbsp;perguntas
-          <p class="description">
-            Quantas perguntas a geração deve produzir e quantas aprovadas o jogo
-            precisa para receber o selo "Pronto". De 4 a 120, e não menor que as
-            perguntas por partida.
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <th scope="row">
           <label for="ng-round-size">Perguntas por partida</label>
         </th>
         <td>
@@ -369,6 +350,41 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
             Cada partida sorteia essa quantidade entre as aprovadas, em ordem
             embaralhada; com menos aprovadas, a partida usa todas.
           </p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">
+          <label for="ng-gerais-pct">Perguntas gerais na partida</label>
+        </th>
+        <td>
+          <input type="number" id="ng-gerais-pct" name="gerais_pct"
+                 value="<?php echo (int) $gerais_pct; ?>"
+                 min="0" max="<?php echo (int) Newsgame_Status::GERAIS_PCT_MAX; ?>" step="1"
+                 style="width:80px;vertical-align:middle">
+          &nbsp;%
+          <p class="description">
+            Só vale para instância com personagens: a partida tem esta parte de
+            perguntas gerais (no máximo 50%, e pelo menos 1) e o resto do
+            personagem escolhido. Sem personagens, todas as perguntas são gerais.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">
+          <label for="ng-pronto-fator">Mínimo para "Pronto"</label>
+        </th>
+        <td>
+          <input type="number" id="ng-pronto-fator" name="pronto_fator"
+                 value="<?php echo esc_attr( sprintf( '%d.%d', intdiv( $fator_decimos, 10 ), $fator_decimos % 10 ) ); ?>"
+                 min="1.6" max="5" step="0.1"
+                 style="width:80px;vertical-align:middle">
+          &nbsp;vezes
+          <p class="description">
+            Um grupo (as gerais ou um personagem) fica pronto quando tem aprovadas
+            pelo menos estas vezes o que ele põe na partida, arredondado para cima.
+            De 1,6 a 5. A meta do conjunto é a soma das metas dos grupos.
+          </p>
+          <p id="ng-receita-previa" aria-live="polite" style="margin:.5rem 0 0"></p>
         </td>
       </tr>
       <tr>

@@ -75,15 +75,79 @@
       data.push({ slug: slugify(label), label: label, description: desc });
     });
     jsonInput.value = JSON.stringify(data);
+    atualizarPrevia();
   }
 
   function slugify(str) {
-    return str.toLowerCase()
+    var slug = str.toLowerCase()
       .normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .substring(0, 80);
+    // 'geral' é o grupo das perguntas gerais: o mesmo desvio do
+    // sanitize_characters() no PHP.
+    return slug === 'geral' ? 'personagem-geral' : slug;
   }
+
+  /* ── Prévia da receita (item 58) ────────────────────────────
+     A MESMA conta de Newsgame_Status::receita(), que é quem grava a meta do
+     conjunto no save; aqui é só a prévia. O fator anda em décimos (16 = 1,6)
+     para o teto ser de conta inteira, como no PHP. */
+  var previa     = document.getElementById('ng-receita-previa');
+  var campoN     = document.getElementById('ng-round-size');
+  var campoPct   = document.getElementById('ng-gerais-pct');
+  var campoFator = document.getElementById('ng-pronto-fator');
+  var CONJUNTO_MAX = 120;
+
+  function inteiroNaFaixa(campo, min, max, padrao) {
+    var v = parseInt(campo.value, 10);
+    return Math.min(max, Math.max(min, isNaN(v) ? padrao : v));
+  }
+
+  function fatorDecimos() {
+    var v = parseFloat(String(campoFator.value).replace(',', '.'));
+    return isNaN(v) ? 16 : Math.min(50, Math.max(16, Math.round(v * 10)));
+  }
+
+  function metaDe(qtd, fator) { return Math.floor((qtd * fator + 9) / 10); }
+
+  // Slugs distintos, como o array_unique do PHP: dois personagens com o mesmo
+  // nome viram um grupo só.
+  function contarPersonagens() {
+    var vistos = {};
+    JSON.parse(jsonInput.value || '[]').forEach(function (c) { vistos[c.slug] = true; });
+    return Object.keys(vistos).length;
+  }
+
+  function textoDaReceita(n, pct, fator, nChars) {
+    if (!nChars) {
+      var m = metaDe(n, fator);
+      return { total: m, texto: 'Partida: ' + n + ' perguntas gerais. Meta: ' + m + ' gerais aprovadas.' };
+    }
+    var g  = Math.max(1, Math.floor(n * pct / 100));
+    var y  = n - g;
+    var mg = metaDe(g, fator);
+    var my = metaDe(y, fator);
+    var total = mg + nChars * my;
+    return { total: total, texto: 'Partida: ' + g + ' gerais + ' + y + ' do personagem escolhido. Metas: ' +
+      mg + ' gerais; ' + my + ' por personagem (' + nChars + ' personagem(ns)). Total a aprovar: ' + total + '.' };
+  }
+
+  function atualizarPrevia() {
+    if (!previa) { return; }
+    var r = textoDaReceita(inteiroNaFaixa(campoN, 4, 15, 10), inteiroNaFaixa(campoPct, 0, 50, 50),
+      fatorDecimos(), contarPersonagens());
+    var passou = r.total > CONJUNTO_MAX;
+    previa.textContent = r.texto + (passou
+      ? ' ⚠️ Passa de ' + CONJUNTO_MAX + ': a meta do conjunto fica em ' + CONJUNTO_MAX + '.'
+      : '');
+    previa.style.color = passou ? '#b32d2e' : '';
+  }
+
+  [campoN, campoPct, campoFator].forEach(function (campo) {
+    if (campo) { campo.addEventListener('input', atualizarPrevia); }
+  });
+  atualizarPrevia();
 
   /* ── Trava de troca de opções com perguntas existentes ────
      A condição era um `<?php if ( $review_total > 0 ) : ?>` em volta deste

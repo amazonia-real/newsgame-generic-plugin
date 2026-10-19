@@ -38,6 +38,77 @@ class Newsgame_Status {
         self::PRONTO   => 'Pronto',
     );
 
+    /* Receita da partida (item 58). Os mesmos números estão em
+       admin/js/newsgame-admin-form.js, na prévia do formulário. */
+    const GRUPO_GERAL           = 'geral';
+    const GERAIS_PCT_PADRAO     = 50;
+    const GERAIS_PCT_MAX        = 50;
+    const FATOR_DECIMOS_PADRAO  = 16;   // 1,6
+    const FATOR_DECIMOS_MIN     = 16;
+    const FATOR_DECIMOS_MAX     = 50;   // 5,0
+    const CONJUNTO_MAX          = 120;
+
+    /**
+     * Receita da partida, pura: quantas perguntas cada grupo põe numa partida e
+     * a meta de aprovadas de cada um.
+     *
+     * Sem personagens, as N perguntas são gerais e a regra dos 50% não entra.
+     * Com personagens, G = máx(1, piso(N × pct / 100)) gerais e Y = N − G de UM
+     * personagem: a partida é G gerais + Y do personagem escolhido.
+     * Meta de um grupo = teto(o que ele põe na partida × fator). O fator vem em
+     * DÉCIMOS (16 = 1,6) para a conta ser inteira: 1,6 × 5 em ponto flutuante
+     * pode dar 8,000…01, e o teto viraria 9.
+     *
+     * @param int      $n             Perguntas por partida (round_size).
+     * @param int      $gerais_pct    0 a 50.
+     * @param int      $fator_decimos 16 a 50.
+     * @param string[] $slugs         Slugs dos personagens da instância.
+     * @return array{gerais_partida:int, por_personagem:int, metas:array<string,int>, total:int}
+     */
+    public static function receita( $n, $gerais_pct, $fator_decimos, array $slugs ) {
+        $n      = (int) $n;
+        $fator  = (int) $fator_decimos;
+        $slugs  = array_values( array_unique( array_filter( array_map( 'strval', $slugs ) ) ) );
+        $gerais = $slugs ? max( 1, intdiv( $n * (int) $gerais_pct, 100 ) ) : $n;
+        $por    = $slugs ? $n - $gerais : 0;
+
+        $metas = array( self::GRUPO_GERAL => intdiv( $gerais * $fator + 9, 10 ) );
+        foreach ( $slugs as $slug ) {
+            $metas[ $slug ] = intdiv( $por * $fator + 9, 10 );
+        }
+
+        return array(
+            'gerais_partida' => $gerais,
+            'por_personagem' => $por,
+            'metas'          => $metas,
+            'total'          => array_sum( $metas ),
+        );
+    }
+
+    /**
+     * Fator gravado (DECIMAL "1.6") em décimos, limitado à faixa. Coluna ausente
+     * ou vazia cai no padrão.
+     */
+    public static function fator_decimos( $valor ) {
+        if ( null === $valor || '' === $valor ) {
+            return self::FATOR_DECIMOS_PADRAO;
+        }
+        $d = (int) round( (float) $valor * 10 );
+        return min( self::FATOR_DECIMOS_MAX, max( self::FATOR_DECIMOS_MIN, $d ) );
+    }
+
+    /** Receita de uma linha de wp_newsgame_instances. */
+    public static function receita_da_instancia( $inst ) {
+        $chars = json_decode( $inst->characters ?? '[]', true );
+        $slugs = is_array( $chars ) ? array_column( $chars, 'slug' ) : array();
+        return self::receita(
+            (int) ( $inst->round_size ?? 10 ),
+            (int) ( $inst->gerais_pct ?? self::GERAIS_PCT_PADRAO ),
+            self::fator_decimos( $inst->pronto_fator ?? null ),
+            $slugs
+        );
+    }
+
     /**
      * Perfis e eixos EXATAMENTE como o jogo os recebe.
      *

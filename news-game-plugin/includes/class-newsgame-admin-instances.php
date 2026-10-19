@@ -315,11 +315,11 @@ class Newsgame_Admin_Instances {
         $id            = (int) ( $_POST['instance_id'] ?? 0 );
         $title         = sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) );
         $theme_prompt  = sanitize_textarea_field( wp_unslash( $_POST['theme_prompt'] ?? '' ) );
-        // Meta do conjunto de aprovadas (até 120) e N de perguntas sorteadas por
-        // partida (4 a 15). O piso 4 da meta vem da regra meta >= N, conferida
-        // abaixo, depois do título.
-        $density       = min( 120, max( 4, absint( $_POST['density'] ?? 10 ) ) );
+        // N de perguntas sorteadas por partida (4 a 15) e a receita (item 58):
+        // % de gerais (0 a 50) e fator de Pronto (1,6 a 5,0, gravado com uma casa).
         $round_size    = min( 15, max( 4, absint( $_POST['round_size'] ?? 10 ) ) );
+        $gerais_pct    = min( Newsgame_Status::GERAIS_PCT_MAX, absint( $_POST['gerais_pct'] ?? Newsgame_Status::GERAIS_PCT_PADRAO ) );
+        $fator_decimos = Newsgame_Status::fator_decimos( str_replace( ',', '.', wp_unslash( $_POST['pronto_fator'] ?? '' ) ) );
         $num_options   = in_array( (int) ( $_POST['num_options'] ?? 2 ), array( 2, 3 ), true ) ? (int) $_POST['num_options'] : 2;
         $nivel_padrao  = in_array( $_POST['nivel_padrao'] ?? '', array( 'ludico', 'pedagogico', 'complexo' ), true )
                             ? sanitize_key( $_POST['nivel_padrao'] )
@@ -336,16 +336,12 @@ class Newsgame_Admin_Instances {
             exit;
         }
 
-        // Meta menor que a partida: erro, sem gravar e sem ajustar em silêncio.
-        if ( $density < $round_size ) {
-            wp_safe_redirect( add_query_arg( array(
-                'page'   => 'newsgame-instances',
-                'action' => $id ? 'edit' : 'new',
-                'id'     => $id ?: null,
-                'error'  => 'meta_menor_que_partida',
-            ), admin_url( 'admin.php' ) ) );
-            exit;
-        }
+        // A meta do conjunto deixou de ser campo (item 58): é DERIVADA, a soma das
+        // metas dos grupos, com o teto de 120 de antes. A soma nunca fica abaixo
+        // de N (fator >= 1,6), então a antiga trava "meta menor que a partida"
+        // não tem mais como disparar e saiu.
+        $receita = Newsgame_Status::receita( $round_size, $gerais_pct, $fator_decimos, array_column( $characters, 'slug' ) );
+        $density = min( Newsgame_Status::CONJUNTO_MAX, max( 4, $receita['total'] ) );
 
         $slug = self::unique_slug( $title, $id );
 
@@ -366,8 +362,10 @@ class Newsgame_Admin_Instances {
             'num_options'   => $num_options,
             'nivel_padrao'  => $nivel_padrao,
             'characters'    => wp_json_encode( $characters, JSON_UNESCAPED_UNICODE ),
+            'gerais_pct'    => $gerais_pct,
+            'pronto_fator'  => sprintf( '%d.%d', intdiv( $fator_decimos, 10 ), $fator_decimos % 10 ),
         );
-        $fmt = array( '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' );
+        $fmt = array( '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s', '%d', '%s' );
 
         /*
          * A skin entra no write SÓ quando o formulário enviou o campo.
@@ -589,8 +587,14 @@ class Newsgame_Admin_Instances {
         foreach ( $raw as $c ) {
             $label = sanitize_text_field( $c['label'] ?? '' );
             if ( ! $label ) continue;
+            $slug = sanitize_key( $c['slug'] ?? '' ) ?: sanitize_key( $label );
+            // 'geral' é o grupo das perguntas gerais (item 58), e não pode ser de
+            // personagem: um "Geral" juntaria as perguntas dele com as gerais.
+            if ( Newsgame_Status::GRUPO_GERAL === $slug ) {
+                $slug = 'personagem-geral';
+            }
             $clean[] = array(
-                'slug'        => sanitize_key( $c['slug'] ?? '' ) ?: sanitize_key( $label ),
+                'slug'        => $slug,
                 'label'       => $label,
                 'description' => sanitize_textarea_field( $c['description'] ?? '' ),
             );

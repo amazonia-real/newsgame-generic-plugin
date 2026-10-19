@@ -7,7 +7,7 @@ class Newsgame_DB {
      * Versão interna do schema — incrementar aqui ao adicionar colunas.
      * Independente da versão do plugin: só muda quando o banco muda.
      */
-    const SCHEMA_VERSION = '1.7';
+    const SCHEMA_VERSION = '1.8';
 
     /* ── Ponto de entrada público ──────────────────────────── */
 
@@ -116,6 +116,23 @@ class Newsgame_DB {
                 error_log( "[Newsgame_DB] Preenchimento de round_size FALHOU: " . $wpdb->last_error );
             }
         }
+        /*
+         * Receita da partida (item 58, schema 1.8). `gerais_pct` é a fração de
+         * gerais numa partida de instância COM personagens (0 a 50); `pronto_fator`
+         * é quantas vezes o que um grupo põe na partida ele precisa ter aprovado
+         * para ficar Pronto (mínimo 1,6). A conta está em Newsgame_Status::receita().
+         * Sem preenchimento: o DEFAULT já é o valor decidido para todas.
+         */
+        self::add_column_if_missing(
+            $instances,
+            'gerais_pct',
+            "TINYINT UNSIGNED NOT NULL DEFAULT 50 COMMENT 'Gerais na partida, em % (0 a 50); so vale com personagens' AFTER `round_size`"
+        );
+        self::add_column_if_missing(
+            $instances,
+            'pronto_fator',
+            "DECIMAL(3,1) NOT NULL DEFAULT 1.6 COMMENT 'Aprovadas por grupo = teto(o que ele poe na partida x fator)' AFTER `gerais_pct`"
+        );
 
         // wp_newsgame_dilemas
         self::add_column_if_missing(
@@ -172,8 +189,10 @@ class Newsgame_DB {
             title        VARCHAR(500)    NOT NULL DEFAULT '',
             theme_prompt TEXT,
             characters    LONGTEXT        COMMENT 'JSON: lista de personagens com slug, label e queries RAG',
-            density       SMALLINT        NOT NULL DEFAULT 20 COMMENT 'Meta do conjunto de aprovadas (1 a 120)',
+            density       SMALLINT        NOT NULL DEFAULT 20 COMMENT 'Meta do conjunto: soma das metas dos grupos, ate 120',
             round_size    TINYINT UNSIGNED NOT NULL DEFAULT 10 COMMENT 'Perguntas sorteadas por partida',
+            gerais_pct    TINYINT UNSIGNED NOT NULL DEFAULT 50 COMMENT 'Gerais na partida, em % (0 a 50); so vale com personagens',
+            pronto_fator  DECIMAL(3,1)    NOT NULL DEFAULT 1.6 COMMENT 'Aprovadas por grupo = teto(o que ele poe na partida x fator)',
             num_options   TINYINT         NOT NULL DEFAULT 2 COMMENT '2 ou 3 opcoes de resposta por pergunta',
             enable_levels TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '0=nivel unico, 1=Aprendiz/Pro',
             nivel_padrao  VARCHAR(20)     NOT NULL DEFAULT 'pedagogico' COMMENT 'ludico | pedagogico | complexo',
