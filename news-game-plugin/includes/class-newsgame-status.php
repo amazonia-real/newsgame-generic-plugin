@@ -15,13 +15,12 @@ defined( 'ABSPATH' ) || exit;
  * O status NÃO bloqueia nada: o shortcode renderiza em qualquer estado (D4,
  * fechado por decisão em 05/10). Ele só informa o editor do que falta.
  *
- * Regras (decididas em 05/10; o limiar mudou em 09/10, commit 4 da etapa 1):
- *   Pronto     — eixos e perfis completos, aprovadas >= N (`round_size`, as
- *                perguntas de uma partida) e TODAS as aprovadas com peso. É o
- *                que garante uma partida inteira com veredito completo. A meta
- *                do conjunto (`density`) NÃO bloqueia o selo: quando é MAIOR
- *                que N e ainda não foi atingida, entra no "o que falta" como
- *                complemento.
+ * Regras (decididas em 05/10; o limiar mudou em 09/10 e de novo no item 58):
+ *   Pronto     — eixos e perfis completos, TODAS as aprovadas com peso, gerais
+ *                Prontas e, se a instância tem personagens, pelo menos um
+ *                personagem Pronto (grupo Pronto = aprovadas >= meta dele; ver
+ *                receita()). Personagem não Pronto entra no "o que falta" como
+ *                aviso, sem bloquear: o jogo não o mostra.
  *   Em revisão — eixos e perfis completos e há perguntas vivas (aprovadas ou
  *                pendentes), mas falta algo para Pronto.
  *   Rascunho   — o resto: sem eixos/perfis, ou sem pergunta viva.
@@ -112,22 +111,8 @@ class Newsgame_Status {
             return null;
         }
 
-        global $wpdb;
-        $linhas = $wpdb->get_results( $wpdb->prepare(
-            "SELECT character_slug AS slug,
-                    SUM(review_status = 'approved') AS aprovadas,
-                    SUM(review_status = 'pending')  AS pendentes
-               FROM {$wpdb->prefix}newsgame_dilemas
-              WHERE instance_id = %d
-              GROUP BY character_slug",
-            (int) $instance_id
-        ) );
-
-        $contagem = array();
-        foreach ( (array) $linhas as $l ) {
-            $contagem[ (string) $l->slug ] = array( (int) $l->aprovadas, (int) $l->pendentes );
-        }
-        return self::avaliar_grupos( $inst, $contagem );
+        $mapa = self::contagem_por_grupo( (int) $instance_id );
+        return self::avaliar_grupos( $inst, $mapa[ (int) $instance_id ] ?? array() );
     }
 
     /**
@@ -243,7 +228,8 @@ class Newsgame_Status {
     }
 
     /**
-     * Estado de uma instância, lendo o banco. Uma query de contagem.
+     * Estado de uma instância, lendo o banco. Duas queries de contagem: o total e
+     * a contagem por grupo.
      *
      * @return array{estado:string, rotulo:string, falta:string[]}|null Null se a instância não existe.
      */
@@ -262,23 +248,77 @@ class Newsgame_Status {
               WHERE instance_id = %d",
             (int) $instance_id
         ) );
+        $por_grupo = self::contagem_por_grupo( (int) $instance_id );
 
-        return self::avaliar( $inst, (int) ( $c->aprovadas ?? 0 ), (int) ( $c->pendentes ?? 0 ), (int) ( $c->sem_peso ?? 0 ) );
+        return self::avaliar( $inst, (int) ( $c->aprovadas ?? 0 ), (int) ( $c->pendentes ?? 0 ), (int) ( $c->sem_peso ?? 0 ), $por_grupo[ (int) $instance_id ] ?? array() );
     }
 
     /**
-     * A regra, pura: recebe a linha da instância e as três contagens.
+     * Aprovadas e pendentes por grupo (`character_slug`), de uma instância ou de
+     * TODAS (listagem): instance_id => slug => [aprovadas, pendentes]. Uma query.
+     */
+    public static function contagem_por_grupo( $instance_id = 0 ) {
+        global $wpdb;
+        $onde   = $instance_id ? $wpdb->prepare( 'WHERE instance_id = %d', (int) $instance_id ) : '';
+        $linhas = $wpdb->get_results(
+            "SELECT instance_id, character_slug AS slug,
+                    SUM(review_status = 'approved') AS aprovadas,
+                    SUM(review_status = 'pending')  AS pendentes
+               FROM {$wpdb->prefix}newsgame_dilemas
+               $onde
+              GROUP BY instance_id, character_slug"
+        );
+        $mapa = array();
+        foreach ( (array) $linhas as $l ) {
+            $mapa[ (int) $l->instance_id ][ (string) $l->slug ] = array( (int) $l->aprovadas, (int) $l->pendentes );
+        }
+        return $mapa;
+    }
+
+    /**
+     * Quais grupos estão Prontos (item 58), pura. Personagem Pronto é o que o
+     * jogo pode sortear; o selo pede as gerais Prontas e, havendo personagens,
+     * pelo menos um deles.
+     *
+     * @return array{gerais_pronto:bool, faltam_gerais:int, tem_personagens:bool, prontos:string[], nao_prontos:string[]}
+     */
+    public static function prontidao( $inst, array $contagem ) {
+        $painel = self::avaliar_grupos( $inst, $contagem );
+        $out    = array( 'gerais_pronto' => false, 'faltam_gerais' => 0, 'tem_personagens' => false, 'prontos' => array(), 'nao_prontos' => array() );
+        foreach ( $painel['grupos'] as $g ) {
+            if ( self::GRUPO_GERAL === $g['slug'] ) {
+                $out['gerais_pronto'] = $g['pronto'];
+                $out['faltam_gerais'] = $g['faltam'];
+                continue;
+            }
+            $out['tem_personagens'] = true;
+            if ( $g['pronto'] ) {
+                $out['prontos'][] = $g['slug'];
+            } else {
+                $out['nao_prontos'][] = sprintf( '%s (faltam %d)', $g['rotulo'], $g['faltam'] );
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * A regra, pura: recebe a linha da instância, as três contagens e a contagem
+     * por grupo (slug => [aprovadas, pendentes]).
      *
      * Separada de calcular() para a listagem poder passar as contagens que já
-     * agrega no get_all(), sem uma query por linha.
+     * agrega, sem uma query por linha.
+     *
+     * Pronto (item 58, rodada C): eixos e perfis completos, todas as aprovadas
+     * com peso, gerais Prontas e, se a instância tem personagens, pelo menos um
+     * personagem Pronto. Continua NÃO bloqueando nada (05/10).
      *
      * @return array{estado:string, rotulo:string, falta:string[]}
      */
-    public static function avaliar( $inst, $aprovadas, $pendentes, $sem_peso ) {
-        $partida = (int) ( $inst->round_size ?? 10 );
-        $meta    = (int) $inst->density;
+    public static function avaliar( $inst, $aprovadas, $pendentes, $sem_peso, array $contagem ) {
         $matriz  = self::matriz_completa( self::matriz_do_jogo( $inst->axis_matrix ?? '' ) );
         $vivas   = $aprovadas + $pendentes;
+        $pr      = self::prontidao( $inst, $contagem );
+        $grupos  = $pr['gerais_pronto'] && ( ! $pr['tem_personagens'] || $pr['prontos'] );
 
         $falta = array();
         if ( ! $matriz ) {
@@ -286,19 +326,14 @@ class Newsgame_Status {
         }
         if ( 0 === $vivas ) {
             $falta[] = 'nenhuma pergunta gerada';
-        } elseif ( $aprovadas < $partida ) {
-            $falta[] = sprintf( 'faltam %d aprovada(s) para as %d perguntas da partida', $partida - $aprovadas, $partida );
+        } else {
+            $falta = array_merge( $falta, self::falta_dos_grupos( $pr ) );
         }
         if ( $sem_peso > 0 ) {
             $falta[] = sprintf( '%d aprovada(s) sem peso', $sem_peso );
         }
-        // Complemento: não bloqueia o selo, e só aparece com meta > N. Com meta = N o
-        // item da partida já diz o mesmo; com meta < N (legado) ele também cobre.
-        if ( $meta > $partida && $aprovadas < $meta ) {
-            $falta[] = sprintf( 'para completar a meta do conjunto: faltam %d de %d aprovadas', $meta - $aprovadas, $meta );
-        }
 
-        if ( $matriz && $aprovadas >= $partida && 0 === $sem_peso ) {
+        if ( $matriz && $grupos && 0 === $sem_peso ) {
             $estado = self::PRONTO;
         } elseif ( $matriz && $vivas > 0 ) {
             $estado = self::REVISAO;
@@ -311,5 +346,22 @@ class Newsgame_Status {
             'rotulo' => self::ROTULOS[ $estado ],
             'falta'  => $falta,
         );
+    }
+
+    /**
+     * Itens do "o que falta" que vêm dos grupos. Personagem não Pronto com outro
+     * já Pronto não bloqueia o selo, mas entra como aviso: ele fica fora do jogo.
+     */
+    private static function falta_dos_grupos( array $pr ) {
+        $falta = array();
+        if ( ! $pr['gerais_pronto'] ) {
+            $falta[] = sprintf( 'gerais: faltam %d aprovada(s)', $pr['faltam_gerais'] );
+        }
+        if ( $pr['tem_personagens'] && ! $pr['prontos'] ) {
+            $falta[] = 'nenhum personagem pronto: ' . implode( ', ', $pr['nao_prontos'] );
+        } elseif ( $pr['nao_prontos'] ) {
+            $falta[] = 'fora do jogo até ficarem prontos: ' . implode( ', ', $pr['nao_prontos'] );
+        }
+        return $falta;
     }
 }

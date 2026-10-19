@@ -50,13 +50,18 @@ $status_colors = array(
         </tr>
       </thead>
       <tbody>
-        <?php foreach ( $instances as $inst ) :
+        <?php
+        // Contagem por grupo de TODAS as instâncias numa query só (item 58): o
+        // selo depende dos grupos, e uma query por linha seria o N+1 que o
+        // get_all() já evita para as outras contagens.
+        $por_grupo = Newsgame_Status::contagem_por_grupo();
+        foreach ( $instances as $inst ) :
           $edit_url   = add_query_arg( array( 'page' => 'newsgame-instances', 'action' => 'edit', 'id' => $inst->id ), admin_url( 'admin.php' ) );
           $delete_url = wp_nonce_url(
             add_query_arg( array( 'action' => 'newsgame_delete_instance', 'id' => $inst->id ), admin_url( 'admin-post.php' ) ),
             "newsgame_delete_{$inst->id}"
           );
-          $st    = Newsgame_Status::avaliar( $inst, (int) $inst->aprovadas, (int) $inst->pendentes, (int) $inst->sem_peso );
+          $st    = Newsgame_Status::avaliar( $inst, (int) $inst->aprovadas, (int) $inst->pendentes, (int) $inst->sem_peso, $por_grupo[ (int) $inst->id ] ?? array() );
           $color = $status_colors[ $st['estado'] ];
           $chars = json_decode( $inst->characters ?? '[]', true );
           $chars_preview = $chars ? implode( ', ', array_column( $chars, 'label' ) ) : '—';
