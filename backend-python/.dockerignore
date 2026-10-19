@@ -1,0 +1,12 @@
+# Nada de segredo, ambiente local ou dado no contexto de build da imagem.
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.pyc
+data/
+chroma_db/
+tests/
+*.log

@@ -1,0 +1,8 @@
+# Reverse proxy do backend do News Game, com HTTPS automático (Let's Encrypt).
+# O domínio vem da variável NEWSGAME_DOMINIO do .env — ele precisa apontar para
+# este servidor (registro DNS A/AAAA), e as portas 80 e 443 precisam estar
+# abertas, para o Caddy emitir e renovar o certificado sozinho.
+{$NEWSGAME_DOMINIO} {
+	encode zstd gzip
+	reverse_proxy backend:8000
+}

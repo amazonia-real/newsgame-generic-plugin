@@ -1,0 +1,56 @@
+# News Game — backend em produção: o backend (FastAPI/uvicorn) e o Caddy
+# (HTTPS automático). No servidor, esta pasta fica ao lado do código do
+# backend:
+#
+#   /opt/newsgame/
+#     docker-compose.yml   ← este arquivo
+#     Caddyfile
+#     .env                 ← criado a partir do .env.example; permissão 600
+#     backend-python/      ← código do backend (app/, requirements.txt, Dockerfile)
+#
+# A ÚNICA porta exposta ao mundo é a do Caddy (80 e 443). O backend escuta na
+# 8000 só dentro da rede do compose — não há `ports:` nele, de propósito.
+
+services:
+  backend:
+    build:
+      context: ./backend-python
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CHROMA_DB_DIR: /data/chroma_db
+    volumes:
+      - chroma:/data
+    expose:
+      - "8000"
+    networks:
+      - interna
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      NEWSGAME_DOMINIO: ${NEWSGAME_DOMINIO:?defina NEWSGAME_DOMINIO no .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - interna
+
+volumes:
+  # Índice vetorial (ChromaDB) do acervo: é o dado do backend. Fazer backup.
+  chroma:
+  # Certificados e chaves do HTTPS emitidos pelo Caddy: persistem ao reiniciar.
+  caddy_data:
+  caddy_config:
+
+networks:
+  interna:
