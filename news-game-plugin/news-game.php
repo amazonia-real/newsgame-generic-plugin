@@ -3,14 +3,16 @@
  * Plugin Name:  News-Game
  * Plugin URI:   https://github.com/amazonia-real/news-game
  * Description:  Motor de dilemas jornalísticos gamificados. Shortcode: [news-game id="X"]
- * Version:      1.0.1
+ * Version:      1.1.0
+ * Requires at least: 6.0
+ * Requires PHP: 8.0
  * Author:       Eduardo Nunomura
  * License:      GPL-2.0-or-later
- * Text Domain:  news-game
+ * Text Domain:  news-game-plugin
  */
 defined( 'ABSPATH' ) || exit;
 
-define( 'NEWSGAME_VERSION', '1.0.1' ); // Bump: hardening de segurança (esc nos eixos do radar, safeUrl nos hrefs)
+define( 'NEWSGAME_VERSION', '1.1.0' ); // Versão do plugin: só o ?ver= dos arquivos do admin. A migração do banco usa Newsgame_DB::SCHEMA_VERSION.
 define( 'NEWSGAME_DIR',     plugin_dir_path( __FILE__ ) );
 define( 'NEWSGAME_URL',     plugin_dir_url( __FILE__ ) );
 
