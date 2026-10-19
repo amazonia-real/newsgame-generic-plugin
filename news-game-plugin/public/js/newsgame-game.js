@@ -749,7 +749,33 @@
       montarTelaCheia();
       aplicarFundo(null);
       inner.innerHTML = buildCapa(data.capa);
+      inner.querySelector('.ng-btn-cta').addEventListener('click', data.regras ? renderRegras : iniciarPartida);
+    }
+
+    /* ── Tela Regras (H3, rodada A) ──
+       Só existe quando a instância tem texto de regras: entre a capa e a
+       primeira pergunta, uma vez por carregamento ("Jogar novamente" vai direto
+       à pergunta 1). Texto simples, escapado; cada linha vira um parágrafo. É a
+       etapa obrigatória do JDA (o modal "Regras do jogo" em gate-mode), aqui
+       como tela, no mesmo fluxo da capa. O foco vai para o título: o botão
+       clicado saiu da página, e o leitor de tela anuncia a tela nova. */
+    function renderRegras() {
+      limparTimers();
+      montarTelaCheia();
+      aplicarFundo(null);
+      var paragrafos = String(data.regras).split(/\r?\n/)
+        .map(function (l) { return l.trim(); })
+        .filter(Boolean);
+      inner.innerHTML =
+        '<div class="ng-screen ng-regras">' +
+          '<h2 tabindex="-1">Regras do jogo</h2>' +
+          '<div class="ng-card ng-regras-texto">' +
+            paragrafos.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') +
+          '</div>' +
+          '<button class="ng-btn-cta">Entendi, vamos jogar ›</button>' +
+        '</div>';
       inner.querySelector('.ng-btn-cta').addEventListener('click', iniciarPartida);
+      inner.querySelector('.ng-regras h2').focus();
     }
 
     /* Capa (H3, rodada A). Sem `data.capa` — nenhum campo preenchido —, o HTML é

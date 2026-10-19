@@ -1042,6 +1042,28 @@
   width:      auto;
 }
 
+/* ── Tela Regras (H3, rodada A) ─────────────────────────
+   O texto mora num `.ng-card`, a caixa da pergunta: legível sobre qualquer
+   cena, com o fundo, a borda e a tinta que cada skin já dá ao cartão — sem
+   regra de skin nova. O título fica sobre a cena, como o da capa. */
+.ng-regras-texto {
+  max-width:  34em;
+  margin:     0 auto 2rem;
+  text-align: left;
+}
+
+.ng-screen .ng-regras-texto p {
+  color:     var(--ng-text) !important;
+  font-size: var(--ng-fs-option);
+  font-weight: var(--ng-peso-leitura);
+  margin:    0 0 0.75rem;
+}
+
+.ng-screen .ng-regras-texto p:last-child { margin-bottom: 0; }
+
+/* Alvo de foco programático (tabindex="-1"), não controle: sem anel. */
+.ng-regras h2:focus { outline: none; }
+
 .ng-btn-cta {
   background:      var(--ng-primary);
   border:          none;
