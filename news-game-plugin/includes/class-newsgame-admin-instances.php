@@ -392,6 +392,14 @@ class Newsgame_Admin_Instances {
             $fmt[]         = is_int( $valor ) ? '%d' : '%s';
         }
 
+        // Interruptor da tela de personagem (H3, rodada B). O formulário manda um
+        // oculto "0" antes do checkbox, então desmarcado também chega; ausente do
+        // POST (outro formulário, POST forjado) não entra no write.
+        if ( isset( $_POST['escolher_personagem'] ) ) {
+            $row['escolher_personagem'] = '1' === (string) wp_unslash( $_POST['escolher_personagem'] ) ? 1 : 0;
+            $fmt[]                      = '%d';
+        }
+
         /*
          * Retorno conferido nos dois ramos — C13. Antes, escrita falhada
          * redirecionava com `saved=1` e a listagem dizia "Instância salva com
@@ -634,9 +642,12 @@ class Newsgame_Admin_Instances {
                 $slug = 'personagem-geral';
             }
             $clean[] = array(
-                'slug'        => $slug,
-                'label'       => $label,
-                'description' => sanitize_textarea_field( $c['description'] ?? '' ),
+                'slug'         => $slug,
+                'label'        => $label,
+                'description'  => sanitize_textarea_field( $c['description'] ?? '' ),
+                // Para o JOGADOR (H3, rodada B); a descrição acima é só da IA e
+                // nunca vai ao JSON do jogo.
+                'apresentacao' => mb_substr( sanitize_text_field( $c['apresentacao'] ?? '' ), 0, 200 ),
             );
         }
         return $clean;

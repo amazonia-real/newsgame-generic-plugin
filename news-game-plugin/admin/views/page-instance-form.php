@@ -666,7 +666,13 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     </details>
 
     <!-- ── Personagens ───────────────────────────────────── -->
-    <h2 class="ng-section-title">Personagens do Jogo</h2>
+    <?php
+    // Recolhida por padrão, como "Capa e regras"; abre sozinha com personagem ou
+    // com o interruptor ligado. Fechar não tira os campos do POST.
+    $escolher_personagem = $is_edit && ! empty( $inst->escolher_personagem );
+    ?>
+    <details class="ng-capa-secao ng-personagens-secao"<?php echo ( $chars || $escolher_personagem ) ? ' open' : ''; ?>>
+    <summary><h2 class="ng-section-title">Personagens (opcional)</h2></summary>
     <p class="description" style="margin-bottom:0.75rem">
       Defina quem são as personas desta instância. Cada personagem representa um
       ponto de vista nas perguntas geradas pela IA.<br>
@@ -680,6 +686,18 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
     <button type="button" id="ng-add-char" class="button button-secondary">
       + Adicionar Personagem
     </button>
+
+    <p style="margin:1rem 0 0">
+      <input type="hidden" name="escolher_personagem" value="0">
+      <label>
+        <input type="checkbox" name="escolher_personagem" value="1"<?php checked( $escolher_personagem ); ?>>
+        Perguntar ao jogador qual personagem quer ser
+      </label>
+    </p>
+    <p class="description">
+      Desligado, o jogo sorteia um personagem pronto a cada partida. Ligado, mostra
+      uma tela de escolha quando há pelo menos 2 personagens prontos.
+    </p>
 
     <!-- JSON serializado dos personagens — lido pelo PHP no submit -->
     <input type="hidden" id="ng-chars-json" name="characters_json"
@@ -699,6 +717,10 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
           <input type="text" class="ng-char-desc widefat"
                  placeholder="Ex: Representa a perspectiva artística e a visão de quem concebe o espetáculo"
                  aria-label="Descrição para a IA">
+          <label style="margin-top:6px">Apresentação (para o jogador, opcional)</label>
+          <input type="text" class="ng-char-apresentacao widefat" maxlength="200"
+                 placeholder="Ex: Você decide o que vai para o palco"
+                 aria-label="Apresentação para o jogador">
         </div>
         <div class="ng-col-rm">
           <button type="button" class="ng-rm button" style="color:#c00;border-color:#c00"
@@ -706,6 +728,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
         </div>
       </div>
     </template>
+    </details>
 
     <!-- ── Ações ─────────────────────────────────────────── -->
     <div id="ng-sticky-actions">

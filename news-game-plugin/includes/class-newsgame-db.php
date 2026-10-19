@@ -7,7 +7,7 @@ class Newsgame_DB {
      * Versão interna do schema — incrementar aqui ao adicionar colunas.
      * Independente da versão do plugin: só muda quando o banco muda.
      */
-    const SCHEMA_VERSION = '1.9';
+    const SCHEMA_VERSION = '1.10';
 
     /* ── Ponto de entrada público ──────────────────────────── */
 
@@ -154,6 +154,17 @@ class Newsgame_DB {
             self::add_column_if_missing( $instances, $coluna, "$definicao AFTER `$depois`" );
             $depois = $coluna;
         }
+        /*
+         * Interruptor da tela de personagem (H3, rodada B, schema 1.10). Desligado
+         * por padrão: o jogo sorteia o personagem entre os Prontos, como antes. A
+         * apresentação de cada personagem NÃO tem coluna: mora no JSON de
+         * `characters`, ao lado do nome e da descrição para a IA.
+         */
+        self::add_column_if_missing(
+            $instances,
+            'escolher_personagem',
+            "TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = o jogador escolhe o personagem numa tela' AFTER `apoio_url`"
+        );
 
         // wp_newsgame_dilemas
         self::add_column_if_missing(
@@ -221,6 +232,7 @@ class Newsgame_DB {
             logo_id         BIGINT UNSIGNED NULL COMMENT 'Anexo do WP: logo do apoio',
             apoio_texto     VARCHAR(200)    NOT NULL DEFAULT '' COMMENT 'Texto curto do apoio; alt do logo',
             apoio_url       VARCHAR(2048)   NOT NULL DEFAULT '' COMMENT 'Link opcional do apoio',
+            escolher_personagem TINYINT(1)  NOT NULL DEFAULT 0 COMMENT '1 = o jogador escolhe o personagem numa tela',
             num_options   TINYINT         NOT NULL DEFAULT 2 COMMENT '2 ou 3 opcoes de resposta por pergunta',
             enable_levels TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '0=nivel unico, 1=Aprendiz/Pro',
             nivel_padrao  VARCHAR(20)     NOT NULL DEFAULT 'pedagogico' COMMENT 'ludico | pedagogico | complexo',

@@ -39,16 +39,17 @@
   /* ── Builder de personagens ─────────────────────────────── */
   // Hidrata personagens existentes (edição)
   var initial = cfg.characters || [];
-  initial.forEach(function (c) { addRow(c.label, c.description); });
+  initial.forEach(function (c) { addRow(c.label, c.description, c.apresentacao); });
 
-  addBtn.addEventListener('click', function () { addRow('', ''); });
+  addBtn.addEventListener('click', function () { addRow('', '', ''); });
 
-  function addRow(label, desc) {
+  function addRow(label, desc, apresentacao) {
     var clone = tpl.content.cloneNode(true);
     var row   = clone.querySelector('.ng-char-row');
 
-    row.querySelector('.ng-char-label').value = label || '';
-    row.querySelector('.ng-char-desc').value  = desc  || '';
+    row.querySelector('.ng-char-label').value        = label || '';
+    row.querySelector('.ng-char-desc').value         = desc  || '';
+    row.querySelector('.ng-char-apresentacao').value = apresentacao || '';
 
     row.querySelector('.ng-rm').addEventListener('click', function () {
       row.remove();
@@ -71,8 +72,9 @@
     rows.forEach(function (row) {
       var label = row.querySelector('.ng-char-label').value.trim();
       var desc  = row.querySelector('.ng-char-desc').value.trim();
+      var apres = row.querySelector('.ng-char-apresentacao').value.trim();
       if (!label) return;
-      data.push({ slug: slugify(label), label: label, description: desc });
+      data.push({ slug: slugify(label), label: label, description: desc, apresentacao: apres });
     });
     jsonInput.value = JSON.stringify(data);
     atualizarPrevia();
