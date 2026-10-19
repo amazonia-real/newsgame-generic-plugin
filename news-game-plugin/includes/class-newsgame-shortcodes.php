@@ -68,6 +68,41 @@ class Newsgame_Shortcodes {
     }
 
     /**
+     * Campos da capa para o JSON do jogo (H3, rodada A), só os preenchidos.
+     * Imagens resolvidas para URL aqui, como no image_payload(): anexo apagado
+     * some do payload. Devolve null quando nada está preenchido.
+     */
+    private static function capa_payload( $instance ) {
+        $capa = array_filter( array(
+            'titulo'     => trim( (string) ( $instance->capa_titulo ?? '' ) ),
+            'linha_fina' => trim( (string) ( $instance->capa_linha_fina ?? '' ) ),
+        ), 'strlen' );
+
+        $foto = (int) ( $instance->capa_imagem_id ?? 0 );
+        $url  = $foto ? wp_get_attachment_image_url( $foto, self::BG_SIZE ) : '';
+        if ( $url ) {
+            $capa['foto'] = esc_url_raw( $url );
+        }
+
+        // O apoio existe com o texto OU o logo; o link só o acompanha. O jogo
+        // usa o texto como alt do logo (sem texto, um alt padrão).
+        $apoio    = array_filter( array(
+            'texto' => trim( (string) ( $instance->apoio_texto ?? '' ) ),
+            'url'   => esc_url_raw( (string) ( $instance->apoio_url ?? '' ), array( 'http', 'https' ) ),
+        ), 'strlen' );
+        $logo     = (int) ( $instance->logo_id ?? 0 );
+        $logo_url = $logo ? wp_get_attachment_image_url( $logo, 'medium' ) : '';
+        if ( $logo_url ) {
+            $apoio['logo'] = esc_url_raw( $logo_url );
+        }
+        if ( isset( $apoio['texto'] ) || isset( $apoio['logo'] ) ) {
+            $capa['apoio'] = $apoio;
+        }
+
+        return $capa ?: null;
+    }
+
+    /**
      * Enfileira CSS e JS do jogador no `wp_enqueue_scripts` — e não de dentro do
      * shortcode, que era A CAUSA RAIZ do FOUC corrigido em 2026-08-29.
      *
@@ -343,16 +378,28 @@ class Newsgame_Shortcodes {
          */
         $skin = Newsgame_Admin_Instances::sanitize_skin( $instance->skin ?? '' );
 
+        $dados = array(
+            'title'               => $instance->title,
+            'dilemas'             => $dilemas,
+            'num_options'         => (int) ( $instance->num_options   ?? 2 ),
+            'round_size'          => (int) ( $instance->round_size    ?? 10 ),
+            'receita'             => $partida['receita'],
+            'perfis'              => $matriz['perfis'],
+            'eixos'               => $matriz['eixos'],
+        );
+        // Capa e regras (H3, rodada A): as chaves só entram quando há algo
+        // preenchido, para o JSON das instâncias sem esses campos não mudar.
+        $capa = self::capa_payload( $instance );
+        if ( $capa ) {
+            $dados['capa'] = $capa;
+        }
+        $regras = trim( (string) ( $instance->regras ?? '' ) );
+        if ( '' !== $regras ) {
+            $dados['regras'] = $regras;
+        }
+
         $json = wp_json_encode(
-            array(
-                'title'               => $instance->title,
-                'dilemas'             => $dilemas,
-                'num_options'         => (int) ( $instance->num_options   ?? 2 ),
-                'round_size'          => (int) ( $instance->round_size    ?? 10 ),
-                'receita'             => $partida['receita'],
-                'perfis'              => $matriz['perfis'],
-                'eixos'               => $matriz['eixos'],
-            ),
+            $dados,
             JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
         );
 

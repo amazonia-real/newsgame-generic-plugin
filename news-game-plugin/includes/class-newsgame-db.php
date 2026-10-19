@@ -7,7 +7,7 @@ class Newsgame_DB {
      * Versão interna do schema — incrementar aqui ao adicionar colunas.
      * Independente da versão do plugin: só muda quando o banco muda.
      */
-    const SCHEMA_VERSION = '1.8';
+    const SCHEMA_VERSION = '1.9';
 
     /* ── Ponto de entrada público ──────────────────────────── */
 
@@ -133,6 +133,27 @@ class Newsgame_DB {
             'pronto_fator',
             "DECIMAL(3,1) NOT NULL DEFAULT 1.6 COMMENT 'Aprovadas por grupo = teto(o que ele poe na partida x fator)' AFTER `gerais_pct`"
         );
+        /*
+         * Capa e regras (H3, rodada A, schema 1.9). Todos opcionais: vazio (ou
+         * NULL nas imagens) = a capa de antes, sem tela de regras. As imagens são
+         * IDs de anexo da Biblioteca de Mídia, como o `image_id` do dilema; o
+         * shortcode resolve a URL na leitura. Sem preenchimento: o DEFAULT é o
+         * "vazio" para todas as linhas que já existem.
+         */
+        $capa = array(
+            'capa_titulo'     => "VARCHAR(200) NOT NULL DEFAULT '' COMMENT 'Titulo da capa; vazio = titulo da instancia'",
+            'capa_linha_fina' => "VARCHAR(300) NOT NULL DEFAULT '' COMMENT 'Linha-fina da capa'",
+            'capa_imagem_id'  => "BIGINT UNSIGNED NULL COMMENT 'Anexo do WP: foto decorativa da capa'",
+            'regras'          => "TEXT NULL COMMENT 'Texto simples da tela Regras; vazio = sem tela'",
+            'logo_id'         => "BIGINT UNSIGNED NULL COMMENT 'Anexo do WP: logo do apoio'",
+            'apoio_texto'     => "VARCHAR(200) NOT NULL DEFAULT '' COMMENT 'Texto curto do apoio; alt do logo'",
+            'apoio_url'       => "VARCHAR(2048) NOT NULL DEFAULT '' COMMENT 'Link opcional do apoio'",
+        );
+        $depois = 'pronto_fator';
+        foreach ( $capa as $coluna => $definicao ) {
+            self::add_column_if_missing( $instances, $coluna, "$definicao AFTER `$depois`" );
+            $depois = $coluna;
+        }
 
         // wp_newsgame_dilemas
         self::add_column_if_missing(
@@ -193,6 +214,13 @@ class Newsgame_DB {
             round_size    TINYINT UNSIGNED NOT NULL DEFAULT 10 COMMENT 'Perguntas sorteadas por partida',
             gerais_pct    TINYINT UNSIGNED NOT NULL DEFAULT 50 COMMENT 'Gerais na partida, em % (0 a 50); so vale com personagens',
             pronto_fator  DECIMAL(3,1)    NOT NULL DEFAULT 1.6 COMMENT 'Aprovadas por grupo = teto(o que ele poe na partida x fator)',
+            capa_titulo     VARCHAR(200)    NOT NULL DEFAULT '' COMMENT 'Titulo da capa; vazio = titulo da instancia',
+            capa_linha_fina VARCHAR(300)    NOT NULL DEFAULT '' COMMENT 'Linha-fina da capa',
+            capa_imagem_id  BIGINT UNSIGNED NULL COMMENT 'Anexo do WP: foto decorativa da capa',
+            regras          TEXT            NULL COMMENT 'Texto simples da tela Regras; vazio = sem tela',
+            logo_id         BIGINT UNSIGNED NULL COMMENT 'Anexo do WP: logo do apoio',
+            apoio_texto     VARCHAR(200)    NOT NULL DEFAULT '' COMMENT 'Texto curto do apoio; alt do logo',
+            apoio_url       VARCHAR(2048)   NOT NULL DEFAULT '' COMMENT 'Link opcional do apoio',
             num_options   TINYINT         NOT NULL DEFAULT 2 COMMENT '2 ou 3 opcoes de resposta por pergunta',
             enable_levels TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '0=nivel unico, 1=Aprendiz/Pro',
             nivel_padrao  VARCHAR(20)     NOT NULL DEFAULT 'pedagogico' COMMENT 'ludico | pedagogico | complexo',

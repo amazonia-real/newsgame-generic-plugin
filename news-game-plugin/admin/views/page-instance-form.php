@@ -82,6 +82,26 @@ $st_inst       = $is_edit ? Newsgame_Status::calcular( $id ) : null;
 $chars         = $is_edit ? (array) json_decode( $inst->characters ?? '[]', true ) : array();
 $axis_matrix   = $is_edit ? ( $inst->axis_matrix ?? '' ) : '';
 
+// Capa e regras (H3, rodada A). Todos opcionais; vazio = a capa de antes.
+$capa_campos = array(
+    'capa_titulo'     => $is_edit ? (string) ( $inst->capa_titulo ?? '' ) : '',
+    'capa_linha_fina' => $is_edit ? (string) ( $inst->capa_linha_fina ?? '' ) : '',
+    'regras'          => $is_edit ? (string) ( $inst->regras ?? '' ) : '',
+    'apoio_texto'     => $is_edit ? (string) ( $inst->apoio_texto ?? '' ) : '',
+    'apoio_url'       => $is_edit ? (string) ( $inst->apoio_url ?? '' ) : '',
+);
+// Imagem: ID e miniatura para o seletor. Anexo apagado = sem imagem na tela.
+$capa_imagens = array();
+foreach ( array( 'capa_imagem_id' => 'Foto da capa', 'logo_id' => 'Logo do apoio' ) as $campo_img => $rotulo_img ) {
+    $anexo_img = $is_edit ? (int) ( $inst->$campo_img ?? 0 ) : 0;
+    $thumb_img = $anexo_img ? wp_get_attachment_image_url( $anexo_img, 'thumbnail' ) : '';
+    $capa_imagens[ $campo_img ] = array(
+        'rotulo' => $rotulo_img,
+        'id'     => $thumb_img ? $anexo_img : 0,
+        'thumb'  => $thumb_img ?: '',
+    );
+}
+
 $form_url = add_query_arg( array( 'action' => 'newsgame_save_instance' ), admin_url( 'admin-post.php' ) );
 $list_url = add_query_arg( array( 'page' => 'newsgame-instances' ), admin_url( 'admin.php' ) );
 $page_title = $is_edit
@@ -93,6 +113,8 @@ $page_title = $is_edit
 #ng-form .form-table th    { width: 180px; padding-top: 18px; }
 #ng-form .form-table td    { padding-top: 10px; }
 .ng-section-title          { margin: 2rem 0 0.25rem; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+.ng-capa-secao > summary   { cursor: pointer; }
+.ng-capa-secao > summary .ng-section-title { display: inline-block; width: calc(100% - 1.5em); }
 /* Builder de personagens */
 #ng-chars-list             { margin: 0.75rem 0; }
 .ng-char-row               { display: flex; gap: 10px; align-items: flex-start;
@@ -553,6 +575,95 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
         </td>
       </tr>
     </table>
+
+    <!-- ── Capa e regras ─────────────────────────────────── -->
+    <?php
+    // Recolhida por padrão (<details> nativo); abre sozinha quando algum campo
+    // dela está preenchido. Recolher não tira os campos do POST: o salvamento
+    // continua recebendo todos, aberta ou fechada.
+    $capa_aberta = '' !== implode( '', $capa_campos ) || $capa_imagens['capa_imagem_id']['id'] || $capa_imagens['logo_id']['id'];
+    ?>
+    <details class="ng-capa-secao"<?php echo $capa_aberta ? ' open' : ''; ?>>
+    <summary><h2 class="ng-section-title">Capa e regras (opcional)</h2></summary>
+    <p class="description" style="margin-bottom:0.75rem">
+      Tudo opcional. Campo vazio deixa a capa como está hoje; sem texto de regras,
+      o jogo vai direto da capa para a primeira pergunta.
+    </p>
+    <table class="form-table" role="presentation">
+      <tr>
+        <th scope="row"><label for="ng-capa-titulo">Título da capa</label></th>
+        <td>
+          <input type="text" id="ng-capa-titulo" name="capa_titulo" class="regular-text"
+                 maxlength="200" value="<?php echo esc_attr( $capa_campos['capa_titulo'] ); ?>">
+          <p class="description">Vazio: a capa mostra o nome do jogo, como hoje.</p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row"><label for="ng-capa-linha-fina">Linha-fina</label></th>
+        <td>
+          <input type="text" id="ng-capa-linha-fina" name="capa_linha_fina" class="large-text"
+                 maxlength="300" value="<?php echo esc_attr( $capa_campos['capa_linha_fina'] ); ?>">
+          <p class="description">Uma frase abaixo do título.</p>
+        </td>
+      </tr>
+      <?php foreach ( $capa_imagens as $campo_img => $img ) : ?>
+      <tr>
+        <th scope="row"><?php echo esc_html( $img['rotulo'] ); ?></th>
+        <td>
+          <div class="ng-img-field ng-capa-img" data-titulo="<?php echo esc_attr( $img['rotulo'] ); ?>">
+            <input type="hidden" name="<?php echo esc_attr( $campo_img ); ?>" value="<?php echo (int) $img['id']; ?>">
+            <div class="ng-img-preview">
+              <?php if ( $img['thumb'] ) : ?>
+                <img src="<?php echo esc_url( $img['thumb'] ); ?>" alt="">
+              <?php else : ?>
+                <span class="ng-img-vazio">sem imagem</span>
+              <?php endif; ?>
+            </div>
+            <div class="ng-img-controls">
+              <button type="button" class="button ng-capa-img-escolher">Escolher imagem</button>
+              <button type="button" class="button-link ng-capa-img-remover"<?php echo $img['thumb'] ? '' : ' hidden'; ?>>Remover</button>
+            </div>
+          </div>
+          <?php
+          // Valores do CSS real do jogo (.ng-capa-foto e .ng-capa-apoio-logo), no
+          // dobro, para telas de alta densidade. O guia completo (corte, formatos,
+          // WebP, SVG) fica na documentação, e não aqui.
+          ?>
+          <p class="description">
+            <?php if ( 'capa_imagem_id' === $campo_img ) : ?>
+              Recomendado: 1600×900 px
+            <?php else : ?>
+              Recomendado: ~96 px de altura, fundo transparente
+            <?php endif; ?>
+          </p>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+      <tr>
+        <th scope="row"><label for="ng-apoio-texto">Apoio</label></th>
+        <td>
+          <input type="text" id="ng-apoio-texto" name="apoio_texto" class="regular-text"
+                 maxlength="200" value="<?php echo esc_attr( $capa_campos['apoio_texto'] ); ?>"
+                 placeholder="Ex.: Fundação Exemplo">
+          <p style="margin:.5rem 0 0">
+            <label for="ng-apoio-url">Link do apoio (opcional)</label><br>
+            <input type="url" id="ng-apoio-url" name="apoio_url" class="regular-text"
+                   value="<?php echo esc_attr( $capa_campos['apoio_url'] ); ?>" placeholder="https://">
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row"><label for="ng-regras">Regras</label></th>
+        <td>
+          <textarea id="ng-regras" name="regras" rows="5" class="large-text"><?php echo esc_textarea( $capa_campos['regras'] ); ?></textarea>
+          <p class="description">
+            Texto simples, sem formatação; cada linha vira um parágrafo. Com texto,
+            o jogo mostra a tela Regras entre a capa e a primeira pergunta.
+          </p>
+        </td>
+      </tr>
+    </table>
+    </details>
 
     <!-- ── Personagens ───────────────────────────────────── -->
     <h2 class="ng-section-title">Personagens do Jogo</h2>

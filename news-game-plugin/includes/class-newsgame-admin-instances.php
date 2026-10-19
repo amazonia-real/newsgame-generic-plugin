@@ -385,6 +385,13 @@ class Newsgame_Admin_Instances {
             $fmt[]       = '%s';
         }
 
+        // Capa e regras (H3, rodada A): mesma guarda da skin — campo ausente do
+        // POST não entra no write, para não zerar o que está gravado.
+        foreach ( self::campos_da_capa() as $campo => $valor ) {
+            $row[ $campo ] = $valor;
+            $fmt[]         = is_int( $valor ) ? '%d' : '%s';
+        }
+
         /*
          * Retorno conferido nos dois ramos — C13. Antes, escrita falhada
          * redirecionava com `saved=1` e a listagem dizia "Instância salva com
@@ -573,6 +580,40 @@ class Newsgame_Admin_Instances {
     }
 
     /* ── Helpers ────────────────────────────────────────────────── */
+
+    /**
+     * Campos da capa e das regras vindos do POST, sanitizados, SÓ os que vieram.
+     * Texto simples em todos (o jogo escapa de novo na saída); imagem só se o ID
+     * for de um anexo de imagem, senão NULL; link só http(s).
+     *
+     * @return array<string, string|int|null>
+     */
+    private static function campos_da_capa() {
+        $textos = array(
+            'capa_titulo'     => 200,
+            'capa_linha_fina' => 300,
+            'apoio_texto'     => 200,
+        );
+        $out = array();
+        foreach ( $textos as $campo => $max ) {
+            if ( isset( $_POST[ $campo ] ) ) {
+                $out[ $campo ] = mb_substr( sanitize_text_field( wp_unslash( $_POST[ $campo ] ) ), 0, $max );
+            }
+        }
+        if ( isset( $_POST['regras'] ) ) {
+            $out['regras'] = sanitize_textarea_field( wp_unslash( $_POST['regras'] ) );
+        }
+        if ( isset( $_POST['apoio_url'] ) ) {
+            $out['apoio_url'] = esc_url_raw( wp_unslash( $_POST['apoio_url'] ), array( 'http', 'https' ) );
+        }
+        foreach ( array( 'capa_imagem_id', 'logo_id' ) as $campo ) {
+            if ( isset( $_POST[ $campo ] ) ) {
+                $anexo         = absint( $_POST[ $campo ] );
+                $out[ $campo ] = $anexo && wp_attachment_is_image( $anexo ) ? $anexo : null;
+            }
+        }
+        return $out;
+    }
 
     /**
      * Valida e sanitiza o JSON de personagens vindo do hidden input.

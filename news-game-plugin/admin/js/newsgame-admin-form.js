@@ -149,6 +149,53 @@
   });
   atualizarPrevia();
 
+  /* ── Foto da capa e logo do apoio (H3, rodada A) ──────────
+     Mesmo seletor nativo da imagem do dilema na Mesa (newsgame-admin-review.js):
+     um frame por campo, reaproveitado. O formulário grava só o ID do anexo no
+     campo oculto; o jogo resolve a URL na leitura. */
+  function pintarCapaImg(campo, id, thumb) {
+    var preview = campo.querySelector('.ng-img-preview');
+    campo.querySelector('input[type="hidden"]').value = id ? String(id) : '0';
+    preview.textContent = '';
+    if (id && thumb) {
+      var img = document.createElement('img');
+      img.src = thumb;
+      img.alt = '';
+      preview.appendChild(img);
+    } else {
+      var vazio = document.createElement('span');
+      vazio.className = 'ng-img-vazio';
+      vazio.textContent = 'sem imagem';
+      preview.appendChild(vazio);
+    }
+    campo.querySelector('.ng-capa-img-remover').hidden = !id;
+  }
+
+  function abrirSeletorCapa(campo) {
+    if (typeof wp === 'undefined' || !wp.media) {
+      window.alert('O seletor de mídia do WordPress não carregou nesta tela. Recarregue a página.');
+      return;
+    }
+    if (!campo.ngFrame) {
+      campo.ngFrame = wp.media({
+        title:    campo.dataset.titulo,
+        button:   { text: 'Usar esta imagem' },
+        library:  { type: 'image' },
+        multiple: false,
+      });
+      campo.ngFrame.on('select', function () {
+        var att = campo.ngFrame.state().get('selection').first().toJSON();
+        pintarCapaImg(campo, att.id, (att.sizes && att.sizes.thumbnail && att.sizes.thumbnail.url) || att.url || '');
+      });
+    }
+    campo.ngFrame.open();
+  }
+
+  document.querySelectorAll('.ng-capa-img').forEach(function (campo) {
+    campo.querySelector('.ng-capa-img-escolher').addEventListener('click', function () { abrirSeletorCapa(campo); });
+    campo.querySelector('.ng-capa-img-remover').addEventListener('click', function () { pintarCapaImg(campo, 0, ''); });
+  });
+
   /* ── Trava de troca de opções com perguntas existentes ────
      A condição era um `<?php if ( $review_total > 0 ) : ?>` em volta deste
      trecho, na view. Virou condicional de JS sobre o mesmo número, agora vindo
