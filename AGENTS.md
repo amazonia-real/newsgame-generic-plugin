@@ -239,3 +239,52 @@ rotas `/analyze-domain`, `/assign-weights` e `/generate-verdict`:
 (ver `CLAUDE.md` §5).
 
 Detalhe histórico das decisões acima: `TECH_FLAGS.md` FLAGS 003 e 005.
+
+### 8.1 Complemento — provedor, limite de uso, TLS e veredito
+
+> Acrescentado para fechar o item C3 do `ROADMAP_OPEN_SOURCE.md`. O texto acima
+> fica como estava; onde ele envelheceu, a correção está aqui.
+
+**Resolução da chave, com quatro provedores.** O parágrafo acima descreve só a
+chave do Gemini e três rotas. Hoje o provedor é escolhido no painel
+(`newsgame_llm_provider`) e viaja **só em cabeçalho**, `X-LLM-Provider`; o plugin
+manda junto **um** cabeçalho de chave, o do provedor ativo
+(`Newsgame_Settings::provider_headers()`). No backend, `_resolve_api_key()` aplica a
+mesma ordem a qualquer provedor — cabeçalho > corpo > `.env` — nas cinco rotas que
+usam LLM: `/generate-one`, `/regenerate`, `/analyze-domain`, `/assign-weights` e
+`/generate-verdict`. Chave vazia no cabeçalho conta como degrau não preenchido. Sem
+chave em nenhum degrau, a rota responde 401.
+
+**Limite de uso por editor (FLAG 004 · A1).** O throttle do A1 original, que ficava
+no veredito, **não existe mais**: saiu quando o veredito passou para o navegador. O
+limite atual protege a **cota da chave do provedor** contra erro operacional (clique
+repetido, laço de JS), não contra ataque externo — as rotas já exigem administrador
+autenticado atrás do proxy PHP. É `Newsgame_Settings::rate_limited( $bucket,
+$limite_por_minuto )`: janela fixa de um minuto, contador **por usuário** (não por
+IP), incrementado de forma atômica em `wp_options`.
+
+| Ação (bucket) | Limite por minuto |
+|---|---|
+| `analyze_domain` | 10 |
+| `assign_weights` | 10 |
+| `regenerate` | 10 |
+| `generate_one` | 60 |
+
+Limites conhecidos: a janela fixa permite rajada de até 2× na virada do minuto, e
+uma falha de escrita no contador deixa a trava sem contar (com aviso no admin, C14).
+
+**Política de TLS (FLAG 003 · C4).** Todas as chamadas do plugin ao backend
+(`wp_remote_post`) e a leitura da REST API na sincronização do acervo
+(`wp_remote_get`) verificam o certificado. A verificação só é desligada em
+desenvolvimento local, quando `WP_DEBUG` está ligado **e** a URL contém
+`localhost`. Chamada nova ao backend deve repetir a mesma condição — nunca
+`sslverify => false` fixo.
+
+**Veredito do jogador: o cálculo é local, no JS.** A rota `/generate-verdict`
+existe no backend, mas **não tem chamador no plugin**. Em produção, o veredito é
+calculado em `public/js/newsgame-game.js`: os pesos (`axis_weights`) das
+alternativas escolhidas são somados e normalizados, e o perfil é o mais próximo
+desse vetor por distância euclidiana, entre os perfis da matriz de eixos da
+instância. Não há chamada de IA nem requisição ao servidor durante a partida, e
+por isso não há limite de uso nem cache no veredito. Sem perfis, eixos ou pesos, o
+jogo cai no fim genérico (`renderEndGenerico`).

@@ -44,6 +44,19 @@ chave no cabeçalho `X-Api-Key`.
 - Dados persistentes ficam em **volumes do Docker**: `chroma` (o índice do
   acervo) e `caddy_data`/`caddy_config` (certificados).
 
+## O que vale em qualquer instalação
+
+Com Docker (este roteiro) ou sem ele (a [alternativa](#alternativa-sem-docker-uvicorn--systemd--não-provada)),
+cinco regras não mudam:
+
+| Ponto | Regra | Onde está no roteiro com Docker |
+|---|---|---|
+| **uvicorn** | UM worker e **sem `--reload`**. O `--reload` reinicia o servidor a cada mudança de arquivo e derruba requisições em andamento; no Windows, ele ainda aceita dois servidores na mesma porta sem erro (FLAG 013 em `TECH_FLAGS.md`) | `CMD` do `backend-python/Dockerfile` |
+| **HTTPS** | O plugin fala com o backend pela internet: use `https://` na **URL do Backend** do painel. O plugin só desliga a verificação do certificado com `WP_DEBUG` ligado **e** URL contendo `localhost`; em qualquer outro caso, certificado inválido é erro | Caddy, com certificado automático (Let's Encrypt) |
+| **Porta** | O backend escuta na **8000**, e ela **não** é aberta para a internet. Só o proxy HTTPS (80 e 443) fica exposto | `expose: 8000` sem `ports:` no `docker-compose.yml` |
+| **Token** | `API_SECRET_TOKEN` é obrigatório. O plugin o manda no cabeçalho `X-Api-Key` (campo **Token do Backend** no painel); valor diferente dá **401** `Invalid API key`, valor vazio no servidor dá **503**. Só `GET /health` responde sem ele | passo 7 |
+| **`.env`** | Segredos só no `.env` do servidor, com permissão **600**, nunca no repositório. Use só nomes de variável que existam em `backend-python/app/config.py`: lido como **arquivo** pelo backend (caso da alternativa sem Docker), um nome desconhecido **impede o backend de subir** (`extra='forbid'`); passado como variável de ambiente (caso do Docker), ele é ignorado | passo 7 |
+
 ## Passo a passo
 
 Os comandos abaixo são executados como `root` no servidor, salvo indicação. Os
@@ -180,7 +193,7 @@ docker compose ps        # backend "healthy" e caddy "Up"
 docker compose logs caddy | grep -i "certificate obtained"
 ```
 
-O primeiro build leva alguns minutos (no ensaio, 4 min 19 s com 1 vCPU).
+O primeiro build leva alguns minutos (varia conforme o volume de posts já publicados).
 
 Depois de subir, libere o espaço temporário do build:
 
@@ -277,12 +290,110 @@ pelo painel do WordPress (reindexando o acervo), mas leva tempo.
 - **Atenção ao firewall:** o Docker publica portas por conta própria, passando por
   cima do `ufw`. Por isso só o Caddy publica porta no compose.
 
-## Alternativa sem Docker (uvicorn + systemd)
+## Alternativa sem Docker (uvicorn + systemd) — NÃO PROVADA
 
-**Pendente.** Não foi executada nem provada neste ensaio. O caminho seria um
-ambiente virtual Python 3.11, `pip install -r requirements.txt`, uvicorn com UM
-worker e sem `--reload` como serviço do systemd escutando só em `127.0.0.1:8000`,
-e um proxy com HTTPS (Caddy ou nginx) na frente. Até ser testado, use o Docker.
+> ⚠️ **NÃO PROVADA.** Nenhum comando desta seção foi executado, nem no ensaio de
+> 18/10 nem em outro servidor. Ela transcreve para o systemd o que o `Dockerfile` e o
+> `docker-compose.yml` fazem, e por isso pode ter erro. **Até ser testada, use o
+> Docker.** Quem testar, registre o que mudou.
+
+Os passos 1 a 3 (sistema, firewall e SSH) e o 5 (swap) do roteiro valem igual. O
+passo 4 (Docker) não é necessário. O resto muda assim:
+
+**1. Python 3.11 e usuário próprio.** O backend roda como usuário sem privilégios,
+como no container (`appuser`):
+
+```bash
+apt-get -y install python3.11 python3.11-venv gcc g++ curl
+useradd --system --create-home --home-dir /opt/newsgame newsgame
+```
+
+No Ubuntu 24.04 o Python do sistema é o 3.12; o 3.11 pode exigir um repositório
+extra. O backend foi provado só com 3.11 (dentro do container).
+
+**2. Código e dependências.** Envie `backend-python/` como no passo 6 (só `app/`,
+`requirements.txt` e o `Dockerfile` como referência) para
+`/opt/newsgame/backend-python/`. Instale o PyTorch **só de CPU antes** do
+`requirements.txt`, pelo mesmo motivo do `Dockerfile` (sem isso, o `pip` traz a
+versão com CUDA, gigabytes inúteis num servidor sem GPU):
+
+```bash
+cd /opt/newsgame/backend-python
+python3.11 -m venv .venv
+.venv/bin/pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.14.1"
+.venv/bin/pip install -r requirements.txt
+mkdir -p /opt/newsgame/data/chroma_db /opt/newsgame/hf-cache
+chown -R newsgame:newsgame /opt/newsgame
+```
+
+**3. `.env` do backend.** Aqui o backend lê o `.env` **como arquivo**, a partir do
+diretório de trabalho (`backend-python/`). Parta de `backend-python/.env.example`
+(e **não** do `deploy/.env.example`, que tem `NEWSGAME_DOMINIO`, nome que o backend
+não conhece e que o impediria de subir). Preencha `API_SECRET_TOKEN` (gere com
+`openssl rand -hex 32`) e aponte o índice para uma pasta que **exista** — sem ela,
+as rotas que usam o acervo falham:
+
+```
+CHROMA_DB_DIR=/opt/newsgame/data/chroma_db
+```
+
+```bash
+chown newsgame:newsgame /opt/newsgame/backend-python/.env
+chmod 600 /opt/newsgame/backend-python/.env
+```
+
+**4. Serviço do systemd** (`/etc/systemd/system/newsgame-backend.service`). UM worker,
+sem `--reload` e escutando **só em `127.0.0.1`**: quem fala com a internet é o
+proxy.
+
+```ini
+[Unit]
+Description=News Game backend (FastAPI/uvicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=newsgame
+Group=newsgame
+WorkingDirectory=/opt/newsgame/backend-python
+Environment=HF_HOME=/opt/newsgame/hf-cache
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/newsgame/backend-python/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+systemctl daemon-reload
+systemctl enable --now newsgame-backend
+systemctl status newsgame-backend
+journalctl -u newsgame-backend -f      # logs
+curl http://127.0.0.1:8000/health      # {"status":"ok","version":"1.0.0"}
+```
+
+Na primeira requisição que usa o acervo, o modelo de embeddings é baixado para
+`HF_HOME` (no container, ele é baixado no build).
+
+**5. HTTPS com Caddy instalado no sistema.** Instale o Caddy pelo repositório
+oficial dele e use o mesmo `Caddyfile`, trocando o destino do proxy:
+
+```
+newsgame-api.seuveiculo.com.br {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8000
+}
+```
+
+**6. Conferir.** As três chamadas do passo 9 valem igual. No servidor, `ss -tulnp`
+deve mostrar a 8000 **só em `127.0.0.1`**; se aparecer em `0.0.0.0`, o `--host` do
+serviço está errado.
+
+**Atualizar:** envie o código novo, rode de novo o `pip install -r
+requirements.txt` no `.venv` e `systemctl restart newsgame-backend`. **Backup do
+índice:** pare o serviço e copie `/opt/newsgame/data/chroma_db`.
 
 ## Medido no ensaio
 
@@ -292,7 +403,7 @@ disco, Docker 29.9.1, Compose v5.6.0, Python 3.11.17 no container.
 | Medida | Antes (PyTorch com CUDA) | Agora (PyTorch só de CPU) |
 |---|---|---|
 | build + subida (primeira vez) | 7 min 50 s | **4 min 19 s** |
-| imagem do backend | 12,4 GB | **4,8 GB** |
+| imagem do backend (a imagem Docker do backend, que inclui o PyTorch, o `sentence-transformers` e o modelo de embeddings pré-baixado no build) | 12,4 GB | **4,8 GB** |
 | disco usado no servidor (depois de limpar o cache de build) | 21–23 GB | **12 GB** de 48 GB |
 | memória do backend em repouso | ~790–850 MB | **~550 MB** |
 | memória do Caddy | ~53 MB | ~12–53 MB |
@@ -307,9 +418,9 @@ Teste no ensaio: o modelo de embeddings
 (`paraphrase-multilingual-MiniLM-L12-v2`) gera vetores de 384 dimensões no CPU,
 carregando em ~2 s, com ~0,12 s para uma frase e ~0,13 s para um lote de 32.
 
-### Indexação do acervo (ensaio em WordPress real, 19/10/2026)
+### Medição de referência (servidor de 1 vCPU e 3,8 GB)
 
-Site `site-de-ensaio.example` falando com o backend deste servidor (1 vCPU, 3,8 GB):
+Indexação de um acervo real de posts, com o backend deste servidor:
 
 | Medida | Valor |
 |---|---|
@@ -320,5 +431,5 @@ Site `site-de-ensaio.example` falando com o backend deste servidor (1 vCPU, 3,8 
 | tempo por artigo | ~1,4 s |
 | tempo total | ~4 min |
 
-**Pendente:** a alternativa sem Docker (uvicorn + systemd), não executada nem
-provada.
+**Pendente:** a alternativa sem Docker (uvicorn + systemd) está escrita, mas não foi
+executada nem provada.
