@@ -175,7 +175,7 @@
      útil da placa sem fazê-la crescer — a 390 px, 128 px de SVG (triângulo de
      ~115 × 99) para ~113 px de altura útil numa placa de ~137. No desktop,
      190 px (abaixo dos ~200 do radar antigo). Rótulo e percentual: 10,5 e
-     13 px no celular (9,5 px no rótulo abaixo de 375 px); 14 e 20 px a partir
+     13 px no celular (10 px no rótulo abaixo de 375 px); 14 e 20 px a partir
      de 600 px (o radar antigo dava ~6 e ~9 px a 390 e ~15 e ~24 px a 1340). */
   --ng-radar-tri:           clamp(104px, 33vw, 128px);
   --ng-radar-fs-rotulo:     10.5px;
@@ -1319,7 +1319,7 @@
   line-height:     1.2;
   /* Caixa normal (antes: caixa alta): palavra longa em maiúsculas não cabia na
      coluna lateral do celular. Palavra nunca é partida no meio; abaixo de
-     375 px o rótulo desce para 9,5 px (ver o fim do bloco do radar). */
+     375 px o rótulo desce para 10 px (ver o fim do bloco do radar). */
   overflow-wrap:   normal;
 }
 
@@ -1350,10 +1350,16 @@
 .ng-radar-pct.is-negative { color: var(--ng-radar-negative) !important; }
 .ng-radar-pct.is-neutral  { color: var(--ng-radar-neutral) !important; }
 
-/* Rótulo do gráfico a 9,5 px nos celulares mais estreitos (360 px), em vez de
-   partir palavra longa no meio. */
+/* Rótulo do gráfico a 10 px nos celulares mais estreitos (360 px), o piso
+   pedido pelo editor (22/10; antes, 9,5 px). Para a palavra longa seguir
+   inteira na coluna lateral com 5% de letra a mais, o triângulo cede a
+   largura que falta: 31,8vw em vez de 33vw (114,5 px em vez de 118,8 a 360),
+   ~2 px a mais em cada coluna. A altura da placa cai ~4 px. */
 @media (max-width: 374px) {
-  .ng-game-wrap { --ng-radar-fs-rotulo: 9.5px; }
+  .ng-game-wrap {
+    --ng-radar-tri:       clamp(104px, 31.8vw, 128px);
+    --ng-radar-fs-rotulo: 10px;
+  }
 }
 
 /* Triângulo e rótulos do gráfico no tamanho do desktop a partir de 600 px. */
