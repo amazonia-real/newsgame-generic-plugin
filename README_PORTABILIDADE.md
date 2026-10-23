@@ -152,6 +152,9 @@ Em teste com o LiteSpeed Cache, as skins Minimal e Pixel só apareceram depois d
 data de modificação, o que resolve o cache do navegador, mas não o cache que o plugin de
 cache guarda no servidor.
 
+O cache costuma ter camadas (plugin de cache e cache do próprio servidor): depois de
+trocar a skin ou atualizar o plugin, limpe todas.
+
 ---
 
 ## 3. Sincronizar o acervo

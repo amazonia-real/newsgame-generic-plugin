@@ -6,6 +6,10 @@ a partir do acervo editorial de qualquer veículo jornalístico.
 Desenvolvido pela equipe da [Amazônia Real](https://amazoniareal.com.br),
 generalizado como ferramenta reutilizável para qualquer domínio editorial.
 
+**Versão do plugin:** 1.1.0 · **Licença:** GPL-2.0-or-later (arquivo
+`news-game-plugin/LICENSE`) · **Compatibilidade:** testado nos temas Twenty Twenty-Five
+e Newspaper.
+
 ---
 
 ## Como funciona
@@ -59,6 +63,20 @@ provedor resolvido por header próprio → campo no body → variável de ambien
 - Python 3.11+
 - [ChromaDB](https://www.trychroma.com/) (local ou containerizado)
 - Chave de API de **um** dos quatro provedores suportados — ver abaixo
+- Um servidor para o backend Python (Docker com Caddy, ou uvicorn direto) — o backend
+  **não vem no zip** do plugin
+
+Passos completos: [`README_PORTABILIDADE.md`](README_PORTABILIDADE.md) (plugin, acervo,
+primeira instância, modelo de segurança) e
+[`docs/INSTALACAO_BACKEND.md`](docs/INSTALACAO_BACKEND.md) (backend em servidor, com Docker).
+
+---
+
+## Skins
+
+O jogo tem 7 skins de fábrica, escolhidas por instância: Padrão (`default`), Mono, Pixel,
+Drama, Games, Pop Art e Minimal. Depois de trocar a skin ou atualizar o plugin, limpe
+todas as camadas de cache do site (ver `README_PORTABILIDADE.md`, §2).
 
 ---
 
@@ -133,7 +151,8 @@ Em **News-Game → Configurações**:
 - **Provedor de IA** e a **chave** do provedor escolhido.
 
 > ⚠️ **As chaves ficam em texto claro no banco do WordPress** (`wp_options`), sem
-> criptografia — ver a **FLAG 011**, que segue sem decisão. Elas aparecem no HTML da
+> criptografia — limitação aceita (**FLAG 011**), documentada em "Modelo de segurança"
+> no `README_PORTABILIDADE.md`. Elas aparecem no HTML da
 > tela de configurações (o campo é do tipo senha, mas o valor está no código-fonte da
 > página), e a chave do Gemini e o Token do Backend são carregados em todo request
 > (`autoload`). O plugin **não** oferece mitigação técnica hoje. Na operação:
@@ -263,24 +282,19 @@ ou pelo body. Preencha só a do provedor que o backend deve atender sozinho.
 
 ## Contribuição
 
-Veja `ROADMAP_OPEN_SOURCE.md` para o estado atual e próximos passos.
-Dívida técnica documentada em `TECH_FLAGS.md`.
-Decisões de arquitetura e regras de desenvolvimento em `CLAUDE.md`.
+Veja `CONTRIBUTING.md` para contribuir e `SECURITY.md` para relatar falhas de segurança.
+O estado atual e os próximos passos estão em `ROADMAP_OPEN_SOURCE.md`; a dívida técnica,
+em `TECH_FLAGS.md`; as decisões de arquitetura e as regras de desenvolvimento, em
+`CLAUDE.md`.
 
 ---
 
 *Originado no [Jogo da Amazônia](https://github.com/amazonia-real) — jornalismo interativo da maior floresta tropical do mundo.*
 
-## Uso de inteligência artificial no desenvolvimento
+## Uso de IA
 
-Este plugin foi desenvolvido por Eduardo Nunomura com o apoio de ferramentas de IA
-generativa. Pela estimativa do autor, cerca de 80% do trabalho foi feito com o Claude
-(Claude.ai e Claude Code, da Anthropic) e cerca de 20% com o Gemini (Google). As
-decisões de produto são do autor. O código escrito por IA é apresentado em diff e
-revisado antes de cada commit, e o que ainda não foi testado em execução está marcado
-como tal na documentação do projeto (`CLAUDE.md`, §10). Os primeiros commits do
-repositório trazem o trailer de coautoria do Claude Code; a partir da adoção desta
-declaração, a autoria por ferramenta é registrada aqui, e não commit a commit.
+O Jogo da Amazônia e o News Game Plugin foram inteiramente desenvolvidos pelo jornalista Eduardo Nunomura, em vibe coding com o apoio de ferramentas de IA generativa: o Claude (Claude.ai e Claude Code, da Anthropic) e o Gemini (Google). Cerca de 80% do trabalho foi feito com o Claude e 20% com o Gemini.
 
-As perguntas geradas pelo plugin passam obrigatoriamente pela Mesa Editorial, com
-revisão humana antes de ir ao ar.
+Todas as decisões de produto são do autor. O código escrito por IA é apresentado em diff e revisado antes de cada commit, e o que ainda não foi testado em execução está marcado como tal na documentação do projeto (`CLAUDE.md`, §10). A autoria por ferramenta é registrada nesta declaração, e não commit a commit.
+
+As perguntas geradas pelo plugin passam obrigatoriamente pela Mesa Editorial, com revisão humana antes de ir ao ar.
