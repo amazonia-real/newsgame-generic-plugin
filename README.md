@@ -78,6 +78,8 @@ O jogo tem 7 skins de fábrica, escolhidas por instância: Padrão (`default`), 
 Drama, Games, Pop Art e Minimal. Depois de trocar a skin ou atualizar o plugin, limpe
 todas as camadas de cache do site (ver `README_PORTABILIDADE.md`, §2).
 
+Não testado com leitor de tela real.
+
 ---
 
 ## Provedores de IA
