@@ -806,10 +806,14 @@
   width:           100%;
 }
 
-.ng-btn-option:hover:not(:disabled) {
-  background:      var(--ng-primary-hover);
-  border-color:    var(--ng-accent-contorno);
-  transform:       translateY(-2px);
+/* Hover só em aparelho com ponteiro que passa por cima: no toque, o :hover
+   fica preso na alternativa sob o dedo e parece uma "resposta certa". */
+@media (hover: hover) and (pointer: fine) {
+  .ng-btn-option:hover:not(:disabled) {
+    background:      var(--ng-primary-hover);
+    border-color:    var(--ng-accent-contorno);
+    transform:       translateY(-2px);
+  }
 }
 
 .ng-btn-option:disabled { cursor: default; }

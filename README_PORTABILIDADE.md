@@ -321,9 +321,12 @@ Tamanhos recomendados:
   WordPress o tamanho `newsgame-bg` (1600 px de largura, sem recorte). É decorativa:
   sem texto alternativo.
 - **Logo do apoio:** PNG com fundo transparente, desenho recortado sem margem, **~96 px
-  de altura**, até 300 px de largura e até 50 KB. Aparece com até 48 px de altura e
-  160 px de largura; o jogo pede o tamanho `medium` do WordPress. O texto alternativo é
-  o texto do apoio.
+  de altura**, ~320 px de largura (o dobro do tamanho de exibição) e até 50 KB. Aparece
+  com até 48 px de altura e 160 px de largura; o jogo pede o tamanho `medium` do
+  WordPress. O texto alternativo é o texto do apoio. A imagem aparece no tamanho do
+  arquivo, até 160 px de largura e 48 px de altura (o CSS só limita, com
+  `max-width: 10rem` e `max-height: 3rem`, e não amplia): um arquivo pequeno aparece
+  pequeno. Prefira um logo horizontal e largo.
 
 ---
 
