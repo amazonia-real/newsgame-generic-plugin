@@ -238,7 +238,7 @@ class Newsgame_Generator {
     public static function ajax_generate_one() {
         check_ajax_referer( self::NONCE_GENERATE, 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json( array( 'detail' => 'Permissão insuficiente.' ), 403 );
+            wp_send_json( array( 'codigo' => 'permissao', 'detail' => 'Permissão insuficiente.' ), 403 );
         }
 
         // Teto alto de propósito: o loop legítimo é sequencial, uma chamada por vez
@@ -247,17 +247,17 @@ class Newsgame_Generator {
         // por segundo — não contra uso normal.
         // O 429 já tem tratamento no JS: espera 60 s e retenta o mesmo slot.
         if ( Newsgame_Settings::rate_limited( 'generate_one', 60 ) ) {
-            wp_send_json( array( 'detail' => 'Limite de geração por minuto atingido. Aguarde e tente novamente.' ), 429 );
+            wp_send_json( array( 'codigo' => 'throttle', 'detail' => 'Limite de geração por minuto atingido. Aguarde e tente novamente.' ), 429 );
         }
 
         $backend_url = Newsgame_Settings::backend_url();
         if ( ! $backend_url ) {
-            wp_send_json( array( 'detail' => 'URL do backend não configurada em News-Game › Configurações.' ), 500 );
+            wp_send_json( array( 'codigo' => 'sem_url', 'detail' => 'URL do backend não configurada em News-Game › Configurações.' ), 500 );
         }
 
         $payload = json_decode( file_get_contents( 'php://input' ), true );
         if ( ! is_array( $payload ) ) {
-            wp_send_json( array( 'detail' => 'Payload JSON inválido.' ), 400 );
+            wp_send_json( array( 'codigo' => 'payload', 'detail' => 'Payload JSON inválido.' ), 400 );
         }
 
         /*
@@ -304,12 +304,23 @@ class Newsgame_Generator {
             )
         );
 
+        // O JS decide por `codigo`, e não pelo texto do detail. Estes dois são os
+        // que o PRÓPRIO proxy decide; o 502 do backend (recusa do provedor) não
+        // leva `codigo` e é reconhecido pelo detail, na tabela do JS.
         if ( is_wp_error( $response ) ) {
-            wp_send_json( array( 'detail' => 'Falha de conexão com o backend: ' . $response->get_error_message() ), 502 );
+            $msg    = $response->get_error_message();
+            $tempo  = false !== stripos( $msg, 'timed out' ) || false !== stripos( $msg, 'cURL error 28' );
+            $codigo = $tempo ? 'tempo_esgotado' : 'backend_inacessivel';
+            error_log( "[Newsgame] geração: {$codigo} ao chamar o /generate-one." );
+            wp_send_json( array( 'codigo' => $codigo, 'detail' => 'Falha de conexão com o backend: ' . $msg ), 502 );
         }
 
         // Body e status do Python repassados sem alteração ao browser.
         $status = (int) wp_remote_retrieve_response_code( $response );
+        if ( $status >= 400 ) {
+            // Só o status: o corpo pode citar o provedor e não vai para o log.
+            error_log( "[Newsgame] geração: o backend respondeu HTTP {$status} no /generate-one." );
+        }
         $body   = json_decode( wp_remote_retrieve_body( $response ), true );
         if ( null === $body ) {
             $body = array( 'detail' => substr( wp_remote_retrieve_body( $response ), 0, 300 ) );

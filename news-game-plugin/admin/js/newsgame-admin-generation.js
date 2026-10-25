@@ -43,12 +43,57 @@
   // (grupos prontos ou só com pendentes), e o reset tem guarda própria.
   if (!genStatus) { return; }
 
+  // A linha de progresso é lida por leitor de tela a cada mudança de texto.
+  pLabel.setAttribute('aria-live', 'polite');
+
   // Tetos do lote — decididos em 02/10. O plano gratuito do Gemini tem 20
   // requisições por DIA, então cada chamada desperdiçada é cara.
   var MAX_TENTATIVAS  = 3;  // por posição: a 1ª chamada + 2 retentativas
-  var FOLGA_CHAMADAS  = 3;  // teto global de chamadas do lote = déficit + 3
+  // Teto global de chamadas do lote = posições × MAX_TENTATIVAS: o máximo que a
+  // regra por posição já permite (antes era déficit + 3, o que cortava o lote
+  // quando várias posições precisavam de nova tentativa).
   var MAX_ESPERAS_429 = 3;  // esperas de 60 s por lote; na 4ª, o lote para
   var CHAVE_RELATORIO = 'ngGenRelatorio:' + instId;
+
+  // Espera antes da 1ª e da 2ª nova tentativa da MESMA posição (MAX_TENTATIVAS - 1).
+  var ESPERAS_RETENTATIVA_MS = [2000, 5000];
+
+  /* ── TABELA ÚNICA de textos do backend ──────────────────────────────
+     O backend responde HTTP 502 quando o provedor de IA recusa a chamada, e só
+     distingue a causa pelo texto do `detail` (generator.detail_de_provedor).
+     Estes padrões reconhecem esses textos; AJUSTAR AQUI se o backend mudar as
+     frases. Texto de 502 que não bate com nenhum também PARA a geração e mostra o
+     `detail` (falha segura). Ordem importa só onde um texto contém o outro. */
+  var PADROES_502 = [
+    { causa: 'chave',   padrao: /recusou a chave de API/i,
+      texto: 'A chave do provedor foi recusada. Confira a chave em Configurações.' },
+    { causa: 'credito', padrao: /recusou a chamada por falta de crédito/i,
+      texto: 'A conta do provedor de IA está sem crédito. Recarregue o crédito ou troque o provedor em Configurações.' },
+    { causa: 'cota',    padrao: /recusou a chamada por limite de uso/i,
+      texto: 'A cota gratuita do provedor de IA acabou. Espere (a cota diária costuma renovar de madrugada) ou troque o provedor em Configurações.' },
+    { causa: 'modelo',  padrao: /não encontrou o recurso pedido/i,
+      texto: 'O provedor não encontrou o modelo configurado no servidor do backend. Confira o modelo escolhido para o provedor.' }
+  ];
+
+  // Disjuntor: 2 posições SEGUIDAS que esgotam as tentativas por grupo errado param o
+  // lote, para não gastar a cota do provedor com um backend desatualizado.
+  var LIMITE_GRUPOS_SEGUIDOS = 2;
+  var TEXTO_DISJUNTOR = 'Duas perguntas seguidas voltaram de outro grupo. Isso quase sempre indica que o backend está desatualizado: ' +
+    "em Configurações, clique em 'Testar conexão' e atualize o backend se for o caso. " +
+    'O lote foi interrompido para não gastar a cota do provedor.';
+
+  var TEXTO_CHAVE_AUSENTE = 'A chave do provedor não está configurada. Confira a chave em Configurações.';
+  var TEXTO_TOKEN         = 'O backend recusou o Token. Confira o campo "Token do Backend" em Configurações.';
+
+  // Motivos de uma pergunta que não saiu, para o relatório agrupado.
+  var MOTIVOS = {
+    grupo:        { curto: 'veio de outro grupo', um: 'voltou de outro grupo', varios: 'voltaram de outro grupo' },
+    incompleta:   { curto: 'resposta incompleta', um: 'teve resposta incompleta', varios: 'tiveram resposta incompleta' },
+    sem_resposta: { curto: 'o backend não respondeu', um: 'ficou sem resposta do backend', varios: 'ficaram sem resposta do backend' },
+    erro_backend: { curto: 'erro do backend', um: 'teve erro do backend', varios: 'tiveram erro do backend' },
+    teto:         { curto: 'limite de chamadas', um: 'ficou de fora (limite de chamadas do lote)', varios: 'ficaram de fora (limite de chamadas do lote)' },
+    interrompida: { curto: 'geração interrompida', um: 'ficou de fora (a geração foi interrompida)', varios: 'ficaram de fora (a geração foi interrompida)' }
+  };
 
   function setBar(cur, tot) {
     var pct = tot > 0 ? Math.min(100, Math.round(cur / tot * 100)) : 0;
@@ -115,7 +160,7 @@
       alvo:         posicoes.length,
       tentativas:   {},                 // posição → chamadas que falharam
       chamadas:     0,                  // chamadas que chegaram ao provedor
-      teto:         posicoes.length + FOLGA_CHAMADAS,
+      teto:         posicoes.length * MAX_TENTATIVAS,
       esperas:      0,                  // esperas de 60 s após 429
       salvas:       0,                  // gravadas no banco, uma a uma
       naoGravadas:  0,                  // geradas e não gravadas (para o lote)
@@ -123,6 +168,8 @@
       fontes:       fontes.slice(),     // semeadas pelo servidor, crescem no lote
       falhas:       [],                 // { posicao, motivo } — vão para o relatório
       interrompido: '',                 // linha do relatório da parada antecipada, se houve
+      paradaGrave:  false,              // parada por causa que exige o editor (chave, cota…)
+      gruposSeguidos: 0,                // posições seguidas esgotadas por grupo errado (disjuntor)
       alertas:      [],                 // avisos que o relatório imprime SEMPRE (gravação ambígua)
       emCurso:      false,              // geração ou gravação esperando resposta
       timer:        null                // espera agendada até o próximo passo
@@ -138,8 +185,9 @@
       if (pos === null) { finalizarLote(st); return; }
       var feitas = st.alvo - st.fila.length;
       setBar(feitas, st.alvo);
+      var nova = st.tentativas[pos] ? ' — nova tentativa ' + (st.tentativas[pos] + 1) + ' de ' + MAX_TENTATIVAS : '';
       pLabel.textContent = 'Gerando a pergunta da posição ' + pos +
-        ' (' + (feitas + 1) + ' de ' + st.alvo + ')…';
+        ' (' + (feitas + 1) + ' de ' + st.alvo + ')' + nova + '…';
       st.emCurso = true;
       chamarPosicao(basePayload, st, pos)
         .then(function (res) {
@@ -173,8 +221,10 @@
   }
 
   // A primeira causa de parada vence: as seguintes não a sobrescrevem.
-  function interromper(st, motivo) {
-    if (!st.interrompido) { st.interrompido = 'Lote interrompido: ' + motivo; }
+  function interromper(st, motivo, grave) {
+    if (st.interrompido) { return; }
+    st.interrompido = (grave ? 'Geração interrompida: ' : 'Lote interrompido: ') + motivo;
+    st.paradaGrave  = !!grave;
   }
 
   // Próxima posição da fila, ou null quando o lote acabou. Teto de chamadas
@@ -183,7 +233,7 @@
     if (st.interrompido || !st.fila.length) { return null; }
     if (st.chamadas < st.teto) { return st.fila[0]; }
     st.fila.forEach(function (p) {
-      st.falhas.push({ posicao: p, motivo: 'teto de ' + st.teto + ' chamadas do lote atingido' });
+      st.falhas.push({ posicao: p, causa: 'teto' });
     });
     st.fila = [];
     return null;
@@ -206,36 +256,55 @@
     })
       .then(classificarResposta)
       .catch(function (e) {
-        return { tipo: 'retentavel', motivo: 'falha de rede (' + e.message + ')' };
+        // SyntaxError = resposta 200 que não é JSON; o resto é a rede do navegador.
+        return { tipo: 'retentavel', causa: e instanceof SyntaxError ? 'incompleta' : 'sem_resposta' };
       });
   }
 
   // Traduz a resposta HTTP do proxy num tipo que aplicarResultado() entende.
-  // ⚠️ 502 é RECUSA e para o lote: o backend usa 502 para chave rejeitada,
-  // crédito esgotado e cota longa, e o proxy usa 502 para backend inalcançável.
-  // Em nenhum dos quatro a próxima posição teria sorte melhor.
+  // 429 = throttle do proxy (espera 60 s). Erro com `codigo` é o que o PRÓPRIO
+  // proxy decidiu (backend_inacessivel, tempo_esgotado, sem_url…); o 502 SEM
+  // `codigo` é recusa do provedor, reconhecida pela tabela PADROES_502.
   function classificarResposta(response) {
     if (response.status === 429) { return { tipo: 'espera' }; }
-    if (response.status === 422) { return { tipo: 'retentavel', motivo: 'pergunta inválida' }; }
-    if (response.status === 502) {
-      return response.json()
-        .catch(function () { return {}; })
-        .then(function (b) {
-          return { tipo: 'recusa', motivo: (b && b.detail) || 'o provedor de IA recusou a chamada' };
-        });
+    if (response.ok) { return response.json().then(function (d) { return { tipo: 'ok', dilema: d }; }); }
+    return response.json()
+      .catch(function () { return {}; })
+      .then(function (b) { return classificarFalha(response.status, b || {}); });
+  }
+
+  function parada(texto, causa) { return { tipo: 'recusa', causa: causa, texto: texto }; }
+
+  // O 502 do backend PARA a geração, reconhecido ou não: repetir não ajudaria, e
+  // texto desconhecido mostra o `detail` (falha segura).
+  function paradaDoBackend(detail) {
+    for (var i = 0; i < PADROES_502.length; i++) {
+      if (PADROES_502[i].padrao.test(detail)) {
+        return parada(PADROES_502[i].texto + (detail ? ' Mensagem do backend: ' + detail : ''), PADROES_502[i].causa);
+      }
     }
-    if (!response.ok) { return { tipo: 'retentavel', motivo: 'HTTP ' + response.status }; }
-    return response.json().then(function (d) { return { tipo: 'ok', dilema: d }; });
+    return parada('O backend recusou a geração e não sei dizer o motivo exato. Mensagem dele: ' +
+      (detail || '(sem texto)'), 'desconhecida');
+  }
+
+  function classificarFalha(status, b) {
+    var detail = String(b.detail || '');
+    if (b.codigo === 'backend_inacessivel' || b.codigo === 'tempo_esgotado') {
+      return { tipo: 'retentavel', causa: 'sem_resposta' };
+    }
+    if (b.codigo) { return parada(detail || 'Falha de configuração do plugin.', 'config'); }
+    if (status === 401) { return parada(detail === 'Invalid API key' ? TEXTO_TOKEN : TEXTO_CHAVE_AUSENTE, 'chave'); }
+    if (status === 502) { return paradaDoBackend(detail); }
+    return { tipo: 'retentavel', causa: status === 422 ? 'incompleta' : 'erro_backend' };
   }
 
   // Aplica um resultado SEM pergunta (espera, recusa ou falha) e devolve a
   // espera, em ms, até o próximo passo. A pergunta gerada vai por gravarGerada().
   function aplicarResultado(st, pos, res) {
     if (res.tipo === 'espera') { return registrarEspera(st); }
-    if (res.tipo === 'recusa') { interromper(st, res.motivo); return 0; }
+    if (res.tipo === 'recusa') { interromper(st, res.texto, true); return 0; }
     st.chamadas++;
-    registrarFalha(st, pos, res.motivo);
-    return 600;
+    return registrarFalha(st, pos, res.causa);
   }
 
   /* ── Cada pergunta é gravada assim que é gerada (3b-2) ── */
@@ -249,9 +318,12 @@
     st.chamadas++;
     pLabel.textContent = 'Gravando a pergunta da posição ' + pos + '…';
     return salvarUma(dilema)
-      .then(function (g) { return g.ok || g.ambigua ? g : salvarUma(dilema); })
+      .then(function (g) { return g.ok || g.ambigua || g.grupoErrado ? g : salvarUma(dilema); })
       .then(function (g) {
         if (g.ok) { registrarSucesso(st, pos, dilema, g); return 600; }
+        // Grupo errado: o servidor NÃO gravou. Em vez de repetir o mesmo save,
+        // gera de novo a MESMA posição, pedindo o mesmo grupo (até MAX_TENTATIVAS).
+        if (g.grupoErrado) { return registrarFalha(st, pos, 'grupo'); }
         registrarNaoGravada(st, pos, g);
         return 0;
       });
@@ -285,8 +357,14 @@
       var p = (d.posicoes || [])[0] || {};
       return { ok: true, gravada: p.gravada, contagens: d.contagens };
     }
+    if (grupoRecusado(r, d)) { return { ok: false, grupoErrado: true, motivo: d.msg }; }
     var explicita = !(r && r.success) || d.failed > 0;
     return { ok: false, ambigua: !explicita, motivo: d.msg || 'o servidor não confirmou a gravação' };
+  }
+
+  // O servidor recusou a pergunta por vir de outro grupo (nada foi gravado).
+  function grupoRecusado(r, d) {
+    return !!r && !r.success && d.grupo_recusado > 0;
   }
 
   // Sucesso só com exatamente 1 gravada e nenhuma falha: o POST leva um dilema.
@@ -325,6 +403,7 @@
 
   function registrarSucesso(st, pos, dilema, g) {
     st.salvas++;
+    st.gruposSeguidos = 0;
     st.gravadas.push({ pedida: pos, gravada: g.gravada });
     if (g.contagens) { pintarPainel(g.contagens); }
     st.fila.shift();
@@ -342,21 +421,33 @@
     }
   }
 
-  // Falha retentável: a posição fica na frente da fila até MAX_TENTATIVAS.
-  function registrarFalha(st, pos, motivo) {
-    st.tentativas[pos] = (st.tentativas[pos] || 0) + 1;
-    if (st.tentativas[pos] < MAX_TENTATIVAS) {
-      pLast.textContent = 'Posição ' + pos + ': ' + motivo + ' — tentando de novo (' +
-        st.tentativas[pos] + ' de ' + MAX_TENTATIVAS + ').';
-      return;
+  // Falha retentável: a posição fica na frente da fila até MAX_TENTATIVAS, com
+  // espera de 2 s e depois 5 s. Esgotadas, ela é PULADA e o lote segue. Devolve a
+  // espera, em ms, até o próximo passo.
+  function registrarFalha(st, pos, causa) {
+    var n = st.tentativas[pos] = (st.tentativas[pos] || 0) + 1;
+    if (n < MAX_TENTATIVAS) {
+      pLast.textContent = 'Posição ' + pos + ': ' + MOTIVOS[causa].curto + ' — nova tentativa em ' +
+        (ESPERAS_RETENTATIVA_MS[n - 1] / 1000) + ' s (' + (n + 1) + ' de ' + MAX_TENTATIVAS + ').';
+      return ESPERAS_RETENTATIVA_MS[n - 1];
     }
     st.fila.shift();
-    st.falhas.push({ posicao: pos, motivo: motivo + ' após ' + MAX_TENTATIVAS + ' tentativas' });
+    st.falhas.push({ posicao: pos, causa: causa });
+    verificarDisjuntor(st, causa);
+    return 600;
+  }
+
+  // Posição esgotada por grupo errado soma na contagem de seguidas; qualquer outro
+  // desfecho (acerto, ou falha de outro motivo, que só pula) zera. Na 2ª seguida o
+  // lote PARA, com role="alert" no relatório; o que já foi salvo continua salvo.
+  function verificarDisjuntor(st, causa) {
+    st.gruposSeguidos = causa === 'grupo' ? st.gruposSeguidos + 1 : 0;
+    if (st.gruposSeguidos >= LIMITE_GRUPOS_SEGUIDOS) { interromper(st, TEXTO_DISJUNTOR, true); }
   }
 
   function finalizarLote(st) {
     // Fila com sobra só existe quando o lote foi interrompido.
-    st.fila.forEach(function (p) { st.falhas.push({ posicao: p, motivo: 'não gerada (lote interrompido)' }); });
+    st.fila.forEach(function (p) { st.falhas.push({ posicao: p, causa: 'interrompida' }); });
     st.fila = [];
     setBar(st.alvo, st.alvo);
     pararBtn.style.display = 'none';
@@ -390,9 +481,26 @@
     }
     if (st.gravadas.length) { linhas.push('Gravadas nas posições: ' + textoGravadas(st.gravadas) + '.'); }
     if (st.interrompido) { linhas.push(st.interrompido); }
-    linhas = linhas.concat(st.alertas);
-    st.falhas.forEach(function (f) { linhas.push('Posição ' + f.posicao + ': ' + f.motivo + '.'); });
-    return { linhas: linhas, faltam: st.alvo - saved, alerta: saved < st.alvo || failed > 0 };
+    linhas = linhas.concat(st.alertas, resumoFalhas(st.falhas));
+    return {
+      linhas: linhas, faltam: st.alvo - saved, alerta: saved < st.alvo || failed > 0,
+      papel:  st.paradaGrave ? 'alert' : 'status'
+    };
+  }
+
+  // "2 voltaram de outro grupo; 1 teve resposta incompleta", agrupado por motivo.
+  function resumoFalhas(falhas) {
+    if (!falhas.length) { return []; }
+    var contagem = {};
+    falhas.forEach(function (f) { contagem[f.causa] = (contagem[f.causa] || 0) + 1; });
+    var frases = Object.keys(MOTIVOS).filter(function (k) { return contagem[k]; }).map(function (k) {
+      return contagem[k] + ' ' + (contagem[k] === 1 ? MOTIVOS[k].um : MOTIVOS[k].varios);
+    });
+    var linhas = ['Não foram geradas: ' + frases.join('; ') + '. Para tentar de novo as que faltam, clique em "Gerar os que faltam".'];
+    if ((contagem.grupo || 0) * 2 > falhas.length) {
+      linhas.push('Isso costuma indicar um backend desatualizado. Em Configurações, clique em "Testar conexão".');
+    }
+    return linhas;
   }
 
   // A posição GRAVADA, que é a do banco. Quando o servidor moveu a pergunta
@@ -409,6 +517,8 @@
     var box = document.getElementById('ng-gen-report');
     if (!box) { return; }
     box.className = 'notice inline ' + (rel.alerta ? 'notice-warning' : 'notice-success');
+    // Parada que exige o editor (chave, cota) é role="alert"; o resto, "status".
+    box.setAttribute('role', rel.papel === 'alert' ? 'alert' : 'status');
     box.textContent = '';
     rel.linhas.forEach(function (t) {
       var p = document.createElement('p');
