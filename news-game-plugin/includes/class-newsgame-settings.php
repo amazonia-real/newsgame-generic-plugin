@@ -101,6 +101,13 @@ class Newsgame_Settings {
     /** Transient que acende o aviso de trava degradada no admin — C14, ver registrar_cota_degradada(). */
     const TRANSIENT_COTA_DEGRADADA = 'newsgame_cota_degradada';
 
+    /** Cache (10 min) do resultado da consulta ao /health do backend. */
+    const TRANSIENT_BACKEND = 'newsgame_backend_status';
+
+    /** Botão "Testar conexão": força uma consulta nova ao /health. */
+    const AJAX_TESTAR  = 'newsgame_test_backend';
+    const NONCE_TESTAR = 'newsgame_test_backend';
+
     /** Hook suffix da tela de configurações — usado para enfileirar só nela */
     private static $hook_suffix = '';
 
@@ -109,6 +116,14 @@ class Newsgame_Settings {
         add_action( 'admin_init',            array( __CLASS__, 'register_fields' ) );
         add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
         add_action( 'admin_notices',         array( __CLASS__, 'aviso_cota_degradada' ) );
+        add_action( 'admin_notices',         array( __CLASS__, 'aviso_backend' ) );
+        add_action( 'wp_ajax_' . self::AJAX_TESTAR, array( __CLASS__, 'ajax_testar_backend' ) );
+
+        // Mudou a URL ou o token: o resultado em cache não vale mais.
+        foreach ( array( 'newsgame_backend_url', 'newsgame_backend_api_key' ) as $option ) {
+            add_action( 'update_option_' . $option, array( __CLASS__, 'limpar_status_backend' ) );
+            add_action( 'add_option_' . $option,    array( __CLASS__, 'limpar_status_backend' ) );
+        }
 
         // Um hook por option, e não um 'added_option' genérico: o hook nomeado
         // dispara EXATAMENTE UMA VEZ na vida de cada option — no momento em que
@@ -204,6 +219,8 @@ class Newsgame_Settings {
             'nonceSync'  => wp_create_nonce( Newsgame_Ingestor::NONCE_KEY ),
             'actionPush' => Newsgame_Generator::AJAX_PUSH,
             'noncePush'  => wp_create_nonce( Newsgame_Generator::NONCE_PUSH ),
+            'actionTest' => self::AJAX_TESTAR,
+            'nonceTest'  => wp_create_nonce( self::NONCE_TESTAR ),
             // Paradas pendentes (cursor salvo no servidor): a tela avisa e oferece
             // "Continuar de onde parou" ao carregar. null = nada pendente.
             'cursorSync' => Newsgame_Ingestor::estado_cursor_sync(),
@@ -436,6 +453,108 @@ class Newsgame_Settings {
 
     public static function backend_url() {
         return (string) get_option( 'newsgame_backend_url', '' );
+    }
+
+    /* ── Compatibilidade plugin x backend (/health) ───────────────
+       Só informa, não bloqueia nada. O /health do backend não exige token, então
+       o estado "token" só aparece se algo no caminho (proxy, firewall) o exigir. */
+
+    /**
+     * Estado do backend: array( 'estado' => ok | velho | inacessivel | token | sem_url, … ).
+     * Cache de 10 minutos; $forcar ignora o cache.
+     */
+    public static function backend_status( $forcar = false ) {
+        $url = self::backend_url();
+        if ( '' === $url ) {
+            return array( 'estado' => 'sem_url' );
+        }
+        if ( ! $forcar ) {
+            $cache = get_transient( self::TRANSIENT_BACKEND );
+            if ( is_array( $cache ) && isset( $cache['estado'] ) ) {
+                return $cache;
+            }
+        }
+        $resultado = self::consultar_health( $url );
+        set_transient( self::TRANSIENT_BACKEND, $resultado, 10 * MINUTE_IN_SECONDS );
+        return $resultado;
+    }
+
+    /** Uma consulta ao /health, com 5 s de limite e o mesmo token do plugin. */
+    private static function consultar_health( $url ) {
+        $response = wp_remote_get( rtrim( $url, '/' ) . '/health', array(
+            'timeout'   => 5,
+            'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $url, 'localhost' ) ),
+            'headers'   => array( 'X-Api-Key' => (string) get_option( 'newsgame_backend_api_key', '' ) ),
+        ) );
+        if ( is_wp_error( $response ) ) {
+            return array( 'estado' => 'inacessivel' );
+        }
+
+        $http = (int) wp_remote_retrieve_response_code( $response );
+        if ( 401 === $http || 403 === $http ) {
+            return array( 'estado' => 'token', 'http' => $http );
+        }
+
+        $json = json_decode( wp_remote_retrieve_body( $response ), true );
+        if ( 200 !== $http || ! is_array( $json ) || 'ok' !== ( $json['status'] ?? '' ) ) {
+            return array( 'estado' => 'inacessivel', 'http' => $http );
+        }
+
+        // Sem o campo, é um backend anterior ao contrato: nível 1.
+        $compat = (int) ( $json['api_compat'] ?? 1 );
+        return array(
+            'estado' => $compat >= NEWSGAME_BACKEND_COMPAT_MIN ? 'ok' : 'velho',
+            'compat' => $compat,
+        );
+    }
+
+    /** Texto, em português, de cada estado. Nunca inclui token nem URL. */
+    public static function texto_do_estado( $estado ) {
+        $textos = array(
+            'ok'          => 'Backend conectado e compatível.',
+            'velho'       => 'O backend está desatualizado para esta versão do plugin. Atualize os arquivos do backend no servidor (seção "Atualizar o backend" do guia docs/INSTALACAO_BACKEND.md) e reinicie. Sem isso, a geração de perguntas pode falhar.',
+            'inacessivel' => 'Não foi possível falar com o backend agora. Confira o endereço e se o servidor está ligado.',
+            'token'       => 'O backend recusou o Token. Confira o campo "Token do Backend".',
+            'sem_url'     => 'Informe a URL do backend e salve para testar a conexão.',
+        );
+        return $textos[ $estado ] ?? $textos['inacessivel'];
+    }
+
+    public static function limpar_status_backend() {
+        delete_transient( self::TRANSIENT_BACKEND );
+    }
+
+    /** Botão "Testar conexão": consulta nova, sempre. */
+    public static function ajax_testar_backend() {
+        check_ajax_referer( self::NONCE_TESTAR, 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'codigo' => 'permissao', 'msg' => 'Permissão insuficiente.' ) );
+        }
+        $status = self::backend_status( true );
+        wp_send_json_success( array(
+            'estado' => $status['estado'],
+            'texto'  => self::texto_do_estado( $status['estado'] ),
+        ) );
+    }
+
+    /**
+     * Aviso nas telas do plugin (menos a de Configurações, que tem a própria linha de
+     * status), só para quem administra e só nos casos backend velho e token recusado.
+     * Usa o cache: a consulta nova só acontece quando ele expira, nunca a cada página.
+     */
+    public static function aviso_backend() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+        $tela = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+        if ( ! $tela || false === strpos( $tela->id, 'newsgame' ) || $tela->id === self::$hook_suffix ) {
+            return;
+        }
+        $status = self::backend_status( false );
+        if ( ! in_array( $status['estado'], array( 'velho', 'token' ), true ) ) {
+            return;
+        }
+        printf( '<div class="notice notice-warning"><p>%s</p></div>', esc_html( self::texto_do_estado( $status['estado'] ) ) );
     }
 
     /* ── Throttle de custo — protege a cota da chave Gemini ─────── */

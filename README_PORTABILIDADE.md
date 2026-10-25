@@ -158,6 +158,34 @@ trocar a skin ou atualizar o plugin, limpe todas.
 
 ---
 
+### Desinstalar o plugin
+
+Ao **excluir** o plugin em **Plugins → Plugins instalados**, o WordPress roda o
+`uninstall.php` do plugin.
+
+**O que é apagado:** as configurações do plugin (todas as opções que começam com
+`newsgame_`: provedor e chaves de IA, URL e token do backend, versão do banco, andamento
+da sincronização e da indexação) e os dados temporários dele.
+
+**O que fica de propósito**, porque é o seu conteúdo:
+
+- as tabelas do banco com as instâncias e as perguntas (`newsgame_instances` e
+  `newsgame_dilemas`, com o prefixo do site, em geral `wp_`);
+- a pasta do acervo sincronizado, `wp-content/uploads/newsgame-vault`.
+
+**Para apagar tudo à mão** (só depois de ter certeza de que não precisa mais das
+perguntas; faça um backup antes):
+
+1. No phpMyAdmin, apague as duas tabelas (troque `wp_` pelo prefixo do seu site):
+   `DROP TABLE wp_newsgame_dilemas;` e `DROP TABLE wp_newsgame_instances;`
+2. Apague a pasta `wp-content/uploads/newsgame-vault` pelo gerenciador de arquivos ou por FTP.
+
+Em instalação com vários sites (multisite), as tabelas de cada site têm o prefixo do
+próprio site (por exemplo `wp_2_`).
+
+O índice do acervo no servidor do backend não é afetado: ele fica no volume `chroma` do
+backend (ver `docs/INSTALACAO_BACKEND.md`).
+
 ## 3. Sincronizar o acervo
 
 O acervo são os posts publicados no WordPress que servirão de base para gerar os dilemas.

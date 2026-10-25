@@ -13,6 +13,10 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'NEWSGAME_VERSION', '1.1.0' ); // Versão do plugin: só o ?ver= dos arquivos do admin. A migração do banco usa Newsgame_DB::SCHEMA_VERSION.
+// Nível mínimo de compatibilidade que o plugin exige do backend (campo `api_compat`
+// do /health; backend sem o campo conta como 1). Subir junto com o API_COMPAT do
+// backend (backend-python/app/main.py) quando o plugin passar a exigir backend novo.
+define( 'NEWSGAME_BACKEND_COMPAT_MIN', 2 );
 define( 'NEWSGAME_DIR',     plugin_dir_path( __FILE__ ) );
 define( 'NEWSGAME_URL',     plugin_dir_url( __FILE__ ) );
 

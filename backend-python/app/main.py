@@ -38,6 +38,13 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="News-Game Backend", version="1.0.0")
+
+# Contrato de compatibilidade plugin x backend: um inteiro, exposto no /health.
+# O plugin declara o mínimo que exige (NEWSGAME_BACKEND_COMPAT_MIN) e compara.
+# Só sobe quando uma mudança do backend passa a ser EXIGIDA pelo plugin.
+# 1 = backend sem o campo (anterior ao `grupo` do /generate-one);
+# 2 = inclui o `grupo` no /generate-one (commit d667eb9).
+API_COMPAT = 2
 get_settings()  # falha aqui se API_SECRET_TOKEN não estiver definido
 
 # Sem CORSMiddleware: todas as chamadas chegam server-to-server via proxy
@@ -59,7 +66,7 @@ def _verify_token(x_api_key: str = Header(default="")) -> None:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "1.0.0", "api_compat": API_COMPAT}
 
 
 @app.post("/ingest", dependencies=[Depends(_verify_token)])

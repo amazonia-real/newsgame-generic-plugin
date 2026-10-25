@@ -115,8 +115,15 @@
         <td>
           <input type="url" id="newsgame_backend_url" name="newsgame_backend_url"
                  value="<?php echo esc_attr( get_option( 'newsgame_backend_url', '' ) ); ?>"
-                 class="regular-text" placeholder="https://meu-backend.run.app">
-          <p class="description">Endpoint Cloud Run do pipeline RAG. Necessário para geração de dilemas.</p>
+                 class="regular-text" placeholder="https://backend.seuveiculo.com.br">
+          <p class="description">Endereço do backend Python (o servidor que gera as perguntas e guarda o índice do acervo). Necessário para a geração de perguntas e a indexação.</p>
+          <p id="newsgame-backend-status" role="status" aria-live="polite" style="font-weight:600">
+            <?php echo esc_html( Newsgame_Settings::texto_do_estado( Newsgame_Settings::backend_status()['estado'] ) ); ?>
+          </p>
+          <p>
+            <button type="button" id="newsgame-test-btn" class="button">Testar conexão</button>
+            <span class="description">Testa o endereço e o token que já estão salvos.</span>
+          </p>
         </td>
       </tr>
       <tr>

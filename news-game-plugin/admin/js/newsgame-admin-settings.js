@@ -271,6 +271,25 @@
     return t;
   }
 
+  /* ── "Testar conexão": consulta nova ao /health do backend ── */
+  function testarConexao(btn) {
+    var linha = document.getElementById('newsgame-backend-status');
+    btn.disabled = true;
+    linha.textContent = 'Testando…';
+    chamar({ acao: cfg.actionTest, nonce: cfg.nonceTest }, false).then(function(r) {
+      btn.disabled = false;
+      // Falha do próprio WordPress (não do backend): texto curto, sem o roteiro
+      // de "Continuar" dos lotes.
+      linha.textContent = r.ok ? r.dados.texto
+        : 'Não foi possível fazer o teste agora: o WordPress não respondeu como esperado. Recarregue a página e tente de novo.';
+    });
+  }
+
+  var testBtn = document.getElementById('newsgame-test-btn');
+  if (testBtn) {
+    testBtn.addEventListener('click', function() { testarConexao(testBtn); });
+  }
+
   /* ── As duas tarefas ── */
   var syncBtn = document.getElementById('newsgame-sync-btn');
 
