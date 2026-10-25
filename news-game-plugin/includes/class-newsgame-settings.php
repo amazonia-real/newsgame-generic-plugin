@@ -455,9 +455,9 @@ class Newsgame_Settings {
         return (string) get_option( 'newsgame_backend_url', '' );
     }
 
-    /* ── Compatibilidade plugin x backend (/health) ───────────────
-       Só informa, não bloqueia nada. O /health do backend não exige token, então
-       o estado "token" só aparece se algo no caminho (proxy, firewall) o exigir. */
+    /* ── Compatibilidade plugin x backend (/health e /auth-check) ──
+       Só informa, não bloqueia nada. O /health não exige token; quem confere o token
+       é o /auth-check, consultado em seguida quando o /health está compatível. */
 
     /**
      * Estado do backend: array( 'estado' => ok | velho | inacessivel | token | sem_url, … ).
@@ -479,7 +479,7 @@ class Newsgame_Settings {
         return $resultado;
     }
 
-    /** Uma consulta ao /health, com 5 s de limite e o mesmo token do plugin. */
+    /** Consulta ao /health e, se ele estiver compatível, ao /auth-check. 5 s cada, mesmo token do plugin. */
     private static function consultar_health( $url ) {
         $response = wp_remote_get( rtrim( $url, '/' ) . '/health', array(
             'timeout'   => 5,
@@ -502,10 +502,34 @@ class Newsgame_Settings {
 
         // Sem o campo, é um backend anterior ao contrato: nível 1.
         $compat = (int) ( $json['api_compat'] ?? 1 );
-        return array(
-            'estado' => $compat >= NEWSGAME_BACKEND_COMPAT_MIN ? 'ok' : 'velho',
-            'compat' => $compat,
-        );
+        if ( $compat < NEWSGAME_BACKEND_COMPAT_MIN ) {
+            return array( 'estado' => 'velho', 'compat' => $compat );
+        }
+        return array( 'estado' => self::consultar_auth( $url ), 'compat' => $compat );
+    }
+
+    /**
+     * O /health não exige token; o /auth-check usa a mesma verificação do /ingest.
+     * 200 = token aceito; 401/403 = recusado; 404 = backend sem a rota (velho);
+     * qualquer outra coisa (rede, 5xx, 503 de backend sem token) = inacessível.
+     */
+    private static function consultar_auth( $url ) {
+        $response = wp_remote_get( rtrim( $url, '/' ) . '/auth-check', array(
+            'timeout'   => 5,
+            'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $url, 'localhost' ) ),
+            'headers'   => array( 'X-Api-Key' => (string) get_option( 'newsgame_backend_api_key', '' ) ),
+        ) );
+        if ( is_wp_error( $response ) ) {
+            return 'inacessivel';
+        }
+        $http = (int) wp_remote_retrieve_response_code( $response );
+        if ( 200 === $http ) {
+            return 'ok';
+        }
+        if ( 401 === $http || 403 === $http ) {
+            return 'token';
+        }
+        return 404 === $http ? 'velho' : 'inacessivel';
     }
 
     /** Texto, em português, de cada estado. Nunca inclui token nem URL. */

@@ -43,7 +43,7 @@ app = FastAPI(title="News-Game Backend", version="1.0.0")
 # O plugin declara o mínimo que exige (NEWSGAME_BACKEND_COMPAT_MIN) e compara.
 # Só sobe quando uma mudança do backend passa a ser EXIGIDA pelo plugin.
 # 1 = backend sem o campo (anterior ao `grupo` do /generate-one);
-# 2 = inclui o `grupo` no /generate-one (commit d667eb9).
+# 2 = inclui o `grupo` no /generate-one (commit d667eb9) E a rota /auth-check.
 API_COMPAT = 2
 get_settings()  # falha aqui se API_SECRET_TOKEN não estiver definido
 
@@ -67,6 +67,12 @@ def _verify_token(x_api_key: str = Header(default="")) -> None:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "version": "1.0.0", "api_compat": API_COMPAT}
+
+
+@app.get("/auth-check", dependencies=[Depends(_verify_token)])
+def auth_check() -> dict:
+    """Só confere o token, com a MESMA dependência do /ingest e das demais rotas."""
+    return {"ok": True}
 
 
 @app.post("/ingest", dependencies=[Depends(_verify_token)])
