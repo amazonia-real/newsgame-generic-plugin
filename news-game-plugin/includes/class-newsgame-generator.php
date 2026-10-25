@@ -438,36 +438,107 @@ class Newsgame_Generator {
         return $c;
     }
 
-    /* ── 4. Push vault → /ingest ─────────────────────────────── */
+    /* ── 4. Push vault → /ingest, em lotes ────────────────────── */
 
+    /** Tempo máximo de UMA chamada ao /ingest: a requisição AJAX inteira fica abaixo de ~20 s. */
+    const TIMEOUT_INGEST_S = 20;
+
+    /** Parada do envio para a tela: { processados, total } ou null. */
+    public static function estado_cursor_push() {
+        $c = Newsgame_Ingestor::cursor_get( 'push' );
+        if ( ! $c ) {
+            return null;
+        }
+        $arquivos = Newsgame_Ingestor::vault_paths_por_id();
+        $feitos   = count( array_filter( $arquivos, function ( $a ) use ( $c ) {
+            return $a['id'] <= (int) $c['ultimo_id'];
+        } ) );
+        return array( 'processados' => $feitos, 'total' => count( $arquivos ) );
+    }
+
+    /**
+     * UM lote por chamada (Newsgame_Ingestor::LOTE_PUSH itens), em ordem de ID
+     * crescente. O navegador repete até `feito`. O cursor (último ID enviado com
+     * sucesso) é gravado ao fim de cada lote bem-sucedido; o backend apaga por
+     * wp_id antes de regravar, então reenviar um lote é seguro.
+     */
     public static function ajax_push_ingest() {
         check_ajax_referer( self::NONCE_PUSH, 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( array( 'msg' => 'Permissão insuficiente.' ) );
+            wp_send_json_error( array( 'codigo' => 'permissao', 'msg' => 'Permissão insuficiente.' ) );
         }
 
         $backend_url = Newsgame_Settings::backend_url();
         if ( ! $backend_url ) {
-            wp_send_json_error( array( 'msg' => 'URL do backend não configurada.' ) );
+            wp_send_json_error( array( 'codigo' => 'config', 'msg' => 'URL do backend não configurada.' ) );
         }
 
-        $vault_files = Newsgame_Ingestor::vault_paths();
-        if ( empty( $vault_files ) ) {
-            wp_send_json_error( array( 'msg' => 'Vault vazio. Sincronize o acervo primeiro.' ) );
+        if ( ! empty( $_POST['recomecar'] ) && '0' !== (string) wp_unslash( $_POST['recomecar'] ) ) {
+            Newsgame_Ingestor::cursor_clear( 'push' );
         }
 
-        $api_key    = (string) get_option( 'newsgame_backend_api_key', '' );
-        $site_id    = home_url();
-        $articles   = array();
-        $batch_size = 50;
-        $sent       = 0;
-        $errors     = array();
+        $arquivos = Newsgame_Ingestor::vault_paths_por_id();
+        if ( empty( $arquivos ) ) {
+            wp_send_json_error( array( 'codigo' => 'cofre_vazio', 'msg' => 'Vault vazio. Sincronize o acervo primeiro.' ) );
+        }
 
-        foreach ( $vault_files as $path ) {
-            $data = json_decode( file_get_contents( $path ), true );
-            if ( ! $data ) continue;
+        $c         = Newsgame_Ingestor::cursor_get( 'push' ) ?: array( 'ultimo_id' => 0, 'enviados' => 0, 'pulados' => 0 );
+        $ultimo_id = (int) $c['ultimo_id'];
+        $pendentes = array_values( array_filter( $arquivos, function ( $a ) use ( $ultimo_id ) {
+            return $a['id'] > $ultimo_id;
+        } ) );
+        $lote = array_slice( $pendentes, 0, Newsgame_Ingestor::LOTE_PUSH );
 
-            $articles[] = array(
+        $enviados_lote = 0;
+        $pulados_lote  = 0;
+        if ( $lote ) {
+            $artigos = self::artigos_do_lote( $lote );
+            if ( $artigos ) {
+                $r = self::post_batch_ingest( $backend_url, (string) get_option( 'newsgame_backend_api_key', '' ), home_url(), $artigos );
+                if ( isset( $r['erro'] ) ) {
+                    error_log( '[Newsgame] indexação: lote falhou (codigo=' . $r['erro']['codigo'] . ', http=' . ( $r['erro']['http'] ?? '-' ) . ').' );
+                    wp_send_json_error( $r['erro'] );
+                }
+                $enviados_lote = $r['indexed'];
+                $pulados_lote  = $r['skipped'];
+            } else {
+                // Todos os arquivos do lote ilegíveis: não há o que mandar. O lote
+                // inteiro conta como pulado e o cursor avança, para não travar a fila.
+                $pulados_lote = count( $lote );
+            }
+            $ultimo_id = $lote[ count( $lote ) - 1 ]['id'];
+        }
+
+        $feito = count( $pendentes ) <= count( $lote );
+        $c['ultimo_id'] = $ultimo_id;
+        $c['enviados']  = (int) $c['enviados'] + $enviados_lote;
+        $c['pulados']   = (int) $c['pulados'] + $pulados_lote;
+        if ( $feito ) {
+            Newsgame_Ingestor::cursor_clear( 'push' );
+        } else {
+            Newsgame_Ingestor::cursor_set( 'push', $c );
+        }
+
+        wp_send_json_success( array(
+            'feito'         => $feito,
+            'processados'   => count( $arquivos ) - ( count( $pendentes ) - count( $lote ) ),
+            'total'         => count( $arquivos ),
+            'enviados_lote' => $enviados_lote,
+            'enviados'      => $c['enviados'],
+            'pulados'       => $c['pulados'],
+            'vault_total'   => count( $arquivos ),
+        ) );
+    }
+
+    /** Lê os JSON do lote e monta o corpo do /ingest. Arquivo ilegível é ignorado. */
+    private static function artigos_do_lote( array $lote ) {
+        $artigos = array();
+        foreach ( $lote as $a ) {
+            $data = json_decode( (string) file_get_contents( $a['path'] ), true );
+            if ( ! $data ) {
+                continue;
+            }
+            $artigos[] = array(
                 'id'      => (int) ( $data['id']      ?? 0 ),
                 'type'    => $data['type']    ?? 'posts',
                 'title'   => $data['title']   ?? '',
@@ -476,29 +547,22 @@ class Newsgame_Generator {
                 'url'     => $data['url']     ?? '',
                 'date'    => $data['date']    ?? '',
             );
-
-            if ( count( $articles ) >= $batch_size ) {
-                $r = self::post_batch_ingest( $backend_url, $api_key, $site_id, $articles );
-                $sent   += $r['indexed'] ?? 0;
-                if ( ! empty( $r['error'] ) ) $errors[] = $r['error'];
-                $articles = array();
-            }
         }
-
-        if ( $articles ) {
-            $r = self::post_batch_ingest( $backend_url, $api_key, $site_id, $articles );
-            $sent   += $r['indexed'] ?? 0;
-            if ( ! empty( $r['error'] ) ) $errors[] = $r['error'];
-        }
-
-        wp_send_json_success( array( 'sent' => $sent, 'errors' => $errors ) );
+        return $artigos;
     }
 
+    /**
+     * POST /ingest de um lote. Devolve { indexed, skipped } ou
+     * { erro: { codigo, http?, detalhe? } } — o código diz a causa provável e a
+     * tela escolhe o texto. A chave nunca sai daqui. O `detalhe` (só em resposta
+     * que não é JSON) leva os 200 primeiros caracteres do corpo, para a tela do
+     * administrador; o log registra apenas código e HTTP.
+     */
     private static function post_batch_ingest( $backend_url, $api_key, $site_id, $articles ) {
         $response = wp_remote_post(
             rtrim( $backend_url, '/' ) . '/ingest',
             array(
-                'timeout'   => 60,
+                'timeout'   => self::TIMEOUT_INGEST_S,
                 'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $backend_url, 'localhost' ) ),
                 'headers'   => array(
                     'Content-Type' => 'application/json',
@@ -512,9 +576,42 @@ class Newsgame_Generator {
         );
 
         if ( is_wp_error( $response ) ) {
-            return array( 'error' => $response->get_error_message() );
+            $msg    = $response->get_error_message();
+            $tempo  = false !== stripos( $msg, 'timed out' ) || false !== stripos( $msg, 'cURL error 28' );
+            return array( 'erro' => array( 'codigo' => $tempo ? 'tempo_esgotado' : 'inacessivel' ) );
         }
-        return json_decode( wp_remote_retrieve_body( $response ), true ) ?: array( 'error' => 'Resposta inválida.' );
+
+        $http = (int) wp_remote_retrieve_response_code( $response );
+        $erro = self::classificar_http_ingest( $http );
+        if ( $erro ) {
+            return array( 'erro' => array( 'codigo' => $erro, 'http' => $http ) );
+        }
+
+        $corpo = wp_remote_retrieve_body( $response );
+        $json  = json_decode( $corpo, true );
+        if ( ! is_array( $json ) || ! isset( $json['indexed'] ) ) {
+            // Início da resposta, para o editor ver o que veio. A tela o mostra por
+            // textContent (escapado); aqui só se corta e se tiram os controles.
+            $trecho = preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', mb_substr( $corpo, 0, 200 ) );
+            // Bytes que não são UTF-8 quebrariam o JSON da resposta ao navegador.
+            $trecho = (string) wp_check_invalid_utf8( $trecho, true );
+            return array( 'erro' => array( 'codigo' => 'nao_json', 'http' => $http, 'detalhe' => $trecho ) );
+        }
+        return array( 'indexed' => (int) $json['indexed'], 'skipped' => (int) ( $json['skipped'] ?? 0 ) );
+    }
+
+    /** Código de falha para o status HTTP do /ingest, ou null quando é 2xx. */
+    private static function classificar_http_ingest( $http ) {
+        if ( $http >= 200 && $http < 300 ) {
+            return null;
+        }
+        if ( 401 === $http || 403 === $http ) {
+            return 'token';
+        }
+        if ( 429 === $http ) {
+            return 'cota';
+        }
+        return $http >= 500 ? 'backend_5xx' : 'backend_http';
     }
 
     /* ── Persistência de dilema no DB ────────────────────────── */

@@ -147,7 +147,7 @@
   $vault_path  = trailingslashit( $upload['basedir'] ) . 'newsgame-vault';
   ?>
   <p>
-    <strong><?php echo esc_html( $vault_count ); ?> itens</strong> indexados em
+    <strong><span id="newsgame-vault-count"><?php echo esc_html( $vault_count ); ?></span> itens</strong> indexados em
     <code><?php echo esc_html( $vault_path ); ?></code>.
   </p>
   <p>
@@ -170,7 +170,7 @@
   <hr style="margin:1.5rem 0 1rem">
   <h3 style="margin-bottom:0.25rem">Indexar no Backend (ChromaDB)</h3>
   <p class="description" style="margin-bottom:0.75rem">
-    Envia os <?php echo esc_html( $vault_count ); ?> itens do vault para o endpoint <code>/ingest</code> do backend,
+    Envia os <span id="newsgame-vault-count-2"><?php echo esc_html( $vault_count ); ?></span> itens do vault para o endpoint <code>/ingest</code> do backend,
     populando o ChromaDB que alimenta a geração de dilemas.
   </p>
   <button id="newsgame-push-btn" class="button button-primary">

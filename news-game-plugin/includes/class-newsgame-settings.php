@@ -204,6 +204,10 @@ class Newsgame_Settings {
             'nonceSync'  => wp_create_nonce( Newsgame_Ingestor::NONCE_KEY ),
             'actionPush' => Newsgame_Generator::AJAX_PUSH,
             'noncePush'  => wp_create_nonce( Newsgame_Generator::NONCE_PUSH ),
+            // Paradas pendentes (cursor salvo no servidor): a tela avisa e oferece
+            // "Continuar de onde parou" ao carregar. null = nada pendente.
+            'cursorSync' => Newsgame_Ingestor::estado_cursor_sync(),
+            'cursorPush' => Newsgame_Generator::estado_cursor_push(),
         ) );
     }
 
