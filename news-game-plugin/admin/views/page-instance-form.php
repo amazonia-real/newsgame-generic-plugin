@@ -241,7 +241,11 @@ $page_title = $is_edit
   <?php endif; ?>
 
   <?php if ( isset( $_GET['error'] ) && 'db_write' === $_GET['error'] ) : ?>
-    <div class="notice notice-error"><p>Não foi possível gravar a instância no banco — nada foi salvo, e as alterações deste envio se perderam. A causa está no log do servidor (<code>error_log</code>).</p></div>
+    <div class="notice notice-error"><p>Não foi possível gravar a instância no banco — nada foi salvo, e as alterações deste envio se perderam. <?php
+    $causa_db = get_transient( 'newsgame_db_write_' . get_current_user_id() );
+    delete_transient( 'newsgame_db_write_' . get_current_user_id() );
+    if ( $causa_db ) : ?>Causa informada pelo banco: <code><?php echo esc_html( $causa_db ); ?></code>. <?php endif; ?>
+    A causa também está no log do servidor (<code>error_log</code>).</p></div>
   <?php endif; ?>
 
   <?php

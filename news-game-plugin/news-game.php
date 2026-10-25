@@ -33,6 +33,9 @@ register_activation_hook( __FILE__, array( 'Newsgame_DB', 'create_tables' ) );
 // do schema registrada no banco divergir de Newsgame_DB::SCHEMA_VERSION.
 add_action( 'admin_init', array( 'Newsgame_DB', 'maybe_upgrade' ) );
 
+// Avisa o administrador quando uma tabela do plugin não pôde ser criada.
+add_action( 'admin_notices', array( 'Newsgame_DB', 'aviso_tabela_faltando' ) );
+
 Newsgame_Settings::init();
 Newsgame_Ingestor::init();
 Newsgame_Shortcodes::init();

@@ -17,34 +17,119 @@ class Newsgame_DB {
      * o schema já estiver na versão correta.
      */
     public static function maybe_upgrade() {
-        if ( get_option( 'newsgame_schema_version' ) === self::SCHEMA_VERSION ) {
+        // Versão já gravada NÃO prova que as tabelas existem: uma instalação em
+        // que o dbDelta falhou em silêncio já gravou a versão. Por isso a conferência
+        // das duas tabelas roda a cada carregamento do admin (uma query), e a versão
+        // sozinha só dispensa as migrações de coluna.
+        $versao_ok = get_option( 'newsgame_schema_version' ) === self::SCHEMA_VERSION;
+        $faltam    = self::tabelas_faltando();
+        if ( $versao_ok && ! $faltam ) {
+            // Tabelas ok: um aviso de erro antigo (tabela criada à mão depois da
+            // falha) não pode ficar na tela. A option tem autoload, então a leitura
+            // não custa query.
+            if ( false !== get_option( 'newsgame_schema_erro' ) ) {
+                delete_option( 'newsgame_schema_erro' );
+            }
             return;
         }
-        self::ensure_schema();
-        update_option( 'newsgame_schema_version', self::SCHEMA_VERSION );
+        if ( $versao_ok && $faltam ) {
+            // Reparo, e não instalação: avisa no log, porque recriar uma tabela de
+            // CONTEÚDO vazia sem rastro mascararia uma perda de dado (C10).
+            error_log( '[Newsgame_DB] tabela(s) ausente(s) com o schema já em ' . self::SCHEMA_VERSION . ': ' . implode( ', ', $faltam ) . '. Tentando recriar.' );
+        }
+        if ( self::ensure_schema() ) {
+            update_option( 'newsgame_schema_version', self::SCHEMA_VERSION );
+        }
     }
 
     /**
      * Chamado apenas no activation_hook para instalações do zero.
      * Delega para ensure_schema() que é o único ponto de verdade.
+     * A versão só é gravada se as DUAS tabelas existirem depois.
      */
     public static function create_tables() {
-        self::ensure_schema();
-        update_option( 'newsgame_schema_version', self::SCHEMA_VERSION );
+        if ( self::ensure_schema() ) {
+            update_option( 'newsgame_schema_version', self::SCHEMA_VERSION );
+        }
+    }
+
+    /* ── Aviso ao administrador quando falta tabela ────────── */
+
+    /** Nomes completos das tabelas do plugin, na ordem de criação. */
+    private static function nomes_das_tabelas() {
+        global $wpdb;
+        return array(
+            'instances' => $wpdb->prefix . 'newsgame_instances',
+            'dilemas'   => $wpdb->prefix . 'newsgame_dilemas',
+        );
+    }
+
+    /**
+     * Tabelas do plugin que NÃO existem agora (nomes completos). SHOW TABLES LIKE,
+     * uma por tabela: o information_schema pode ser lento ou restrito em
+     * hospedagem compartilhada, e resposta vazia dele daria falso alarme.
+     */
+    private static function tabelas_faltando() {
+        global $wpdb;
+        $faltam = array();
+        foreach ( self::nomes_das_tabelas() as $nome ) {
+            if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $nome ) ) ) ) {
+                $faltam[] = $nome;
+            }
+        }
+        return $faltam;
+    }
+
+    /** admin_notices: diz qual tabela falta e o que fazer. Some quando o reparo dá certo. */
+    public static function aviso_tabela_faltando() {
+        $erro = get_option( 'newsgame_schema_erro' );
+        if ( ! is_array( $erro ) || empty( $erro['tabelas'] ) || ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+        printf(
+            '<div class="notice notice-error"><p><strong>News-Game: não foi possível criar a(s) tabela(s) %s no banco de dados.</strong> '
+            . 'O plugin não vai funcionar até isso ser resolvido. Causa informada pelo banco: <code>%s</code>. '
+            . 'Confira o <code>error_log</code> do servidor, verifique se o usuário do banco tem permissão de CREATE TABLE e desative e reative o plugin para tentar de novo.</p></div>',
+            esc_html( implode( ', ', $erro['tabelas'] ) ),
+            esc_html( $erro['causa'] ?: 'o banco não informou a causa.' )
+        );
     }
 
     /* ── Núcleo: cria tabelas e garante colunas ────────────── */
 
+    /**
+     * Devolve true quando as DUAS tabelas existem ao final. Cria só a que falta:
+     * rodar o dbDelta sobre tabela existente poderia alterá-la.
+     */
     private static function ensure_schema() {
         global $wpdb;
 
         $dilemas   = $wpdb->prefix . 'newsgame_dilemas';
         $instances = $wpdb->prefix . 'newsgame_instances';
 
-        // Se as tabelas ainda não existem, cria tudo via dbDelta
-        if ( ! $wpdb->get_var( "SHOW TABLES LIKE '$dilemas'" ) ) {
-            self::run_dbdelta();
-            return;
+        $faltam = self::tabelas_faltando();
+        if ( $faltam ) {
+            $ambas = count( $faltam ) === count( self::nomes_das_tabelas() );
+            $erros = self::run_dbdelta( $faltam );
+
+            // Confere DEPOIS de criar: o retorno do dbDelta não diz se a tabela nasceu.
+            $ainda = self::tabelas_faltando();
+            if ( $ainda ) {
+                $causa = '';
+                foreach ( $ainda as $nome ) {
+                    $erro_t = $erros[ $nome ] ?? '';
+                    error_log( "[Newsgame_DB] tabela {$nome} NÃO foi criada — MySQL: " . ( $erro_t ?: 'o banco não informou a causa.' ) );
+                    $causa = $causa ?: $erro_t;
+                }
+                update_option( 'newsgame_schema_erro', array( 'tabelas' => $ainda, 'causa' => mb_substr( $causa, 0, 300 ) ) );
+                return false;
+            }
+            delete_option( 'newsgame_schema_erro' );
+            if ( $ambas ) {
+                return true;
+            }
+        } else {
+            delete_option( 'newsgame_schema_erro' );
         }
 
         // Tabelas existem: garante colunas novas com ALTER TABLE direto
@@ -199,11 +284,22 @@ class Newsgame_DB {
             'image_id',
             "BIGINT UNSIGNED NULL COMMENT 'ID de anexo do WP: imagem de fundo deste dilema, escolhida pelo editor' AFTER `axis_weights`"
         );
+        return true;
     }
 
     /* ── dbDelta: cria as tabelas do zero ──────────────────── */
 
-    private static function run_dbdelta() {
+    /**
+     * Cria as tabelas pedidas (nomes completos). Devolve, por nome, o erro do
+     * banco capturado logo depois do dbDelta de cada uma.
+     *
+     * ⚠️ O dbDelta() faz explode(';') quando recebe string (wp-admin/includes/upgrade.php).
+     * Um ';' dentro de COMMENT corta a instrução ao meio e a criação falha em
+     * silêncio: foi o que impediu a tabela de instâncias de nascer numa instalação
+     * nova (MariaDB 11.8). NENHUM ';' fora o final em instrução alguma, nem em COMMENT.
+     * Sem IF NOT EXISTS: o dbDelta já trata tabela existente.
+     */
+    private static function run_dbdelta( array $so_estas = array() ) {
         global $wpdb;
         $charset = $wpdb->get_charset_collate();
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -224,7 +320,9 @@ class Newsgame_DB {
          *
          * Comentário em PHP, e não COMMENT de SQL, para não mudar a definição.
          */
-        dbDelta( "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}newsgame_instances (
+        $sql = array();
+
+        $sql[ $wpdb->prefix . 'newsgame_instances' ] = "CREATE TABLE {$wpdb->prefix}newsgame_instances (
             id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             slug         VARCHAR(200)    NOT NULL DEFAULT '',
             title        VARCHAR(500)    NOT NULL DEFAULT '',
@@ -232,14 +330,14 @@ class Newsgame_DB {
             characters    LONGTEXT        COMMENT 'JSON: lista de personagens com slug, label e queries RAG',
             density       SMALLINT        NOT NULL DEFAULT 20 COMMENT 'Meta do conjunto: soma das metas dos grupos, ate 120',
             round_size    TINYINT UNSIGNED NOT NULL DEFAULT 10 COMMENT 'Perguntas sorteadas por partida',
-            gerais_pct    TINYINT UNSIGNED NOT NULL DEFAULT 50 COMMENT 'Gerais na partida, em % (0 a 50); so vale com personagens',
+            gerais_pct    TINYINT UNSIGNED NOT NULL DEFAULT 50 COMMENT 'Gerais na partida, em % (0 a 50), so vale com personagens',
             pronto_fator  DECIMAL(3,1)    NOT NULL DEFAULT 1.6 COMMENT 'Aprovadas por grupo = teto(o que ele poe na partida x fator)',
-            capa_titulo     VARCHAR(200)    NOT NULL DEFAULT '' COMMENT 'Titulo da capa; vazio = titulo da instancia',
+            capa_titulo     VARCHAR(200)    NOT NULL DEFAULT '' COMMENT 'Titulo da capa, vazio = titulo da instancia',
             capa_linha_fina VARCHAR(300)    NOT NULL DEFAULT '' COMMENT 'Linha-fina da capa',
             capa_imagem_id  BIGINT UNSIGNED NULL COMMENT 'Anexo do WP: foto decorativa da capa',
-            regras          TEXT            NULL COMMENT 'Texto simples da tela Regras; vazio = sem tela',
+            regras          TEXT            NULL COMMENT 'Texto simples da tela Regras, vazio = sem tela',
             logo_id         BIGINT UNSIGNED NULL COMMENT 'Anexo do WP: logo do apoio',
-            apoio_texto     VARCHAR(200)    NOT NULL DEFAULT '' COMMENT 'Texto curto do apoio; alt do logo',
+            apoio_texto     VARCHAR(200)    NOT NULL DEFAULT '' COMMENT 'Texto curto do apoio, alt do logo',
             apoio_url       VARCHAR(2048)   NOT NULL DEFAULT '' COMMENT 'Link opcional do apoio',
             escolher_personagem TINYINT(1)  NOT NULL DEFAULT 0 COMMENT '1 = o jogador escolhe o personagem numa tela',
             pagina_inteira  TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '1 = o jogo ocupa a janela e esconde o tema',
@@ -253,9 +351,9 @@ class Newsgame_DB {
             updated_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             UNIQUE KEY   slug (slug)
-        ) $charset;" );
+        ) $charset;";
 
-        dbDelta( "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}newsgame_dilemas (
+        $sql[ $wpdb->prefix . 'newsgame_dilemas' ] = "CREATE TABLE {$wpdb->prefix}newsgame_dilemas (
             id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             instance_id    BIGINT UNSIGNED NOT NULL,
             level          TINYINT         NOT NULL DEFAULT 1,
@@ -274,7 +372,19 @@ class Newsgame_DB {
             created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY instance_id (instance_id)
-        ) $charset;" );
+        ) $charset;";
+
+        $erros = array();
+        foreach ( $sql as $nome => $instrucao ) {
+            if ( $so_estas && ! in_array( $nome, $so_estas, true ) ) {
+                continue;
+            }
+            $wpdb->last_error = '';
+            dbDelta( $instrucao );
+            // Lido AGORA: a próxima query bem-sucedida limpa o last_error.
+            $erros[ $nome ] = (string) $wpdb->last_error;
+        }
+        return $erros;
     }
 
     /* ── Helper: ADD COLUMN se não existir ─────────────────── */

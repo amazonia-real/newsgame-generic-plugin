@@ -433,6 +433,10 @@ class Newsgame_Admin_Instances {
         if ( ! $gravou ) {
             $erro = $wpdb->last_error ?: 'o banco não informou a causa.';
             error_log( "[Newsgame] handle_save: escrita da instância falhou — MySQL: {$erro}" );
+            // A causa também vai à tela, por transiente de 1 minuto do próprio usuário
+            // (não pela URL). Cortada em 300 caracteres: a mensagem do MySQL pode
+            // citar um trecho do texto enviado.
+            set_transient( 'newsgame_db_write_' . get_current_user_id(), mb_substr( $erro, 0, 300 ), MINUTE_IN_SECONDS );
             wp_safe_redirect( add_query_arg( array(
                 'page'   => 'newsgame-instances',
                 'action' => $id ? 'edit' : 'new',
