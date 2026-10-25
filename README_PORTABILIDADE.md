@@ -89,7 +89,8 @@ curl http://localhost:8000/health
 
 ### Opção A — ZIP (recomendada para quem só quer instalar)
 
-1. Baixe o arquivo `news-game-plugin-<versão>.zip` da release: [LINK DA RELEASE — a publicar junto do repositório]
+1. Baixe o arquivo `news-game-plugin.zip` na página **Releases** do repositório:
+   https://github.com/amazonia-real/newsgame-generic-plugin/releases/latest/download/news-game-plugin.zip
 2. No painel WordPress, vá em **Plugins → Adicionar novo → Enviar plugin**, escolha o
    zip e clique em **Instalar agora**
 3. Clique em **Ativar**

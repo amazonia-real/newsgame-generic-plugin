@@ -140,7 +140,9 @@ python -m uvicorn app.main:app --port 8000
 
 ### Plugin WordPress
 
-Copie (ou crie link simbólico de) `news-game-plugin/` para
+Para instalar, baixe o arquivo `news-game-plugin.zip` na página **Releases** do repositório, e não em *Code → Download ZIP* (esse traz o repositório inteiro, e não só o plugin), e envie-o em **Plugins → Adicionar novo → Enviar plugin**.
+
+Para desenvolver, copie (ou crie link simbólico de) `news-game-plugin/` para
 `wp-content/plugins/news-game-plugin/` e ative pelo painel do WordPress.
 
 Em **News-Game → Configurações**:
