@@ -210,7 +210,7 @@ class Newsgame_Settings {
             'newsgame-admin-settings',
             NEWSGAME_URL . 'admin/js/newsgame-admin-settings.js',
             array(),
-            NEWSGAME_VERSION,
+            newsgame_versao_do_arquivo( 'admin/js/newsgame-admin-settings.js' ),
             true  // footer
         );
 

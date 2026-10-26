@@ -123,7 +123,7 @@ class Newsgame_Admin_Instances {
             'newsgame-admin-instances',
             NEWSGAME_URL . 'admin/js/newsgame-admin-instances.js',
             array(),
-            NEWSGAME_VERSION,
+            newsgame_versao_do_arquivo( 'admin/js/newsgame-admin-instances.js' ),
             true  // footer
         );
     }
@@ -157,7 +157,7 @@ class Newsgame_Admin_Instances {
             'newsgame-admin-skins',
             NEWSGAME_URL . 'admin/css/newsgame-admin-skins.css',
             array(),
-            NEWSGAME_VERSION
+            newsgame_versao_do_arquivo( 'admin/css/newsgame-admin-skins.css' )
         );
     }
 
@@ -207,7 +207,7 @@ class Newsgame_Admin_Instances {
         $base = NEWSGAME_URL . 'admin/js/';
 
         /* ── Geração de perguntas e reset ─────────────────────────── */
-        wp_enqueue_script( 'newsgame-admin-generation', $base . 'newsgame-admin-generation.js', array(), NEWSGAME_VERSION, true );
+        wp_enqueue_script( 'newsgame-admin-generation', $base . 'newsgame-admin-generation.js', array(), newsgame_versao_do_arquivo( 'admin/js/newsgame-admin-generation.js' ), true );
         wp_localize_script( 'newsgame-admin-generation', 'ngGenCfg', array(
             'instanceId'        => $id,
             // Sem `meta` desde o item 58: o déficit é por grupo, e cada botão o
@@ -223,7 +223,7 @@ class Newsgame_Admin_Instances {
         ) );
 
         /* ── Analisar acervo e matriz de eixos ────────────────────── */
-        wp_enqueue_script( 'newsgame-admin-axis', $base . 'newsgame-admin-axis.js', array(), NEWSGAME_VERSION, true );
+        wp_enqueue_script( 'newsgame-admin-axis', $base . 'newsgame-admin-axis.js', array(), newsgame_versao_do_arquivo( 'admin/js/newsgame-admin-axis.js' ), true );
         // A matriz gravada viaja para o JS pedir confirmação antes de
         // sobrescrevê-la (C11). Vazio quando não há matriz ou instância.
         $inst_axis = $id ? self::get( $id ) : null;
@@ -236,7 +236,7 @@ class Newsgame_Admin_Instances {
         ) );
 
         /* ── Mesa Editorial ──────────────────────────────────────── */
-        wp_enqueue_script( 'newsgame-admin-review', $base . 'newsgame-admin-review.js', array(), NEWSGAME_VERSION, true );
+        wp_enqueue_script( 'newsgame-admin-review', $base . 'newsgame-admin-review.js', array(), newsgame_versao_do_arquivo( 'admin/js/newsgame-admin-review.js' ), true );
         wp_localize_script( 'newsgame-admin-review', 'ngReviewCfg', array(
             'instanceId'       => $id,
             'totalDilemas'     => $review_total,
@@ -255,7 +255,7 @@ class Newsgame_Admin_Instances {
             'newsgame-admin-form',
             $base . 'newsgame-admin-form.js',
             array(),
-            NEWSGAME_VERSION,
+            newsgame_versao_do_arquivo( 'admin/js/newsgame-admin-form.js' ),
             true  // footer
         );
 
@@ -273,7 +273,7 @@ class Newsgame_Admin_Instances {
             'newsgame-admin-skins',
             $base . 'newsgame-admin-skins.js',
             array(),
-            NEWSGAME_VERSION,
+            newsgame_versao_do_arquivo( 'admin/js/newsgame-admin-skins.js' ),
             true  // footer
         );
 

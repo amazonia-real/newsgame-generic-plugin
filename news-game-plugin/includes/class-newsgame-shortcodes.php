@@ -268,8 +268,7 @@ class Newsgame_Shortcodes {
      * fica por heurística). Arquivo ausente cai na constante.
      */
     private static function versao( $rel ) {
-        $mtime = @filemtime( NEWSGAME_DIR . $rel );
-        return $mtime ? (string) $mtime : NEWSGAME_VERSION;
+        return newsgame_versao_do_arquivo( $rel );
     }
 
     /** Folha base e lógica do jogo. Idempotente: o handle é sempre o mesmo. */
