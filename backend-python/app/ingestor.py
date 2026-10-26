@@ -1,9 +1,31 @@
 """Lógica do endpoint /ingest — chunking, embedding e indexação no ChromaDB."""
 from __future__ import annotations
+import re
+
 from langchain_core.documents import Document
 from app.models import IngestRequest
 from app.rag import get_collection, make_splitter
 from app.config import get_settings
+
+
+ANO_MIN, ANO_MAX = 1900, 2100
+
+
+def ano_do_artigo(date: str | None) -> int:
+    """
+    Ano do artigo, como INTEIRO, para o metadado `ano`: os 4 primeiros dígitos de
+    `date`, quando formam um ano entre 1900 e 2100. Vazio, texto que não começa
+    por 4 dígitos ou ano fora do intervalo dão 0.
+
+    Inteiro porque o ChromaDB só compara números em filtros (`$gte`, `$lte`): é o
+    que permite um filtro de período no futuro sem reindexar o acervo. Nada na
+    busca usa este campo ainda.
+    """
+    achado = re.match(r"\d{4}", (date or "").strip())
+    if not achado:
+        return 0
+    ano = int(achado.group())
+    return ano if ANO_MIN <= ano <= ANO_MAX else 0
 
 
 def index_articles(req: IngestRequest) -> dict:
@@ -37,6 +59,7 @@ def index_articles(req: IngestRequest) -> dict:
                 "titulo":     article.title,
                 "source_url": article.url,
                 "data":       article.date,
+                "ano":        ano_do_artigo(article.date),
                 "wp_id":      str(article.id),
                 "type":       article.type,
             },
