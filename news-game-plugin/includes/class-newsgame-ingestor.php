@@ -20,10 +20,18 @@ class Newsgame_Ingestor {
      * Tamanhos de lote. Cada chamada AJAX processa um lote e termina bem abaixo do
      * limite de tempo típico de hospedagem comum (~20 s), sem set_time_limit.
      * LOTE_SYNC: itens por página lida do REST do próprio site.
-     * LOTE_PUSH: itens por envio ao /ingest (~7 s por lote no VPS de ensaio).
+     * Envio ao /ingest: o lote fecha no PRIMEIRO destes limites, e tem sempre ao
+     * menos 1 item. O tempo do backend cresce com o texto (cada 1000 caracteres
+     * viram um trecho), e não com o número de posts.
+     *   LOTE_PUSH_MAX_ITENS:      no máximo estes artigos por lote;
+     *   LOTE_PUSH_MAX_CARACTERES: soma do conteúdo dos artigos do lote;
+     *   LIMITE_ITEM_CARACTERES:   um artigo maior que isto é enviado só até aqui
+     *                             (corte no fim de uma palavra).
      */
     const LOTE_SYNC = 25;
-    const LOTE_PUSH = 10;
+    const LOTE_PUSH_MAX_ITENS = 10;
+    const LOTE_PUSH_MAX_CARACTERES = 20000;
+    const LIMITE_ITEM_CARACTERES = 30000;
 
     public static function init() {
         add_action( 'wp_ajax_' . self::AJAX_ACTION, array( __CLASS__, 'handle_ajax' ) );

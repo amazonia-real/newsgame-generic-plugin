@@ -219,6 +219,7 @@ class Newsgame_Settings {
             'nonceSync'  => wp_create_nonce( Newsgame_Ingestor::NONCE_KEY ),
             'actionPush' => Newsgame_Generator::AJAX_PUSH,
             'noncePush'  => wp_create_nonce( Newsgame_Generator::NONCE_PUSH ),
+            'limiteItem' => Newsgame_Ingestor::LIMITE_ITEM_CARACTERES,
             'actionTest' => self::AJAX_TESTAR,
             'nonceTest'  => wp_create_nonce( self::NONCE_TESTAR ),
             // Paradas pendentes (cursor salvo no servidor): a tela avisa e oferece

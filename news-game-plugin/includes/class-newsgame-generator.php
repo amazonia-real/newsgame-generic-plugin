@@ -451,8 +451,12 @@ class Newsgame_Generator {
 
     /* ── 4. Push vault → /ingest, em lotes ────────────────────── */
 
-    /** Tempo máximo de UMA chamada ao /ingest: a requisição AJAX inteira fica abaixo de ~20 s. */
-    const TIMEOUT_INGEST_S = 20;
+    /**
+     * Tempo máximo de UMA chamada ao /ingest. O resto do trabalho do PHP por lote
+     * (listar e ordenar o cofre, ler até LOTE_PUSH_MAX_ITENS arquivos, gravar o
+     * cursor) leva milissegundos; o prazo é todo do backend.
+     */
+    const TIMEOUT_INGEST_S = 45;
 
     /** Parada do envio para a tela: { processados, total } ou null. */
     public static function estado_cursor_push() {
@@ -468,8 +472,9 @@ class Newsgame_Generator {
     }
 
     /**
-     * UM lote por chamada (Newsgame_Ingestor::LOTE_PUSH itens), em ordem de ID
-     * crescente. O navegador repete até `feito`. O cursor (último ID enviado com
+     * UM lote por chamada, em ordem de ID crescente: fecha no primeiro de
+     * LOTE_PUSH_MAX_ITENS itens ou LOTE_PUSH_MAX_CARACTERES caracteres (sempre com ao
+     * menos 1 item). O navegador repete até `feito`. O cursor (último ID enviado com
      * sucesso) é gravado ao fim de cada lote bem-sucedido; o backend apaga por
      * wp_id antes de regravar, então reenviar um lote é seguro.
      */
@@ -498,32 +503,32 @@ class Newsgame_Generator {
         $pendentes = array_values( array_filter( $arquivos, function ( $a ) use ( $ultimo_id ) {
             return $a['id'] > $ultimo_id;
         } ) );
-        $lote = array_slice( $pendentes, 0, Newsgame_Ingestor::LOTE_PUSH );
+        $lote           = self::montar_lote( $pendentes );
+        $feitos_no_lote = count( $lote['arquivos'] );
 
         $enviados_lote = 0;
         $pulados_lote  = 0;
-        if ( $lote ) {
-            $artigos = self::artigos_do_lote( $lote );
-            if ( $artigos ) {
-                $r = self::post_batch_ingest( $backend_url, (string) get_option( 'newsgame_backend_api_key', '' ), home_url(), $artigos );
+        if ( $feitos_no_lote ) {
+            // Arquivo ilegível não vai ao backend: conta como pulado, para que
+            // enviados + pulados feche com o total.
+            $pulados_lote = $feitos_no_lote - count( $lote['artigos'] );
+            if ( $lote['artigos'] ) {
+                $r = self::post_batch_ingest( $backend_url, (string) get_option( 'newsgame_backend_api_key', '' ), home_url(), $lote['artigos'] );
                 if ( isset( $r['erro'] ) ) {
                     error_log( '[Newsgame] indexação: lote falhou (codigo=' . $r['erro']['codigo'] . ', http=' . ( $r['erro']['http'] ?? '-' ) . ').' );
                     wp_send_json_error( $r['erro'] );
                 }
-                $enviados_lote = $r['indexed'];
-                $pulados_lote  = $r['skipped'];
-            } else {
-                // Todos os arquivos do lote ilegíveis: não há o que mandar. O lote
-                // inteiro conta como pulado e o cursor avança, para não travar a fila.
-                $pulados_lote = count( $lote );
+                $enviados_lote += $r['indexed'];
+                $pulados_lote  += $r['skipped'];
             }
-            $ultimo_id = $lote[ count( $lote ) - 1 ]['id'];
+            $ultimo_id = $lote['arquivos'][ $feitos_no_lote - 1 ]['id'];
         }
 
-        $feito = count( $pendentes ) <= count( $lote );
+        $feito = count( $pendentes ) <= $feitos_no_lote;
         $c['ultimo_id'] = $ultimo_id;
         $c['enviados']  = (int) $c['enviados'] + $enviados_lote;
         $c['pulados']   = (int) $c['pulados'] + $pulados_lote;
+        $c['cortados']  = (int) ( $c['cortados'] ?? 0 ) + $lote['cortados'];
         if ( $feito ) {
             Newsgame_Ingestor::cursor_clear( 'push' );
         } else {
@@ -532,34 +537,88 @@ class Newsgame_Generator {
 
         wp_send_json_success( array(
             'feito'         => $feito,
-            'processados'   => count( $arquivos ) - ( count( $pendentes ) - count( $lote ) ),
+            'processados'   => count( $arquivos ) - ( count( $pendentes ) - $feitos_no_lote ),
             'total'         => count( $arquivos ),
             'enviados_lote' => $enviados_lote,
             'enviados'      => $c['enviados'],
             'pulados'       => $c['pulados'],
+            'cortados'      => $c['cortados'],
             'vault_total'   => count( $arquivos ),
         ) );
     }
 
-    /** Lê os JSON do lote e monta o corpo do /ingest. Arquivo ilegível é ignorado. */
-    private static function artigos_do_lote( array $lote ) {
-        $artigos = array();
-        foreach ( $lote as $a ) {
-            $data = json_decode( (string) file_get_contents( $a['path'] ), true );
-            if ( ! $data ) {
-                continue;
+    /**
+     * Monta o lote percorrendo os pendentes em ordem de ID, até o PRIMEIRO dos
+     * limites: LOTE_PUSH_MAX_ITENS itens ou LOTE_PUSH_MAX_CARACTERES caracteres
+     * (soma do conteúdo, já com o corte de cada artigo). Todo lote tem ao menos 1
+     * item: o limite de caracteres só fecha um lote que já tem algo. O cursor é o
+     * ID do último arquivo INCLUÍDO.
+     *
+     * @return array { arquivos: [{id,path}], artigos: [corpo do /ingest], cortados: int }
+     */
+    private static function montar_lote( array $pendentes ) {
+        $arquivos = array();
+        $artigos  = array();
+        $chars    = 0;
+        $cortados = 0;
+        foreach ( $pendentes as $a ) {
+            if ( count( $arquivos ) >= Newsgame_Ingestor::LOTE_PUSH_MAX_ITENS ) {
+                break;
             }
-            $artigos[] = array(
+            $lido = self::ler_artigo( $a['path'] );
+            $tam  = $lido ? mb_strlen( $lido['dados']['content'] ) : 0;
+            if ( $arquivos && $chars + $tam > Newsgame_Ingestor::LOTE_PUSH_MAX_CARACTERES ) {
+                break;
+            }
+            $arquivos[] = $a;
+            $chars     += $tam;
+            if ( $lido ) {
+                $artigos[] = $lido['dados'];
+                $cortados += $lido['cortado'] ? 1 : 0;
+            }
+        }
+        return array( 'arquivos' => $arquivos, 'artigos' => $artigos, 'cortados' => $cortados );
+    }
+
+    /**
+     * Lê um JSON do cofre e monta o artigo do /ingest. Conteúdo acima de
+     * LIMITE_ITEM_CARACTERES é cortado no fim de uma palavra. Arquivo ilegível: null.
+     */
+    private static function ler_artigo( $path ) {
+        $data = json_decode( (string) file_get_contents( $path ), true );
+        if ( ! $data ) {
+            return null;
+        }
+        $content = (string) ( $data['content'] ?? '' );
+        $cortado = mb_strlen( $content ) > Newsgame_Ingestor::LIMITE_ITEM_CARACTERES;
+        if ( $cortado ) {
+            $content = self::cortar_no_fim_da_palavra( $content, Newsgame_Ingestor::LIMITE_ITEM_CARACTERES );
+        }
+        return array(
+            'cortado' => $cortado,
+            'dados'   => array(
                 'id'      => (int) ( $data['id']      ?? 0 ),
                 'type'    => $data['type']    ?? 'posts',
                 'title'   => $data['title']   ?? '',
                 'excerpt' => $data['excerpt'] ?? '',
-                'content' => $data['content'] ?? '',
+                'content' => $content,
                 'url'     => $data['url']     ?? '',
                 'date'    => $data['date']    ?? '',
-            );
+            ),
+        );
+    }
+
+    /** Primeiros $limite caracteres, sem deixar uma palavra cortada ao meio no fim. */
+    private static function cortar_no_fim_da_palavra( $texto, $limite ) {
+        $corte = mb_substr( $texto, 0, $limite );
+        // Se o caractere seguinte não é espaço, o corte caiu no meio de uma palavra.
+        if ( ! preg_match( '/\s/u', mb_substr( $texto, $limite, 1 ) ) ) {
+            $inteiro = preg_replace( '/\S+$/u', '', $corte );
+            if ( '' !== trim( (string) $inteiro ) ) {
+                $corte = $inteiro;
+            }
         }
-        return $artigos;
+        return rtrim( $corte );
     }
 
     /**

@@ -13,8 +13,8 @@
  * LOTES CURTOS, um de cada vez, orquestrados por este arquivo: cada chamada AJAX
  * processa um lote no PHP e devolve o progresso. O cursor fica no servidor
  * (option por coleção), então "Continuar de onde parou" sobrevive ao recarregar
- * a página. O tamanho do lote é a constante PHP Newsgame_Ingestor::LOTE_SYNC (leitura) e
- * Newsgame_Ingestor::LOTE_PUSH (envio ao backend).
+ * a página. O tamanho do lote é a constante PHP Newsgame_Ingestor::LOTE_SYNC (leitura); o
+ * do envio ao backend fecha em LOTE_PUSH_MAX_ITENS ou LOTE_PUSH_MAX_CARACTERES.
  */
 (function() {
   'use strict';
@@ -23,6 +23,10 @@
 
   // Esperas entre as tentativas de um lote que falhou: 3 novas tentativas.
   var ESPERAS_MS = [2000, 5000, 10000];
+
+  // "Tempo esgotado" do envio ao backend: o backend pode ainda estar processando o
+  // lote anterior, então a 1ª nova tentativa espera mais (as demais seguem ESPERAS_MS).
+  var ESPERA_TEMPO_ESGOTADO_MS = 15000;
 
   // Falhas em que repetir não adianta: dependem de o editor mudar algo.
   var SEM_RETENTATIVA = { token: 1, config: 1, cofre: 1, cofre_vazio: 1, permissao: 1, ajax_sessao: 1 };
@@ -102,10 +106,12 @@
     fd.append('action', t.acao);
     fd.append('nonce', t.nonce);
     fd.append('recomecar', recomecar ? '1' : '0');
+    var inicio = Date.now();
     return fetch(ajaxurl, { method: 'POST', body: fd })
       .then(function(r) { return r.text().then(function(txt) { return { status: r.status, texto: txt }; }); })
       .then(interpretar)
-      .catch(function() { return { ok: false, erro: { codigo: 'ajax_rede' } }; });
+      .catch(function() { return { ok: false, erro: { codigo: 'ajax_rede' } }; })
+      .then(function(r) { r.duracaoMs = Date.now() - inicio; return r; });
   }
 
   function esperar(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms); }); }
@@ -115,9 +121,10 @@
     return chamar(t, recomecar).then(function(r) {
       var repetir = !r.ok && !SEM_RETENTATIVA[r.erro.codigo] && !t.cancelar && tentativa < ESPERAS_MS.length;
       if (!repetir) { return r; }
-      t.texto.textContent = 'Falhou. Tentando de novo em ' + (ESPERAS_MS[tentativa] / 1000) +
+      var espera = tentativa === 0 && r.erro.codigo === 'tempo_esgotado' ? ESPERA_TEMPO_ESGOTADO_MS : ESPERAS_MS[tentativa];
+      t.texto.textContent = 'Falhou. Tentando de novo em ' + (espera / 1000) +
         ' s (nova tentativa ' + (tentativa + 1) + ' de ' + ESPERAS_MS.length + ')…';
-      return esperar(ESPERAS_MS[tentativa]).then(function() {
+      return esperar(espera).then(function() {
         return chamarComRetentativa(t, recomecar, tentativa + 1);
       });
     });
@@ -165,7 +172,8 @@
     var total = d.total || 0;
     var feitos = d.processados || 0;
     var rotuloTipo = d.tipo ? ' (' + (d.tipo === 'pages' ? 'páginas' : 'posts') + ')' : '';
-    var texto = t.verbo + '… ' + numero(feitos) + ' de ' + numero(total) + rotuloTipo;
+    var ultimoLote = t.ultimoLoteS ? ' (último lote: ' + t.ultimoLoteS + ' s)' : '';
+    var texto = t.verbo + '… ' + numero(feitos) + ' de ' + numero(total) + rotuloTipo + ultimoLote;
     mostrar(t.barra, true);
     t.barra.setAttribute('aria-valuemax', String(total));
     t.barra.setAttribute('aria-valuenow', String(feitos));
@@ -243,6 +251,7 @@
         return;
       }
       atualizarContagem(r.dados.vault_total);
+      t.ultimoLoteS = Math.max(1, Math.round(r.duracaoMs / 1000));
       if (r.dados.feito) { concluir(t, r.dados); return; }
       t.ultimo = { processados: r.dados.processados, total: r.dados.total, tipo: r.dados.tipo };
       aplicarProgresso(t, r.dados);
@@ -252,6 +261,7 @@
 
   function iniciar(t, recomecar) {
     t.cancelar = false;
+    t.ultimoLoteS = null;
     if (recomecar) { t.ultimo = null; }
     mostrarExecucao(t);
     t.texto.textContent = t.verbo + '…';
@@ -269,6 +279,15 @@
       mostrarInicio(t);
     }
     return t;
+  }
+
+  // Artigos acima do limite por item são indexados só até ele; a conclusão avisa quantos.
+  function textoCortados(n) {
+    if (!n) { return ''; }
+    var mil = numero((cfg.limiteItem || 30000) / 1000);
+    return n === 1
+      ? ' 1 texto muito longo foi indexado só até os primeiros ' + mil + ' mil caracteres.'
+      : ' ' + numero(n) + ' textos muito longos foram indexados só até os primeiros ' + mil + ' mil caracteres.';
   }
 
   /* ── "Testar conexão": consulta nova ao /health do backend ── */
@@ -325,7 +344,7 @@
       cursor: cfg.cursorPush,
       fim: function(d) {
         return 'Indexação concluída: ' + numero(d.enviados) + ' enviados, ' + numero(d.pulados) +
-          ' pulados (textos com menos de 100 caracteres são ignorados).';
+          ' pulados (textos com menos de 100 caracteres são ignorados).' + textoCortados(d.cortados);
       }
     });
   }
