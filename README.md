@@ -6,7 +6,7 @@ a partir do acervo editorial de qualquer veículo jornalístico.
 Desenvolvido pela equipe da [Amazônia Real](https://amazoniareal.com.br),
 generalizado como ferramenta reutilizável para qualquer domínio editorial.
 
-**Versão do plugin:** 1.1.0 · **Licença:** GPL-2.0-or-later (arquivo
+**Versão do plugin:** 1.1.1 · **Licença:** GPL-2.0-or-later (arquivo
 `news-game-plugin/LICENSE`) · **Compatibilidade:** testado nos temas Twenty Twenty-Five
 e Newspaper.
 
