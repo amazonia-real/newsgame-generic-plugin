@@ -2126,6 +2126,49 @@ e `hnswlib` no traceback é este caso, e não o provedor.
 
 ---
 
+## FLAG 022 — Filtro "ano mínimo": o trecho sem o metadado `ano` sai SEM AVISO
+
+**Status:** ✅ **Tratada na versão 1.2.0 (2026-10-27)**, com prova em teste.
+
+### A armadilha
+
+O filtro por ano é `where={"ano": {"$gte": N}}` no ChromaDB. Três comportamentos, todos
+medidos no ChromaDB 0.5.11 do backend (o item 2 dá erro; os outros dois passam em silêncio):
+
+1. **Trecho sem o campo `ano` sai do resultado em silêncio.** Um índice criado por uma
+   versão do backend anterior à gravação do `ano` (`ingestor.py`) não tem o metadado; com o
+   filtro ligado a busca devolve **zero**, igual a "nada atende", e o editor veria só
+   "pergunta não gerada".
+2. **Dois filtros no mesmo dicionário dão `ValueError`** ("exactly one operator"). Ano e
+   exclusão de fontes (`$nin`) juntos exigem `$and`.
+3. **O relaxamento da exclusão de fontes** (`rag.mmr_search`, quando as fontes já usadas
+   esgotam o acervo) buscava de novo com `filter=None`: com o ano ativo, isso **derrubaria
+   o filtro de ano** e geraria pergunta com texto fora do período.
+
+### A correção
+
+- `rag._filtro()` monta o `where` por composição (nenhum, só ano, só `$nin`, ou `$and`);
+  o relaxamento relaxa **só o `$nin`**.
+- Zero trechos com o ano ativo **nunca recua para "sem filtro"**: o backend responde
+  **409** antes de qualquer chamada ao provedor (sem gastar cota), com `codigo` e `detail`:
+  `indice_sem_ano` (há trechos mas nenhum com `ano`: reindexar) ou
+  `sem_trechos_no_periodo` (há ano no índice, mas nada atende). O painel já mostra o
+  `detail` e para o lote; a substituta mostra o mesmo texto.
+- Se **todas** as buscas falharem com o ano ativo (exceção engolida em cada query), o backend
+  responde **500** com `codigo` `busca_falhou`, e não o 409, que afirmaria uma causa falsa
+  ("nada no período"). Falha parcial segue como antes; sem o ano, nada mudou.
+- Backend antigo ignoraria o campo: `api_compat` sobe para 3 e o plugin recusa gerar, numa
+  instância com o ano preenchido, se o backend respondeu com nível menor.
+- Vazio no formulário grava `NULL`, nunca `0` (0 viraria "ano 0").
+
+### Limite conhecido
+
+O filtro é por **trecho** do índice, e o ano vem da data de publicação do texto. Texto sem
+data legível fica com `ano = 0` e é excluído com o filtro ativo (decisão do editor). A
+análise do acervo (`/analyze-domain`) não consulta o índice e não usa o filtro.
+
+---
+
 ## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
 
 > As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.

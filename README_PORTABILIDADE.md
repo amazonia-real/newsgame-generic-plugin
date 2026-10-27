@@ -363,6 +363,11 @@ Tamanhos recomendados:
   tela cheia**; o jogador volta para ele pela aba original. O **"Compartilhar"** não faz isso:
   em tela cheia ele copia o link em vez de abrir o menu do aparelho.
 - Não testado com leitor de tela real.
+- **"Ano mínimo dos textos"** (opcional, por instância; plugin 1.2.0): com o filtro
+  ativo, os textos **sem data conhecida ficam de fora** da geração das perguntas, assim
+  como os publicados antes do ano escolhido. O acervo precisa ter sido indexado com o
+  backend atual (nível `api_compat` 3); se não, a geração avisa e pede para reindexar.
+  A **análise do acervo (os eixos) não usa o filtro**: ela segue a Descrição do acervo.
 
 ---
 

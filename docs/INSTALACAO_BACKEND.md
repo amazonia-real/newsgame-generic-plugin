@@ -205,7 +205,8 @@ docker builder prune -f
 
 ```bash
 curl https://SEU_DOMINIO/health
-# {"status":"ok","version":"1.0.0"}   — público, sem chave
+# {"status":"ok","version":"1.0.0","api_compat":3}   — público, sem chave
+# api_compat 3 é o que o plugin 1.2.0 exige; abaixo disso o plugin mostra "backend desatualizado"
 
 curl -X POST -H 'Content-Type: application/json' -d '{}' https://SEU_DOMINIO/ingest
 # HTTP 401 {"detail":"Invalid API key"}   — sem chave, negado
@@ -233,6 +234,18 @@ docker image prune -f      # remove a imagem antiga, depois de conferir que a no
 ```
 
 O volume `chroma` (o acervo indexado) e os certificados não são afetados.
+
+**Plugin 1.2.0 ou mais novo: atualize o backend ANTES do plugin.** O plugin exige
+`api_compat` 3 (confira com `curl https://SEU_DOMINIO/health`). Um backend mais antigo
+não conhece o campo "Ano mínimo dos textos" e o ignoraria em silêncio; por isso, numa
+instância com o ano preenchido, o plugin recusa gerar perguntas até o backend ser
+atualizado (ou o campo ser esvaziado).
+
+**Para o filtro de ano funcionar, reindexe o acervo.** O ano de cada trecho é gravado
+na indexação. Um acervo indexado por backend anterior (antes do ano ser guardado) não tem
+essa informação, e a geração avisa "este acervo foi indexado por uma versão antiga":
+depois de atualizar o backend, rode **"Indexar Acervo no Backend"** de novo, em
+News-Game › Configurações. É seguro repetir e não exige sincronizar o acervo outra vez.
 
 ## Ver logs
 
