@@ -52,9 +52,71 @@ def get_collection(site_id: str):
 import random
 
 
-def _buscar(db: Chroma, queries: list[str], k: int, fetch_k: int, filter_dict: dict | None) -> list:
-    """O laço de MMR por query, extraído sem mudança de mmr_search()."""
+class SemTrechosNoPeriodo(Exception):
+    """Filtro de ano ativo e nenhum trecho utilizável. A rota responde 409 com
+    `codigo` e `detail`, ANTES de qualquer chamada ao provedor (não gasta cota).
+    Dois códigos: `indice_sem_ano` (índice criado por versão antiga, sem o
+    metadado) e `sem_trechos_no_periodo` (o índice tem ano, mas nada atende)."""
+
+    def __init__(self, codigo: str, detail: str):
+        super().__init__(detail)
+        self.codigo = codigo
+        self.detail = detail
+
+
+class BuscaFalhouNoAcervo(Exception):
+    """Com o ano mínimo ativo, TODAS as queries da busca falharam (exceção engolida em
+    cada uma). Não é "nada no período": responder 409 afirmaria uma causa falsa. A rota
+    responde 500 com `codigo` `busca_falhou`, antes de qualquer chamada ao provedor."""
+
+    codigo = "busca_falhou"
+    detail = "A busca no acervo falhou; veja o log do backend."
+
+
+def _filtro(ano_minimo: int | None, fontes: list[str]) -> dict | None:
+    """Monta o `where` do Chroma: nenhum, só ano, só `$nin` de fontes, ou os dois.
+
+    ⚠️ Dois campos no MESMO dicionário dão ValueError no Chroma ("exactly one
+    operator"); com os dois filtros ativos o `$and` é obrigatório. E o filtro
+    `$gte` exclui em silêncio o trecho sem o metadado `ano` (TECH_FLAGS).
+    """
+    partes = []
+    if ano_minimo is not None:
+        partes.append({"ano": {"$gte": ano_minimo}})
+    if fontes:
+        partes.append({"source_url": {"$nin": fontes}})
+    if not partes:
+        return None
+    return partes[0] if len(partes) == 1 else {"$and": partes}
+
+
+def _erro_de_periodo(db, ano_minimo: int) -> SemTrechosNoPeriodo | None:
+    """Explica por que o filtro de ano não trouxe nada. None = acervo vazio de
+    verdade (o comportamento de antes, 422, continua valendo)."""
+    col = db._collection
+    if col.count() == 0:
+        return None
+    if not col.get(where={"ano": {"$gte": 0}}, limit=1)["ids"]:
+        return SemTrechosNoPeriodo(
+            "indice_sem_ano",
+            "Este acervo foi indexado por uma versão antiga e não tem a informação de ano. "
+            'Reindexe em "Indexar Acervo no Backend" para usar o ano mínimo.',
+        )
+    return SemTrechosNoPeriodo(
+        "sem_trechos_no_periodo",
+        f"Nenhum trecho do acervo tem ano igual ou maior que {ano_minimo}. "
+        "Confira o ano mínimo da instância.",
+    )
+
+
+def _buscar(db: Chroma, queries: list[str], k: int, fetch_k: int, filter_dict: dict | None,
+            estrito: bool = False) -> list:
+    """O laço de MMR por query, extraído sem mudança de mmr_search().
+
+    `estrito` (só com o ano mínimo ativo): se TODAS as queries falharem, levanta
+    BuscaFalhouNoAcervo em vez de devolver lista vazia. Falha parcial segue como antes."""
     all_chunks = []
+    falhas = 0
     for query in queries:
         try:
             # Buscando o dobro (k*2 e fetch_k adaptado) para aumentar o alcance
@@ -68,6 +130,9 @@ def _buscar(db: Chroma, queries: list[str], k: int, fetch_k: int, filter_dict: d
         except Exception as exc:
             # Erro pontual de busca não interrompe as demais queries (M4)
             logger.warning("[rag] mmr_search falhou para query %r: %r", query, exc)
+            falhas += 1
+    if estrito and queries and falhas == len(queries):
+        raise BuscaFalhouNoAcervo()
     return all_chunks
 
 
@@ -75,7 +140,8 @@ def _tem_url(chunks: list) -> bool:
     """True se algum trecho tem URL rastreável — o mesmo filtro do laço de montagem."""
     return any(doc.metadata.get("source_url", "").startswith("http") for doc in chunks)
 
-def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5, fontes_usadas: list[str] | None = None) -> str:
+def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5,
+               fontes_usadas: list[str] | None = None, ano_minimo: int | None = None) -> str:
     """
     MMR search em múltiplas queries — garante diversidade temática.
     Exclui via filtro $nin no banco de dados vetorial as matérias já pregressas (histórico do frontend).
@@ -84,10 +150,11 @@ def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5, fo
     cfg = get_settings()
     seen: set[str] = set()
     fontes = fontes_usadas or []
-    filter_dict = {"source_url": {"$nin": fontes}} if fontes else None
+    filter_dict = _filtro(ano_minimo, fontes)
 
     # Acumulador temporário de blocos recuperados para posterior amostragem
-    all_chunks = _buscar(db, queries, k, fetch_k, filter_dict)
+    estrito = ano_minimo is not None
+    all_chunks = _buscar(db, queries, k, fetch_k, filter_dict, estrito)
 
     # Exclusão que esgota o acervo RELAXA em vez de falhar o slot: num acervo
     # pequeno, repetir uma fonte é melhor que perder a pergunta. Sem isto o
@@ -97,12 +164,21 @@ def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5, fo
     # O critério é "algum trecho com URL rastreável", e não "algum resultado":
     # o laço abaixo descarta os trechos sem `http`, e esvaziaria o contexto mesmo
     # com resultados.
-    if filter_dict and not _tem_url(all_chunks):
+    # Relaxa SÓ o `$nin`: o filtro de ano nunca é removido.
+    if fontes and not _tem_url(all_chunks):
         logger.warning(
             "[rag] a exclusão de %d fonte(s) esgotou o acervo; buscando sem exclusão.",
             len(fontes),
         )
-        all_chunks = _buscar(db, queries, k, fetch_k, None)
+        all_chunks = _buscar(db, queries, k, fetch_k, _filtro(ano_minimo, []), estrito)
+
+    # Com o ano mínimo ativo, a busca VAZIA nunca recua para "sem filtro": avisa.
+    # Só `not all_chunks`: trecho que voltou (com ano válido) mas sem URL de origem
+    # não é "nada no período", e segue o caminho de antes (contexto vazio, 422).
+    if ano_minimo is not None and not all_chunks:
+        erro = _erro_de_periodo(db, ano_minimo)
+        if erro is not None:
+            raise erro
 
     # Amostragem estocástica (Random Sampling)
     # Garante orgânica na recuperação reduzida

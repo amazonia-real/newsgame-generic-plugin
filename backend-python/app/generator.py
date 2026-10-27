@@ -1394,7 +1394,8 @@ def generate_one_dilema(
         queries,
         fetch_k=cfg.rag_fetch_k,
         k=cfg.rag_k,
-        fontes_usadas=req.fontes_usadas
+        fontes_usadas=req.fontes_usadas,
+        ano_minimo=req.ano_minimo,
     )
     if not contexto_rag.strip():
         return None

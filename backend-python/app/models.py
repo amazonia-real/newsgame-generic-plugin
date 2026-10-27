@@ -43,6 +43,9 @@ class GenerateRequest(BaseModel):
     nivel_padrao: str = Field(default='pedagogico')  # 'ludico' | 'pedagogico' | 'complexo'
     fontes_usadas: List[str]   = Field(default_factory=list)
     axis_matrix:   dict | None = Field(default=None)
+    # Ano mínimo dos textos (plugin 1.2.0). None = sem filtro. Só trechos com
+    # `ano` >= este valor entram na busca; sem ano conhecido (0) ficam de fora.
+    ano_minimo:    int | None  = Field(default=None, ge=1900, le=2100)
     # Terceiro degrau da cascata de chave (header > body > env), no mesmo formato
     # dos outros Request models. Fase 0 do H1: as rotas de geração passam a
     # aceitar chave por requisição em vez de ler só o .env.
@@ -194,6 +197,7 @@ class RegenerateRequest(BaseModel):
     characters: List[CharacterDef] = Field(default_factory=list)
     num_options: Literal[2, 3] = 2
     fontes_usadas: List[str] = Field(default_factory=list)
+    ano_minimo: int | None = Field(default=None, ge=1900, le=2100)  # ver GenerateRequest
     # Cascata de chave — ver a nota em GenerateRequest. Aqui o payload é montado
     # inteiramente no servidor (class-newsgame-review.php:266-275), sem passar
     # pelo browser, mas o proxy manda a chave em header pelo mesmo padrão.

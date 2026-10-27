@@ -32,6 +32,7 @@ from app.models import (
     VerdictNarrative,
 )
 from app import ingestor, generator, regenerator
+from app.rag import BuscaFalhouNoAcervo, SemTrechosNoPeriodo
 from app.logging_config import setup_logging
 
 setup_logging()
@@ -43,12 +44,26 @@ app = FastAPI(title="News-Game Backend", version="1.0.0")
 # O plugin declara o mínimo que exige (NEWSGAME_BACKEND_COMPAT_MIN) e compara.
 # Só sobe quando uma mudança do backend passa a ser EXIGIDA pelo plugin.
 # 1 = backend sem o campo (anterior ao `grupo` do /generate-one);
-# 2 = inclui o `grupo` no /generate-one (commit d667eb9) E a rota /auth-check.
-API_COMPAT = 2
+# 2 = inclui o `grupo` no /generate-one (commit d667eb9) E a rota /auth-check;
+# 3 = inclui o `ano_minimo` no /generate-one e no /regenerate (um backend de nível 2
+#     o IGNORARIA em silêncio, por isso o plugin 1.2.0 exige 3).
+API_COMPAT = 3
 get_settings()  # falha aqui se API_SECRET_TOKEN não estiver definido
 
 # Sem CORSMiddleware: todas as chamadas chegam server-to-server via proxy
 # PHP (wp_remote_post) — nenhum browser acessa o backend diretamente.
+
+
+def _409_de_periodo(exc: SemTrechosNoPeriodo) -> JSONResponse:
+    """Filtro de ano sem trechos: `codigo` + `detail` no topo do corpo, o formato
+    que o JS do painel já trata como parada com mensagem. Sai antes do provedor."""
+    return JSONResponse(status_code=409, content={"codigo": exc.codigo, "detail": exc.detail})
+
+
+def _500_de_busca(exc: BuscaFalhouNoAcervo) -> JSONResponse:
+    """Com o ano ativo, todas as buscas falharam: erro de servidor com `codigo` e
+    `detail` (o JS do painel mostra o detail), e não o 409, que afirmaria causa falsa."""
+    return JSONResponse(status_code=500, content={"codigo": exc.codigo, "detail": exc.detail})
 
 
 def _verify_token(x_api_key: str = Header(default="")) -> None:
@@ -106,6 +121,10 @@ def regenerate_one(
         dilema = regenerator.generate_one(req, api_key, provedor)
     except generator.ErroDeProvedor as exc:
         raise HTTPException(status_code=502, detail=exc.detail) from exc
+    except SemTrechosNoPeriodo as exc:
+        return _409_de_periodo(exc)
+    except BuscaFalhouNoAcervo as exc:
+        return _500_de_busca(exc)
 
     if dilema is None:
         raise HTTPException(status_code=422, detail="Não foi possível gerar uma pergunta substituta válida.")
@@ -152,6 +171,10 @@ def generate_one(
         result["instance_id"] = req.instance_id
         result["position"]    = req.slot_index + 1
         return result
+    except SemTrechosNoPeriodo as exc:
+        return _409_de_periodo(exc)
+    except BuscaFalhouNoAcervo as exc:
+        return _500_de_busca(exc)
     except generator.ErroDeProvedor as exc:
         # Ramo PRÓPRIO, antes do `except Exception` — sem ele a recusa do
         # provedor cairia no 500 "Erro interno" do ramo genérico, que é tão mudo
