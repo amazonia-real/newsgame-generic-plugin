@@ -131,11 +131,17 @@ class Newsgame_Review {
         // que são exatamente as entradas do /assign-weights. Se mudaram, o peso
         // existente descreve um texto que não existe mais.
         $antes = $wpdb->get_row( $wpdb->prepare(
-            "SELECT body, option_a, option_b FROM {$table} WHERE id = %d",
+            "SELECT body, option_a, option_b, veredicto FROM {$table} WHERE id = %d",
             $id
         ), ARRAY_A );
 
         $data = array_merge( self::edited_fields(), array( 'review_status' => 'approved' ) );
+        // FLAG 018: edited_fields() remonta o veredicto só com as chaves do formulário.
+        // As que o formulário não edita (alternativa_correta) são preservadas. Sem a
+        // chave `veredicto` em $data, nada é criado nem sobrescrito.
+        if ( isset( $data['veredicto'] ) ) {
+            $data['veredicto'] = self::preservar_chaves_do_veredicto( $antes['veredicto'] ?? '', $data['veredicto'] );
+        }
         $gravado = $wpdb->update( $table, $data, array( 'id' => $id ), null, array( '%d' ) );
         self::abort_on_db_error( $gravado, 'a aprovação' );
 
@@ -616,6 +622,24 @@ class Newsgame_Review {
             "SELECT id FROM {$wpdb->prefix}newsgame_dilemas WHERE id = %d AND instance_id = %d",
             $question_id, $instance_id
         ) );
+    }
+
+    /**
+     * Veredicto novo (do formulário) por cima do gravado: as chaves editadas ganham, as
+     * demais (alternativa_correta) continuam.
+     *  - novo ilegível (não é array JSON): devolve o GRAVADO, sem apagá-lo;
+     *  - gravado ilegível e novo válido: devolve o novo.
+     */
+    private static function preservar_chaves_do_veredicto( $gravado_json, $novo_json ) {
+        $gravado = json_decode( (string) $gravado_json, true );
+        $novo    = json_decode( (string) $novo_json, true );
+        if ( ! is_array( $novo ) ) {
+            return $gravado_json;
+        }
+        if ( ! is_array( $gravado ) ) {
+            return $novo_json;
+        }
+        return wp_json_encode( array_merge( $gravado, $novo ), JSON_UNESCAPED_UNICODE );
     }
 
     private static function edited_fields() {

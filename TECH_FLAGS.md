@@ -1831,8 +1831,9 @@ modelo morto saiu como 422 enganoso) e o item 9 do bloco de 16/09 na §10 do `CL
 
 ## FLAG 018 — `ajax_approve()` descarta `alternativa_correta` ao remontar o veredito
 
-**Status:** 🔴 **ABERTA, sem correção aplicada.** Registrada em 2026-09-25, a partir da
-aprovação do dilema 68 (instância 3, `jogo-teste-skin`) pelo handler real.
+**Status:** ✅ **CORRIGIDA na versão 1.1.2 (2026-10-27)** — ver "Correção" no fim desta
+FLAG. Registrada em 2026-09-25, a partir da aprovação do dilema 68 (instância 3,
+`jogo-teste-skin`) pelo handler real.
 
 **O que acontece.** `Newsgame_Review::ajax_approve()` (`class-newsgame-review.php:137`)
 grava `edited_fields()` inteiro junto com `review_status = 'approved'`. E
@@ -1881,6 +1882,17 @@ veredito original). ⚠️ **`%TEMP%` é volátil:** mover para fora de lá se p
 **Ver também:** item "substituta id 68" no bloco de 16/09 da §10 do `CLAUDE.md`, e a
 família das escritas que regravam campo não enviado — o `image_id` já é tratado com
 `isset()` em `edited_fields()` justamente para não apagar o que o chamador não mandou.
+
+**Correção (2026-10-27, plugin 1.1.2).** `ajax_approve()` passou a ler o `veredicto` já
+gravado e a mesclá-lo com o que o formulário envia (`preservar_chaves_do_veredicto()`):
+as chaves editadas (`desfecho`, `licao`, `sintese`) ganham, as demais
+(`alternativa_correta`) continuam. A função só é chamada se `$data['veredicto']` existir
+(sem a chave, nada é criado nem sobrescrito); se o JSON novo for ilegível, vale o
+**gravado** (nunca é apagado); se o gravado for ilegível e o novo válido, vale o novo.
+Provado com a aprovação de uma pergunta que tinha `alternativa_correta`: o campo continua
+gravado depois. **Os dilemas aprovados ANTES da
+correção continuam sem o campo** — ele não é reconstruído; como o jogo não o lê, não há
+sintoma para o jogador.
 
 ---
 
