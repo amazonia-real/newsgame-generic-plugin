@@ -22,7 +22,7 @@ que cria um banco local no diretório configurado em `CHROMA_DB_DIR`.
 
 ```bash
 # Clone o repositório
-git clone https://github.com/amazonia-real/news-game.git
+git clone https://github.com/amazonia-real/newsgame-generic-plugin.git
 cd news-game/backend-python
 
 # Crie e ative o ambiente virtual
@@ -131,8 +131,8 @@ ln -s /caminho/para/news-game/news-game-plugin /var/www/html/wordpress/wp-conten
 |-------|-------|
 | Nome da Organização | O nome do seu veículo (ex: "Seu Veículo") |
 | Provedor de IA e a chave dele | O provedor escolhido e a chave correspondente (campo da tabela da §1) |
-| URL do Backend Python | `http://localhost:8000` (ou a URL pública do seu servidor) |
-| Token do Backend | O mesmo valor definido em `API_SECRET_TOKEN` no `.env` |
+| URL do Backend Python | O endereço **HTTPS** do backend, informado pela equipe de TI que o instalou (por exemplo `https://backend.seuveiculo.com.br`). `http://localhost:8000` só serve em desenvolvimento |
+| Token do Backend | O valor de `API_SECRET_TOKEN` no `.env` do servidor do backend, informado por quem instalou o backend |
 
 > A chave do provedor pode ser configurada aqui **ou** diretamente no `.env` do
 > backend. O backend usa a primeira que encontrar, nesta ordem: o cabeçalho que o
@@ -356,6 +356,13 @@ Tamanhos recomendados:
   arquivo, até 160 px de largura e 48 px de altura (o CSS só limita, com
   `max-width: 10rem` e `max-height: 3rem`, e não amplia): um arquivo pequeno aparece
   pequeno. Prefira um logo horizontal e largo.
+
+### Limitações conhecidas do jogo
+
+- O botão **"Aprofundar"** (o (i) do contexto) abre a matéria em outra aba e **tira o jogo da
+  tela cheia**; o jogador volta para ele pela aba original. O **"Compartilhar"** não faz isso:
+  em tela cheia ele copia o link em vez de abrir o menu do aparelho.
+- Não testado com leitor de tela real.
 
 ---
 
