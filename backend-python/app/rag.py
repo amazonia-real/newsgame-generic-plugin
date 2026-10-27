@@ -4,6 +4,7 @@ import logging
 from functools import lru_cache
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
+from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.config import get_settings
 
@@ -50,6 +51,10 @@ def get_collection(site_id: str):
     )
 
 import random
+
+
+# Teto de trechos da leitura direta do período (fallback da busca por similaridade).
+LIMITE_LEITURA_DIRETA = 100
 
 
 class SemTrechosNoPeriodo(Exception):
@@ -136,6 +141,46 @@ def _buscar(db: Chroma, queries: list[str], k: int, fetch_k: int, filter_dict: d
     return all_chunks
 
 
+def _ler_periodo(db, filtro: dict) -> list:
+    """Leitura direta dos trechos que passam no filtro, sem busca por similaridade.
+
+    Só os ids primeiro; acima de LIMITE_LEITURA_DIRETA, sorteia a amostra entre os ids
+    (limit/offset viesariam para os textos mais antigos: a indexação vai do mais velho
+    ao mais novo). Depois lê documentos e metadados dessa amostra. Qualquer falha,
+    inclusive db sem `_collection`, vira BuscaFalhouNoAcervo."""
+    try:
+        col = db._collection
+        ids = col.get(where=filtro, include=[])["ids"]
+        if len(ids) > LIMITE_LEITURA_DIRETA:
+            ids = random.sample(ids, LIMITE_LEITURA_DIRETA)
+        if not ids:
+            return []
+        lido = col.get(ids=ids, include=["documents", "metadatas"])
+        return [Document(page_content=texto, metadata=meta or {})
+                for texto, meta in zip(lido["documents"], lido["metadatas"])]
+    except Exception as exc:
+        logger.warning("[rag] a leitura direta do período também falhou: %r", exc)
+        raise BuscaFalhouNoAcervo() from exc
+
+
+def _buscar_ou_ler(db, queries: list[str], k: int, fetch_k: int, filter_dict: dict | None,
+                   ano_minimo: int | None) -> list:
+    """Ponto único da busca. Sem ano mínimo é o `_buscar` de sempre. Com ele, se TODAS as
+    queries falharem (o hnswlib estoura com filtro estreito mesmo havendo trechos),
+    lê o período direto com o MESMO filtro da chamada, sem ordenar por tema."""
+    if ano_minimo is None:
+        return _buscar(db, queries, k, fetch_k, filter_dict)
+    try:
+        return _buscar(db, queries, k, fetch_k, filter_dict, estrito=True)
+    except BuscaFalhouNoAcervo:
+        chunks = _ler_periodo(db, filter_dict)
+        logger.warning(
+            "[rag] a busca por similaridade falhou com o filtro de ano; usando leitura "
+            "direta do período (sem ordenação por tema): %d trecho(s).", len(chunks),
+        )
+        return chunks
+
+
 def _tem_url(chunks: list) -> bool:
     """True se algum trecho tem URL rastreável — o mesmo filtro do laço de montagem."""
     return any(doc.metadata.get("source_url", "").startswith("http") for doc in chunks)
@@ -153,8 +198,7 @@ def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5,
     filter_dict = _filtro(ano_minimo, fontes)
 
     # Acumulador temporário de blocos recuperados para posterior amostragem
-    estrito = ano_minimo is not None
-    all_chunks = _buscar(db, queries, k, fetch_k, filter_dict, estrito)
+    all_chunks = _buscar_ou_ler(db, queries, k, fetch_k, filter_dict, ano_minimo)
 
     # Exclusão que esgota o acervo RELAXA em vez de falhar o slot: num acervo
     # pequeno, repetir uma fonte é melhor que perder a pergunta. Sem isto o
@@ -170,7 +214,7 @@ def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5,
             "[rag] a exclusão de %d fonte(s) esgotou o acervo; buscando sem exclusão.",
             len(fontes),
         )
-        all_chunks = _buscar(db, queries, k, fetch_k, _filtro(ano_minimo, []), estrito)
+        all_chunks = _buscar_ou_ler(db, queries, k, fetch_k, _filtro(ano_minimo, []), ano_minimo)
 
     # Com o ano mínimo ativo, a busca VAZIA nunca recua para "sem filtro": avisa.
     # Só `not all_chunks`: trecho que voltou (com ano válido) mas sem URL de origem

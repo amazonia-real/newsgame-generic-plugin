@@ -12,6 +12,7 @@ Rodar a partir de backend-python/:
     .\\.venv\\Scripts\\python.exe -m unittest tests.test_rag_ano -v
 """
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -109,8 +110,9 @@ class TestBuscaQueFalha(unittest.TestCase):
             rag.mmr_search(db, ["q1", "q2"], fetch_k=4, k=2, ano_minimo=2020)
         self.assertEqual(ctx.exception.codigo, "busca_falhou")
         self.assertNotIsInstance(ctx.exception, rag.SemTrechosNoPeriodo)
-        self.assertEqual(len(cm.output), 2)
-        self.assertIn("chroma quebrou", cm.output[0])   # a mensagem da exceção vai ao log
+        falhas = [l for l in cm.output if "mmr_search falhou" in l]
+        self.assertEqual(len(falhas), 2)
+        self.assertIn("chroma quebrou", falhas[0])   # a mensagem da exceção vai ao log
 
     def test_falha_parcial_segue_com_resultado(self):
         db = BancoQuebrado([_doc(1, 2024)], quebrar=1)
@@ -122,6 +124,36 @@ class TestBuscaQueFalha(unittest.TestCase):
         db = BancoQuebrado()
         with self.assertLogs("app.rag", level="WARNING"):
             self.assertEqual(rag.mmr_search(db, ["q1", "q2"], fetch_k=4, k=2), "")
+
+
+ERRO_HNSW = "Cannot return the results in a contigious 2D array. Probably ef or M is too small"
+
+
+def _falha_hnsw(*args, **kwargs):
+    raise RuntimeError(ERRO_HNSW)
+
+
+class ColecaoFalsa:
+    def __init__(self, ids, docs, metas):
+        self.ids, self.docs, self.metas, self.chamadas = ids, docs, metas, []
+
+    def get(self, where=None, ids=None, include=None, limit=None):
+        self.chamadas.append({"where": where, "ids": ids, "include": include})
+        if ids is None:
+            return {"ids": list(self.ids)}
+        pos = [self.ids.index(i) for i in ids]
+        return {"ids": list(ids), "documents": [self.docs[p] for p in pos],
+                "metadatas": [self.metas[p] for p in pos]}
+
+
+class BancoSemSimilaridade:
+    """A busca por similaridade estoura como o hnswlib; `_collection` serve a leitura direta."""
+
+    def __init__(self, colecao):
+        self._collection = colecao
+
+    def max_marginal_relevance_search(self, query, k, fetch_k, filter=None):
+        raise RuntimeError(ERRO_HNSW)
 
 
 class TestModelo(unittest.TestCase):
@@ -221,6 +253,90 @@ class TestBuscaReal(ChromaTemporario):
         self.assertEqual(rag.mmr_search(db, ["teatro"], fetch_k=10, k=5, ano_minimo=2020), "")
 
 
+class TestLeituraDireta(ChromaTemporario):
+
+    def urls(self, ctx):
+        return sorted(set(re.findall(r"SOURCE_URL: (\S+)", ctx)))
+
+    def test_a_banco_falso_le_o_periodo_com_o_mesmo_filtro(self):
+        col = ColecaoFalsa(["a", "b"], ["texto a", "texto b"],
+                           [{"source_url": "https://exemplo.org/a", "titulo": "A", "ano": 2022},
+                            {"source_url": "https://exemplo.org/b", "titulo": "B", "ano": 2024}])
+        db = BancoSemSimilaridade(col)
+        with self.assertLogs("app.rag", level="WARNING") as cm:
+            ctx = rag.mmr_search(db, ["q1", "q2"], fetch_k=4, k=2,
+                                 fontes_usadas=["https://exemplo.org/z"], ano_minimo=2020)
+        self.assertEqual(self.urls(ctx), ["https://exemplo.org/a", "https://exemplo.org/b"])
+        esperado = {"$and": [{"ano": {"$gte": 2020}}, {"source_url": {"$nin": ["https://exemplo.org/z"]}}]}
+        self.assertEqual(col.chamadas[0]["where"], esperado)
+        avisos = [l for l in cm.output
+                  if "leitura direta do período (sem ordenação por tema): 2 trecho(s)" in l]
+        self.assertEqual(len(avisos), 1)
+
+    def test_b_colecao_real_so_traz_o_periodo_e_respeita_o_nin(self):
+        db = self.criar([_doc(i, a) for i, a in enumerate([0, 2015, 2021, 2024])])
+        db.max_marginal_relevance_search = _falha_hnsw
+        with self.assertLogs("app.rag", level="WARNING"):
+            ctx = rag.mmr_search(db, ["teatro"], fetch_k=10, k=5, ano_minimo=2020)
+        self.assertEqual(self.urls(ctx), ["https://exemplo.org/2", "https://exemplo.org/3"])
+        with self.assertLogs("app.rag", level="WARNING"):
+            ctx = rag.mmr_search(db, ["teatro"], fetch_k=10, k=5, ano_minimo=2020,
+                                 fontes_usadas=["https://exemplo.org/2"])
+        self.assertEqual(self.urls(ctx), ["https://exemplo.org/3"])
+
+    def test_c_teto_de_100_ids_sorteados(self):
+        docs = [_doc(i, 2022) for i in range(150)] + [_doc(i, 2010) for i in range(150, 160)]
+        db = self.criar(docs)
+        db.max_marginal_relevance_search = _falha_hnsw
+        real = db._collection
+
+        class Espia:
+            def __init__(self):
+                self.gets = []
+
+            def get(self, **kw):
+                self.gets.append(kw)
+                return real.get(**kw)
+
+            def __getattr__(self, nome):
+                return getattr(real, nome)
+
+        espia = Espia()
+        db._collection = espia
+        with self.assertLogs("app.rag", level="WARNING"):
+            ctx = rag.mmr_search(db, ["teatro"], fetch_k=10, k=5, ano_minimo=2020)
+        self.assertEqual(len(espia.gets[0]["include"]), 0)               # 1º get: só ids
+        self.assertEqual(len(espia.gets[1]["ids"]), rag.LIMITE_LEITURA_DIRETA)   # 2º get: no máximo 100
+        self.assertTrue(ctx)
+        self.assertTrue(all(int(u.rsplit("/", 1)[1]) < 150 for u in self.urls(ctx)))
+
+    def test_d_leitura_direta_tambem_falha(self):
+        class SemColecao:
+            max_marginal_relevance_search = staticmethod(_falha_hnsw)
+
+        class ColecaoQueFalha:
+            def get(self, **kw):
+                raise RuntimeError("get quebrou")
+
+        for db in (SemColecao(), BancoSemSimilaridade(ColecaoQueFalha())):
+            with self.assertLogs("app.rag", level="WARNING"), self.assertRaises(rag.BuscaFalhouNoAcervo):
+                rag.mmr_search(db, ["q"], fetch_k=4, k=2, ano_minimo=2020)
+
+    def test_e_leitura_direta_vazia_decide_entre_os_409(self):
+        db = self.criar([_doc(i, a) for i, a in enumerate([0, 2015])])
+        db.max_marginal_relevance_search = _falha_hnsw
+        with self.assertLogs("app.rag", level="WARNING"), self.assertRaises(rag.SemTrechosNoPeriodo) as cm:
+            rag.mmr_search(db, ["teatro"], fetch_k=10, k=5, ano_minimo=2030)
+        self.assertEqual(cm.exception.codigo, "sem_trechos_no_periodo")
+
+    def test_sem_ano_nao_usa_leitura_direta(self):
+        col = ColecaoFalsa(["a"], ["t"], [{"source_url": "https://exemplo.org/a", "ano": 2022}])
+        db = BancoSemSimilaridade(col)
+        with self.assertLogs("app.rag", level="WARNING"):
+            self.assertEqual(rag.mmr_search(db, ["q"], fetch_k=4, k=2), "")
+        self.assertEqual(col.chamadas, [])
+
+
 class TestRotas(ChromaTemporario):
 
     def setUp(self):
@@ -268,6 +384,17 @@ class TestRotas(ChromaTemporario):
             self.assertEqual(r.status_code, 500, rota)
             self.assertEqual(r.json(), {"codigo": "busca_falhou",
                                         "detail": "A busca no acervo falhou; veja o log do backend."})
+            llm.invoke.assert_not_called()
+
+    def test_d_rotas_500_quando_a_leitura_direta_tambem_falha(self):
+        class SemColecao:
+            max_marginal_relevance_search = staticmethod(_falha_hnsw)
+
+        for rota in ("/generate-one", "/regenerate"):
+            with self.assertLogs("app.rag", level="WARNING"):
+                r, llm = self.chamar(rota, SemColecao(), ano_minimo=2020)
+            self.assertEqual(r.status_code, 500, rota)
+            self.assertEqual(r.json()["codigo"], "busca_falhou")
             llm.invoke.assert_not_called()
 
     def test_ano_fora_do_intervalo_e_422(self):

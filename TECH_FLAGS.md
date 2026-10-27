@@ -2132,8 +2132,9 @@ e `hnswlib` no traceback é este caso, e não o provedor.
 
 ### A armadilha
 
-O filtro por ano é `where={"ano": {"$gte": N}}` no ChromaDB. Três comportamentos, todos
-medidos no ChromaDB 0.5.11 do backend (o item 2 dá erro; os outros dois passam em silêncio):
+O filtro por ano é `where={"ano": {"$gte": N}}` no ChromaDB. Quatro comportamentos, todos
+medidos no ChromaDB 0.5.11 do backend (o item 2 dá erro de validação, o item 4 estoura na
+busca; os itens 1 e 3 passam em silêncio):
 
 1. **Trecho sem o campo `ano` sai do resultado em silêncio.** Um índice criado por uma
    versão do backend anterior à gravação do `ano` (`ingestor.py`) não tem o metadado; com o
@@ -2144,6 +2145,12 @@ medidos no ChromaDB 0.5.11 do backend (o item 2 dá erro; os outros dois passam 
 3. **O relaxamento da exclusão de fontes** (`rag.mmr_search`, quando as fontes já usadas
    esgotam o acervo) buscava de novo com `filter=None`: com o ano ativo, isso **derrubaria
    o filtro de ano** e geraria pergunta com texto fora do período.
+4. **A busca por similaridade com filtro estreito pode estourar no hnswlib mesmo havendo
+   trechos:** `RuntimeError: Cannot return the results in a contigious 2D array. Probably ef or
+   M is too small`. Medido: 2.000 trechos, 19 no período. Depende dos dados: apareceu em 1 de 7
+   tamanhos e não se repetiu em outras coleções de 2.000. Reduzir `k` e `fetch_k` não resolve
+   (`fetch_k` igual ao número de trechos também falhou); `col.get(where=...)` devolveu sempre
+   todos.
 
 ### A correção
 
@@ -2154,14 +2161,21 @@ medidos no ChromaDB 0.5.11 do backend (o item 2 dá erro; os outros dois passam 
   `indice_sem_ano` (há trechos mas nenhum com `ano`: reindexar) ou
   `sem_trechos_no_periodo` (há ano no índice, mas nada atende). O painel já mostra o
   `detail` e para o lote; a substituta mostra o mesmo texto.
-- Se **todas** as buscas falharem com o ano ativo (exceção engolida em cada query), o backend
-  responde **500** com `codigo` `busca_falhou`, e não o 409, que afirmaria uma causa falsa
-  ("nada no período"). Falha parcial segue como antes; sem o ano, nada mudou.
+- Se **todas** as buscas por similaridade falharem com o ano ativo, o backend faz a **leitura
+  direta do período** (`rag._ler_periodo`): lê os ids com o mesmo filtro, sorteia até 100
+  (`LIMITE_LEITURA_DIRETA`; `limit`/`offset` viesariam para os textos mais antigos) e lê os
+  documentos dessa amostra, com um aviso no log. Só com o ano ativo; sem ele, nada muda.
+- Se todas as buscas falharem **e a leitura direta também falhar**, o backend responde **500**
+  com `codigo` `busca_falhou`, e não o 409, que afirmaria uma causa falsa ("nada no período").
+  Falha parcial segue como antes. Leitura direta vazia cai no 409 que explica o motivo.
 - Backend antigo ignoraria o campo: `api_compat` sobe para 3 e o plugin recusa gerar, numa
   instância com o ano preenchido, se o backend respondeu com nível menor.
 - Vazio no formulário grava `NULL`, nunca `0` (0 viraria "ano 0").
 
 ### Limite conhecido
+
+Nos casos raros do item 4, os trechos vêm do período, mas não necessariamente são os mais
+próximos do tema (a leitura direta não ordena por similaridade).
 
 O filtro é por **trecho** do índice, e o ano vem da data de publicação do texto. Texto sem
 data legível fica com `ano = 0` e é excluído com o filtro ativo (decisão do editor). A
