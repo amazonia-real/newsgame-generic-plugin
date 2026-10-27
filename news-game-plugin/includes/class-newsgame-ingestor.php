@@ -38,65 +38,6 @@ class Newsgame_Ingestor {
     }
 
     /**
-     * Sincroniza posts (e opcionalmente páginas) para o vault local.
-     *
-     * @param  array $types  Post types a indexar. Padrão: ['posts'].
-     * @param  int   $per_page  Posts por página na REST API.
-     * @return array  { success, saved, skipped, errors, vault_dir }
-     */
-    public static function sync( $types = array( 'posts' ), $per_page = 50 ) {
-        $vault = self::vault_dir();
-        if ( is_wp_error( $vault ) ) {
-            return array(
-                'success' => false,
-                'error'   => $vault->get_error_message(),
-            );
-        }
-
-        $saved  = 0;
-        $errors = array();
-
-        foreach ( $types as $type ) {
-            $endpoint = rest_url( "/wp/v2/{$type}" );
-            $page     = 1;
-
-            do {
-                $url      = add_query_arg( array( 'per_page' => $per_page, 'page' => $page ), $endpoint );
-                $response = wp_remote_get( $url, array( 'timeout' => 30, 'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && str_contains( $url, 'localhost' ) ) ) );
-
-                if ( is_wp_error( $response ) ) {
-                    $errors[] = "[{$type} p{$page}] " . $response->get_error_message();
-                    break;
-                }
-
-                $code = (int) wp_remote_retrieve_response_code( $response );
-                if ( 200 !== $code ) {
-                    $errors[] = "[{$type} p{$page}] HTTP {$code}";
-                    break;
-                }
-
-                $items = json_decode( wp_remote_retrieve_body( $response ), true );
-                if ( empty( $items ) ) break;
-
-                foreach ( $items as $item ) {
-                    $saved += self::save_item( $item, $type, $vault );
-                }
-
-                $total_pages = (int) wp_remote_retrieve_header( $response, 'x-wp-totalpages' );
-                $page++;
-
-            } while ( $page <= $total_pages );
-        }
-
-        return array(
-            'success'   => true,
-            'saved'     => $saved,
-            'errors'    => $errors,
-            'vault_dir' => $vault,
-        );
-    }
-
-    /**
      * Persiste um único item REST no vault como JSON.
      * Sobrescreve sempre — a sincronização é idempotente.
      *

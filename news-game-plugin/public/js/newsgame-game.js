@@ -385,7 +385,10 @@
   function compartilhar(btn, titulo, perfil) {
     var url   = urlCompartilhavel();
     var dados = { title: titulo, text: perfil ? titulo + ' — ' + perfil : titulo, url: url };
-    if (typeof navigator.share !== 'function' ||
+    /* Em tela cheia (API padrão ou prefixo WebKit) o menu nativo tira o jogo da tela
+       cheia: nesse caso copia o link, com a mesma confirmação de sempre. */
+    if (elementoEmTelaCheia() ||
+        typeof navigator.share !== 'function' ||
         (typeof navigator.canShare === 'function' && !navigator.canShare(dados))) {
       copiarLink(btn, url);
       return;
@@ -454,8 +457,8 @@
      *   3. `--ng-bg`, a cor sólida que o CSS já aplica no wrap. Não precisa de
      *      código: basta não haver imagem inline nem regra de skin.
      *
-     * O DEGRAU 2 NÃO TOCOU NENHUM CHAMADOR, que era a promessa registrada no
-     * contrato de skins (regra 6 do GEMINI.md) e valia a pena manter. Foi
+     * O DEGRAU 2 NÃO TOCOU NENHUM CHAMADOR, que era a promessa do contrato de
+     * skins (o degrau 2 da cascata de fundos não muda nenhuma chamada) e valia a pena manter. Foi
      * possível porque o momento se LÊ de `idx`, a variável de estado que já
      * vive neste closure — ver momentoDoFundo(). Um parâmetro novo teria
      * obrigado os quatro chamadores a declarar o momento, e a divergir do

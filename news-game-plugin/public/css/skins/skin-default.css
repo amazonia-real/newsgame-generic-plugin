@@ -13,7 +13,8 @@
  * ── SELETOR ───────────────────────────────────────────────────────────
  * `.ng-game-wrap.ng-skin-default` (0-2-0), pelas razões escritas na
  * `skin-pixel.css`: duas skins na mesma página e imunidade à ordem do CSS. Os
- * tokens vivem no wrap, não em `:root` (regra 2 da §5.4 do `GEMINI.md`).
+ * tokens vivem no wrap, não em `:root`, para valer só dentro do jogo e deixar duas
+ * skins convivendo na mesma página.
  */
 
 /*

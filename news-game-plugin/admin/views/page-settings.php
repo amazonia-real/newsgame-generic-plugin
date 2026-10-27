@@ -56,6 +56,14 @@
             <br>
             Preencha abaixo a chave do provedor escolhido. As chaves dos outros provedores
             ficam guardadas e não são enviadas.
+            <br>
+            A chave pode ficar no campo abaixo (gravada no banco do WordPress, em texto simples,
+            visível a administradores) ou no arquivo <code>.env</code> do servidor do backend.
+            Se as duas existirem, <strong>vale a do campo</strong>; a do <code>.env</code> só é
+            usada quando o campo está vazio.
+            <br>
+            O texto do acervo é enviado ao provedor de IA escolhido, e planos gratuitos têm
+            limite diário de uso.
           </p>
         </td>
       </tr>
@@ -116,7 +124,7 @@
           <input type="url" id="newsgame_backend_url" name="newsgame_backend_url"
                  value="<?php echo esc_attr( get_option( 'newsgame_backend_url', '' ) ); ?>"
                  class="regular-text" placeholder="https://backend.seuveiculo.com.br">
-          <p class="description">Endereço do backend Python (o servidor que gera as perguntas e guarda o índice do acervo). Necessário para a geração de perguntas e a indexação.</p>
+          <p class="description">Endereço do backend Python (o servidor que gera as perguntas e guarda o índice do acervo), em HTTPS, informado pela equipe de TI que instalou o backend (por exemplo <code>https://backend.seuveiculo.com.br</code>). <code>localhost</code> só serve em desenvolvimento. Necessário para a geração de perguntas e a indexação.</p>
           <p id="newsgame-backend-status" role="status" aria-live="polite" style="font-weight:600">
             <?php echo esc_html( Newsgame_Settings::texto_do_estado( Newsgame_Settings::backend_status()['estado'] ) ); ?>
           </p>
@@ -133,8 +141,8 @@
                  value="<?php echo esc_attr( get_option( 'newsgame_backend_api_key', '' ) ); ?>"
                  class="regular-text" autocomplete="off">
           <p class="description">
-            Valor da variável <code>API_SECRET_TOKEN</code> no seu backend.
-            Deixe em branco se o backend não exigir autenticação.
+            É o valor de <code>API_SECRET_TOKEN</code> no arquivo <code>.env</code> do servidor
+            do backend, informado por quem instalou o backend.
           </p>
         </td>
       </tr>
@@ -166,12 +174,6 @@
     &#8635; Sincronizar Acervo
   </button>
   <span id="newsgame-sync-status" style="margin-left:12px;font-weight:600;"></span>
-
-  <div id="newsgame-sync-log" style="margin-top:1rem;display:none;">
-    <h4>Log da última sincronização</h4>
-    <pre id="newsgame-sync-pre"
-         style="background:#f0f0f0;padding:1rem;max-height:200px;overflow:auto;font-size:12px;"></pre>
-  </div>
 
   <?php if ( get_option( 'newsgame_backend_url' ) ) : ?>
   <hr style="margin:1.5rem 0 1rem">

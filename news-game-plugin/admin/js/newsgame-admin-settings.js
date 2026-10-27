@@ -155,6 +155,9 @@
     raiz.style.cssText = 'margin-top:.75rem;max-width:560px';
     t.aviso = criar('p', { 'aria-live': 'polite' });
     t.aviso.style.fontWeight = '600';
+    // Dica enquanto a tarefa roda (só as tarefas que têm `textoDica`).
+    t.dica = criar('p', { 'aria-live': 'polite' });
+    t.dica.style.cssText = 'display:none;font-weight:600';
     montarBarra(t);
     t.texto = criar('p', { role: 'status', 'aria-live': 'polite' });
     t.erro = criar('p', { role: 'alert' });
@@ -162,7 +165,7 @@
     t.btnCancelar = botao('Cancelar', function() { cancelar(t); });
     t.btnContinuar = botao('Continuar de onde parou', function() { iniciar(t, false); });
     t.btnRecomecar = botao('Recomeçar do zero', function() { iniciar(t, true); });
-    [t.aviso, t.barra, t.texto, t.erro, t.btnCancelar, t.btnContinuar, t.btnRecomecar].forEach(function(e) {
+    [t.aviso, t.dica, t.barra, t.texto, t.erro, t.btnCancelar, t.btnContinuar, t.btnRecomecar].forEach(function(e) {
       raiz.appendChild(e);
     });
     t.status.parentNode.insertBefore(raiz, t.status.nextSibling);
@@ -186,7 +189,7 @@
   function mostrarInicio(t) {
     mostrar(t.principal, true);
     t.principal.disabled = false;
-    [t.aviso, t.btnCancelar, t.btnContinuar, t.btnRecomecar].forEach(function(e) { mostrar(e, false); });
+    [t.aviso, t.dica, t.btnCancelar, t.btnContinuar, t.btnRecomecar].forEach(function(e) { mostrar(e, false); });
   }
 
   function mostrarExecucao(t) {
@@ -195,11 +198,14 @@
     mostrar(t.btnCancelar, true);
     t.btnCancelar.disabled = false;
     [t.aviso, t.btnContinuar, t.btnRecomecar].forEach(function(e) { mostrar(e, false); });
+    t.dica.textContent = t.textoDica || '';
+    mostrar(t.dica, !!t.textoDica);
     t.erro.textContent = '';
   }
 
   /* Parada com cursor salvo no servidor: oferece continuar ou recomeçar. */
   function mostrarRetomada(t, estado) {
+    mostrar(t.dica, false);
     mostrar(t.principal, false);
     mostrar(t.btnCancelar, false);
     mostrar(t.btnContinuar, true);
@@ -238,6 +244,7 @@
     aplicarProgresso(t, d);
     mostrarInicio(t);
     t.texto.textContent = t.fim(d);
+    if (t.aposFim) { t.aposFim(t.texto); }
   }
 
   function passo(t, recomecar) {
@@ -342,6 +349,16 @@
       acao: cfg.actionPush,
       nonce: cfg.noncePush,
       cursor: cfg.cursorPush,
+      // Enquanto indexa: o editor pode adiantar a instância, mas eixos e perguntas
+      // dependem do índice completo.
+      textoDica: 'Você pode criar a instância e escolher os personagens enquanto espera, mas só gere os eixos e as perguntas ' +
+        'depois que a indexação terminar: com o índice incompleto, a IA só enxerga os textos já indexados.',
+      // Ao terminar: o próximo passo, com o link da lista de instâncias.
+      aposFim: function(el) {
+        el.appendChild(document.createTextNode(' Pronto. Agora vá em '));
+        el.appendChild(criar('a', { href: cfg.urlInstancias || '#' }, 'Instâncias'));
+        el.appendChild(document.createTextNode(' para criar o jogo.'));
+      },
       fim: function(d) {
         return 'Indexação concluída: ' + numero(d.enviados) + ' enviados, ' + numero(d.pulados) +
           ' pulados (textos com menos de 100 caracteres são ignorados).' + textoCortados(d.cortados);

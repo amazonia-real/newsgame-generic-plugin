@@ -22,7 +22,8 @@
  *   ⚠️ ATUALIZAÇÃO DE 05/10 — a segunda skin (`drama`) criou no base um destes
  *   tokens, o `--ng-feedback-bg`, agora em PAR com `--ng-feedback-ink` (fundo e
  *   tinta do painel de contexto), e um ANÁLOGO do `--ng-font-display`, o
- *   `--ng-font-title` (fonte dos títulos) — GEMINI.md §5.4, regras 12 e 13.
+ *   `--ng-font-title` (fonte dos títulos) — contrato de tokens do base; o par
+ *   `--ng-feedback-*` está na FLAG 020.
  *   Esta skin NÃO migrou para eles, por decisão: as regras de componente abaixo
  *   continuam vencendo, e migrar pede medir antes. `--ng-option-bg` não existe
  *   no base, e `--ng-font-display` segue declarado só nesta folha.

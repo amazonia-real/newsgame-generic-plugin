@@ -87,7 +87,7 @@
   /*
    * ⚠️ DOIS TOKENS DESTE BLOCO FICARAM ÓRFÃOS nos refinamentos de 29/08, e
    * NENHUM dos dois foi removido: mexer no bloco de tokens é decisão própria,
-   * e a §5.5 do GEMINI.md trata a escala de tipografia como item separado.
+   * e a escala de tipografia é um item separado.
    *
    *  - `--ng-veil` (abaixo): perdeu os dois consumidores quando `.ng-veredicto`
    *    saiu e `.ng-verdict-block` deixou de ser caixa com véu.
@@ -194,7 +194,7 @@
    * Padrão ao Jogo da Amazônia. NÃO muda por causa de outra skin.
    * Skin que precisa de outro painel declara os DOIS tokens na própria folha.
    * `--ng-feedback-chapado` é a caixa OPACA pronta, no texto da skin; com ela a
-   * tinta padrão (--ng-bg) já serve. Ver GEMINI.md §5.4, regra 13.
+   * tinta padrão (--ng-bg) já serve. Ver a FLAG 020 (painel de contexto).
    */
   --ng-feedback-chapado: rgb(var(--ng-on-rgb));
   --ng-feedback-bg:    var(--ng-feedback-glass);

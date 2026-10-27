@@ -270,6 +270,18 @@ $page_title = $is_edit
     </div>
   <?php endif; ?>
 
+  <?php
+  // Sem eixos e perfis salvos o jogo cai na tela final simples (renderEndGenerico).
+  // Aviso fixo, sem is-dismissible, enquanto a matriz não estiver completa.
+  if ( $id && ! Newsgame_Status::matriz_completa( Newsgame_Status::matriz_do_jogo( $axis_matrix ) ) ) : ?>
+    <div class="notice notice-warning" id="ng-notice-sem-eixos">
+      <p>
+        <strong>Esta instância ainda não tem a matriz completa (eixos e perfis salvos): sem ela o jogo termina sem veredito.</strong>
+        Use <strong>&ldquo;🔍 Analisar Acervo e Propor Eixos&rdquo;</strong>, revise e confirme a matriz.
+      </p>
+    </div>
+  <?php endif; ?>
+
   <form method="post" action="<?php echo esc_url( $form_url ); ?>" id="ng-form">
     <?php wp_nonce_field( 'newsgame_save_instance', 'nonce' ); ?>
     <?php if ( $is_edit ) : ?>

@@ -35,7 +35,7 @@
  * `skin-pixel.css`: duas skins na mesma página e imunidade à ordem do CSS.
  *
  * ⚠️ CARTÃO ESCURO, por decisão. Um cartão creme com texto escuro não cabe na
- * regra dos canais (GEMINI.md §5.4, regra 11): `--ng-on-rgb` pinta o texto
+ * regra dos canais do contrato de skins: `--ng-on-rgb` pinta o texto
  * dentro do cartão E sobre a cena. Fazer o claro pediria regras de componente,
  * que o cabeçalho da `pixel` manda tokenizar no base antes de copiar.
  */

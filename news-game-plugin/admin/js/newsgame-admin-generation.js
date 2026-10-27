@@ -527,7 +527,7 @@
     });
     box.style.display = 'block';
     if (atualizarBotao && ativo && rel.faltam > 0) {
-      ativo.textContent = '▶ Gerar as que faltam (' + rel.faltam + ')';
+      ativo.textContent = '▶ Gerar os que faltam (' + rel.faltam + ')';
     }
   }
 

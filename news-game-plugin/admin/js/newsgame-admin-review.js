@@ -12,8 +12,8 @@
  * interpolado aqui, e o esc_js() das sete linhas de action desapareceu junto: o
  * JSON agora é gerado e escapado pelo WordPress.
  *
- * ⚠️ Nada aqui foi validado em runtime antes do A3 — o CLAUDE.md registra
- * "Mesa Editorial: accordions, títulos, body e campos de edição: código escrito,
+ * ⚠️ Este código não havia sido validado em runtime quando foi extraído (A3): a
+ * Mesa Editorial (accordions, títulos, body e campos de edição) era "código escrito,
  * não validado". A extração é movimento de código, não conserto: se algo estava
  * quebrado antes, continua quebrado do mesmo jeito.
  */
