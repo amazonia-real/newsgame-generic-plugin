@@ -55,6 +55,13 @@ class Newsgame_Generator {
             wp_send_json_error( array( 'msg' => 'URL do backend não configurada em News-Game › Configurações.' ) );
         }
 
+        // Ano mínimo ativo + backend de nível antigo: ele ignoraria o filtro em
+        // silêncio, então o lote NÃO começa. Backend fora do ar não entra aqui.
+        $ano_minimo = ! empty( $instance->ano_minimo ) ? (int) $instance->ano_minimo : null;
+        if ( null !== $ano_minimo && Newsgame_Settings::backend_ignoraria_ano_minimo() ) {
+            wp_send_json_error( array( 'msg' => Newsgame_Settings::MSG_BACKEND_ANTIGO_ANO ) );
+        }
+
         $characters = json_decode( $instance->characters ?? '[]', true ) ?: array();
 
         // Grupo do lote (item 58): 'geral' ou o slug de um personagem da
@@ -94,26 +101,32 @@ class Newsgame_Generator {
 
         // Devolve o payload ao browser; o JS chama ajax_generate_one() em loop.
         // backend_url e api_key NÃO saem do servidor — o proxy resolve ambos.
+        $payload = array(
+            'site_id'       => home_url(),
+            'instance_id'   => $instance_id,
+            'theme_prompt'  => $instance->theme_prompt,
+            'density'       => $deficit,
+            'characters'    => $characters,
+            // Ausente (null) = rodízio por slot_index no backend, como antes.
+            'grupo'         => $grupo,
+            'num_options'   => (int) ( $instance->num_options   ?? 2 ),
+            'nivel_padrao'  => $instance->nivel_padrao ?? 'pedagogico',
+            'axis_matrix'   => $instance->axis_matrix
+                                   ? json_decode( $instance->axis_matrix, true )
+                                   : null,
+        );
+        // Só quando a instância tem valor: sem ele o payload é o de antes.
+        if ( null !== $ano_minimo ) {
+            $payload['ano_minimo'] = $ano_minimo;
+        }
+
         wp_send_json_success( array(
             'approved_count'  => $contagem['approved'],
             'pending_count'   => $contagem['pending'],
             'deficit'         => $deficit,
             'posicoes_livres' => $posicoes,
             'fontes_usadas'   => $fontes,
-            'payload'         => array(
-                'site_id'       => home_url(),
-                'instance_id'   => $instance_id,
-                'theme_prompt'  => $instance->theme_prompt,
-                'density'       => $deficit,
-                'characters'    => $characters,
-                // Ausente (null) = rodízio por slot_index no backend, como antes.
-                'grupo'         => $grupo,
-                'num_options'   => (int) ( $instance->num_options   ?? 2 ),
-                'nivel_padrao'  => $instance->nivel_padrao ?? 'pedagogico',
-                'axis_matrix'   => $instance->axis_matrix
-                                       ? json_decode( $instance->axis_matrix, true )
-                                       : null,
-            ),
+            'payload'         => $payload,
         ) );
     }
 

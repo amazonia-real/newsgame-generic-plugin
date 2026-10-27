@@ -3,7 +3,7 @@
  * Plugin Name:  News-Game
  * Plugin URI:   https://github.com/amazonia-real/newsgame-generic-plugin
  * Description:  Motor de dilemas jornalísticos gamificados. Shortcode: [news-game id="X"]
- * Version:      1.1.2
+ * Version:      1.2.0
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author:       Eduardo Nunomura
@@ -12,11 +12,11 @@
  */
 defined( 'ABSPATH' ) || exit;
 
-define( 'NEWSGAME_VERSION', '1.1.2' ); // Versão do plugin; reserva do ?ver= quando o arquivo não existe (ver newsgame_versao_do_arquivo). A migração do banco usa Newsgame_DB::SCHEMA_VERSION.
+define( 'NEWSGAME_VERSION', '1.2.0' ); // Versão do plugin; reserva do ?ver= quando o arquivo não existe (ver newsgame_versao_do_arquivo). A migração do banco usa Newsgame_DB::SCHEMA_VERSION.
 // Nível mínimo de compatibilidade que o plugin exige do backend (campo `api_compat`
 // do /health; backend sem o campo conta como 1). Subir junto com o API_COMPAT do
 // backend (backend-python/app/main.py) quando o plugin passar a exigir backend novo.
-define( 'NEWSGAME_BACKEND_COMPAT_MIN', 2 );
+define( 'NEWSGAME_BACKEND_COMPAT_MIN', 3 );
 define( 'NEWSGAME_DIR',     plugin_dir_path( __FILE__ ) );
 define( 'NEWSGAME_URL',     plugin_dir_url( __FILE__ ) );
 

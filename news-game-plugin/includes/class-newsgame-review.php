@@ -300,6 +300,13 @@ class Newsgame_Review {
             wp_send_json_error( array( 'msg' => 'URL do backend não configurada em Configurações.' ) );
         }
 
+        // Mesma recusa do lote: com ano mínimo e backend antigo, a substituta
+        // ignoraria o filtro em silêncio. Backend fora do ar não entra aqui.
+        $ano_minimo = ! empty( $instance->ano_minimo ) ? (int) $instance->ano_minimo : null;
+        if ( null !== $ano_minimo && Newsgame_Settings::backend_ignoraria_ano_minimo() ) {
+            wp_send_json_error( array( 'msg' => Newsgame_Settings::MSG_BACKEND_ANTIGO_ANO ) );
+        }
+
         $api_key         = (string) get_option( 'newsgame_backend_api_key', '' );
         $characters      = json_decode( $instance->characters ?? '[]', true ) ?: array();
         $personagem_tipo = sanitize_key( $_POST['personagem_tipo'] ?? ( $original->character_slug ?? 'geral' ) );
@@ -316,6 +323,10 @@ class Newsgame_Review {
             'characters'      => $characters,
             'num_options'     => (int) ( $instance->num_options   ?? 2 ),
         );
+        // Só quando a instância tem valor: sem ele o payload é o de antes.
+        if ( null !== $ano_minimo ) {
+            $payload['ano_minimo'] = $ano_minimo;
+        }
 
         /*
          * A chave do PROVEDOR ATIVO em header — fase 0 do H1, mesmo padrão do

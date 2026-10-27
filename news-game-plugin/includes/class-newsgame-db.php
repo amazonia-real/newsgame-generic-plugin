@@ -7,7 +7,7 @@ class Newsgame_DB {
      * Versão interna do schema — incrementar aqui ao adicionar colunas.
      * Independente da versão do plugin: só muda quando o banco muda.
      */
-    const SCHEMA_VERSION = '1.11';
+    const SCHEMA_VERSION = '1.12';
 
     /* ── Ponto de entrada público ──────────────────────────── */
 
@@ -260,6 +260,17 @@ class Newsgame_DB {
             "TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = o jogo ocupa a janela e esconde o tema' AFTER `escolher_personagem`"
         );
 
+        /*
+         * Ano mínimo dos textos (plugin 1.2.0, schema 1.12). NULL = sem filtro,
+         * o comportamento de antes: as instâncias que já existem não mudam.
+         * ⚠️ Vazio grava NULL, nunca 0: 0 viraria "ano 0" no backend.
+         */
+        self::add_column_if_missing(
+            $instances,
+            'ano_minimo',
+            "SMALLINT UNSIGNED NULL COMMENT 'Ano minimo dos textos usados na geracao, NULL = sem filtro' AFTER `pagina_inteira`"
+        );
+
         // wp_newsgame_dilemas
         self::add_column_if_missing(
             $dilemas,
@@ -341,6 +352,7 @@ class Newsgame_DB {
             apoio_url       VARCHAR(2048)   NOT NULL DEFAULT '' COMMENT 'Link opcional do apoio',
             escolher_personagem TINYINT(1)  NOT NULL DEFAULT 0 COMMENT '1 = o jogador escolhe o personagem numa tela',
             pagina_inteira  TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '1 = o jogo ocupa a janela e esconde o tema',
+            ano_minimo      SMALLINT UNSIGNED NULL COMMENT 'Ano minimo dos textos usados na geracao, NULL = sem filtro',
             num_options   TINYINT         NOT NULL DEFAULT 2 COMMENT '2 ou 3 opcoes de resposta por pergunta',
             enable_levels TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '0=nivel unico, 1=Aprendiz/Pro',
             nivel_padrao  VARCHAR(20)     NOT NULL DEFAULT 'pedagogico' COMMENT 'ludico | pedagogico | complexo',

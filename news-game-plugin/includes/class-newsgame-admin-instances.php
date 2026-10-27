@@ -304,6 +304,21 @@ class Newsgame_Admin_Instances {
 
     /* ── CRUD ──────────────────────────────────────────────────── */
 
+    /**
+     * Ano mínimo do formulário: '' → null (sem filtro); inteiro de 1900 a 2100 → int;
+     * qualquer outra coisa → false (recusa). Os mesmos limites do backend (models.py).
+     */
+    public static function sanitize_ano_minimo( $valor ) {
+        $valor = trim( (string) $valor );
+        if ( '' === $valor ) {
+            return null;
+        }
+        if ( ! preg_match( '/^\d{4}$/', $valor ) || (int) $valor < 1900 || (int) $valor > 2100 ) {
+            return false;
+        }
+        return (int) $valor;
+    }
+
     public static function handle_save() {
         check_admin_referer( 'newsgame_save_instance', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Permissão insuficiente.' );
@@ -333,6 +348,23 @@ class Newsgame_Admin_Instances {
                 'error'  => 'title_required',
             ), admin_url( 'admin.php' ) ) );
             exit;
+        }
+
+        // Ano mínimo dos textos: ausente do POST não entra no write (não zera o que
+        // está gravado); vazio vira NULL; só inteiro de 1900 a 2100 vale. Recusa ANTES
+        // de gravar qualquer coisa, no mesmo padrão do título obrigatório.
+        $ano_minimo = null;
+        if ( isset( $_POST['ano_minimo'] ) ) {
+            $ano_minimo = self::sanitize_ano_minimo( wp_unslash( $_POST['ano_minimo'] ) );
+            if ( false === $ano_minimo ) {
+                wp_safe_redirect( add_query_arg( array(
+                    'page'   => 'newsgame-instances',
+                    'action' => $id ? 'edit' : 'new',
+                    'id'     => $id ?: null,
+                    'error'  => 'ano_minimo_invalido',
+                ), admin_url( 'admin.php' ) ) );
+                exit;
+            }
         }
 
         // A meta do conjunto deixou de ser campo (item 58): é DERIVADA, a soma das
@@ -383,6 +415,12 @@ class Newsgame_Admin_Instances {
         if ( isset( $_POST['skin'] ) ) {
             $row['skin'] = self::sanitize_skin( wp_unslash( $_POST['skin'] ) );
             $fmt[]       = '%s';
+        }
+
+        // `null` no $wpdb->update() grava NULL (e não 0), qualquer que seja o formato.
+        if ( isset( $_POST['ano_minimo'] ) ) {
+            $row['ano_minimo'] = $ano_minimo;
+            $fmt[]             = '%d';
         }
 
         // Capa e regras (H3, rodada A): mesma guarda da skin — campo ausente do

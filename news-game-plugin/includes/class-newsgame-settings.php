@@ -481,6 +481,25 @@ class Newsgame_Settings {
         return $resultado;
     }
 
+    /**
+     * True se o backend respondeu e é de nível menor que o exigido: um backend assim
+     * IGNORARIA o `ano_minimo` em silêncio. Usa o estado guardado (cache de 10 min,
+     * sem chamada nova); se ele diz "velho", confere UMA vez ao vivo, para não recusar
+     * por cache vencido logo depois de o editor atualizar o backend. Backend fora do
+     * ar, token recusado ou sem URL NÃO contam: a falha normal aparece na chamada.
+     */
+    public static function backend_ignoraria_ano_minimo() {
+        $st = self::backend_status();
+        if ( 'velho' !== ( $st['estado'] ?? '' ) && (int) ( $st['compat'] ?? NEWSGAME_BACKEND_COMPAT_MIN ) >= NEWSGAME_BACKEND_COMPAT_MIN ) {
+            return false;
+        }
+        $st = self::backend_status( true );
+        return 'velho' === ( $st['estado'] ?? '' )
+            || (int) ( $st['compat'] ?? NEWSGAME_BACKEND_COMPAT_MIN ) < NEWSGAME_BACKEND_COMPAT_MIN;
+    }
+
+    const MSG_BACKEND_ANTIGO_ANO = 'Este backend é antigo e ignoraria o ano mínimo dos textos. Atualize o backend ou esvazie o campo "Ano mínimo dos textos" da instância.';
+
     /** Consulta ao /health e, se ele estiver compatível, ao /auth-check. 5 s cada, mesmo token do plugin. */
     private static function consultar_health( $url ) {
         $response = wp_remote_get( rtrim( $url, '/' ) . '/health', array(

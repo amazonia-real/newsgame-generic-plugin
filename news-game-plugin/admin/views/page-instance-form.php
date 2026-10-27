@@ -10,6 +10,7 @@ $title         = $is_edit ? $inst->title        : '';
 $theme         = $is_edit ? $inst->theme_prompt : '';
 $density       = $is_edit ? (int) $inst->density : 10;
 $round_size    = $is_edit ? (int) ( $inst->round_size ?? 10 ) : 10;
+$ano_minimo    = $is_edit && ! empty( $inst->ano_minimo ) ? (int) $inst->ano_minimo : '';
 $gerais_pct    = $is_edit ? (int) ( $inst->gerais_pct ?? Newsgame_Status::GERAIS_PCT_PADRAO ) : Newsgame_Status::GERAIS_PCT_PADRAO;
 $fator_decimos = Newsgame_Status::fator_decimos( $is_edit ? ( $inst->pronto_fator ?? null ) : null );
 $num_options   = $is_edit ? (int) ( $inst->num_options   ?? 2 ) : 2;
@@ -240,6 +241,10 @@ $page_title = $is_edit
     <div class="notice notice-error"><p>O nome do jogo é obrigatório.</p></div>
   <?php endif; ?>
 
+  <?php if ( isset( $_GET['error'] ) && 'ano_minimo_invalido' === $_GET['error'] ) : ?>
+    <div class="notice notice-error"><p>O ano mínimo dos textos deve ser um ano de 1900 a 2100, ou ficar vazio. Nada foi salvo.</p></div>
+  <?php endif; ?>
+
   <?php if ( isset( $_GET['error'] ) && 'db_write' === $_GET['error'] ) : ?>
     <div class="notice notice-error"><p>Não foi possível gravar a instância no banco — nada foi salvo, e as alterações deste envio se perderam. <?php
     $causa_db = get_transient( 'newsgame_db_write_' . get_current_user_id() );
@@ -366,6 +371,23 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
               <button type="button" id="btn-salvar-matriz" class="button button-primary" style="margin-top:10px;">✓ Confirmar e Salvar Matriz de Eixos</button>
             </div>
           <?php endif; ?></div>
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">
+          <label for="ng-ano-minimo">Ano mínimo dos textos (opcional)</label>
+        </th>
+        <td>
+          <input type="number" id="ng-ano-minimo" name="ano_minimo"
+                 value="<?php echo esc_attr( $ano_minimo ); ?>"
+                 min="1900" max="2100" step="1"
+                 style="width:100px;vertical-align:middle">
+          <p class="description">
+            Só textos publicados a partir deste ano entram na geração das perguntas.
+            Textos sem data conhecida ficam de fora. Os eixos seguem a Descrição do
+            acervo. Para o filtro funcionar, o acervo precisa ter sido indexado com o
+            plugin 1.2.0 ou mais novo (se não, reindexe).
+          </p>
         </td>
       </tr>
     </table>
