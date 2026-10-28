@@ -5,9 +5,10 @@
  * Description:  Motor de dilemas jornalísticos gamificados. Shortcode: [news-game id="X"]
  * Version:      1.2.0
  * Requires at least: 6.0
- * Requires PHP: 8.0
+ * Requires PHP: 8.1
  * Author:       Eduardo Nunomura
  * License:      GPL-2.0-or-later
+ * License URI:  https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:  news-game-plugin
  */
 defined( 'ABSPATH' ) || exit;
