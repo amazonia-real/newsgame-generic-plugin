@@ -67,6 +67,19 @@ python -m unittest discover -s tests -v
 Mudança visual no jogo: diga **em quais skins e larguras de tela** você olhou. São
 sete skins, e uma regra no CSS base atinge todas.
 
+## Gerar o zip de instalação
+
+O zip que se instala no WordPress contém só a pasta do plugin. O zip da release sai
+deste comando, a partir do commit que será publicado (arquivos ignorados e não
+commitados não entram):
+
+```bash
+git archive --format=zip --prefix=news-game-plugin/ -o news-game-plugin.zip HEAD:news-game-plugin
+```
+
+Gere o arquivo fora do repositório (o `.gitignore` ignora `*.zip`) e confira a versão
+no cabeçalho de `news-game-plugin/news-game.php` antes de publicar.
+
 ## Estrutura
 
 A árvore do repositório e o papel de cada arquivo estão no `README.md` (seção
