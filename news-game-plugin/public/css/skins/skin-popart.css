@@ -16,7 +16,7 @@
  *   · painel de contexto na mesma caixa creme do cartão, tinta preta (13)
  *   · três regras de `background-image`, SEM `linear-gradient`: cenas sem véu
  *
- * ── COR — amostrada na miniatura e nas cenas (05/10) ──────────────────
+ * ── COR — amostrada na miniatura e nas cenas (outubro) ──────────────────
  * Tinta PRETA PURA. Fundo 255,255,240 é o creme das nuvens e da explosão da
  * capa; cartão 255,255,248, o da miniatura; destaque 255,208,64, o amarelo da
  * alternativa escolhida na miniatura. Cada momento tem a sua cor de cena —
@@ -63,13 +63,13 @@
  * Arquivos em `public/fonts/`, licença SIL OFL 1.1 ao lado
  * (`OFL-montserrat.txt`, `OFL-bungee.txt`). Só o subconjunto `latin`, com o
  * `unicode-range` original do Google Fonts. Nenhuma das duas declara nome
- * reservado no OFL (conferido em 05/10, lendo os arquivos).
+ * reservado no OFL (conferido em outubro, lendo os arquivos).
  *
  * Montserrat é VARIÁVEL, um arquivo para 100–900. Bungee tem UM peso só, o
  * 400 — e o tema do WordPress já zera o peso do h2 para 400, então hoje o
  * título sai no peso certo. O `font-synthesis-weight: none` no wrapper é a
  * garantia para outro tema: sem ele, um h2 em negrito sairia com a Bungee
- * engrossada pelo navegador (medido em canvas em 05/10). Soma: 52.300 bytes.
+ * engrossada pelo navegador (medido em canvas em outubro). Soma: 52.300 bytes.
  */
 @font-face {
   font-family: 'Montserrat';
@@ -122,7 +122,7 @@
   --ng-card-sombra-desfoque:     0;
   --ng-card-sombra-alfa:         1;
 
-  /* Radar sobre placa CREME (18/10): os tons escuros do verde, do vermelho e
+  /* Radar sobre placa CREME (outubro): os tons escuros do verde, do vermelho e
      do cinza — 5,92 / 5,95 / 5,92 contra o creme. Ver o bloco do radar no base. */
   --ng-radar-positive:           #157334;
   --ng-radar-positive-fill:      rgba(21, 115, 52, 0.2);
@@ -162,7 +162,7 @@
  *   DILEMA    · raios azuis, centro liso
  *   RESULTADO · raios rosa, estrelas e explosão amarela à direita
  *
- * COR DE RESERVA POR MOMENTO (18/10): cada cena só começa a baixar quando o
+ * COR DE RESERVA POR MOMENTO (outubro): cada cena só começa a baixar quando o
  * wrap ganha a classe do momento, e até ela chegar aparece o `background-color`.
  * Com o `--ng-bg` creme, o veredito nascia BRANCO e virava rosa quando a
  * `fim.webp` chegava (~680 ms com 300 ms de latência). A reserva passa a ser a

@@ -341,7 +341,7 @@ def _resolve_api_key(
     # keyword-only nos 6 call sites é refatoração do caminho mais exercitado do
     # backend, e não cabe no mesmo passo que introduz um provedor — é o
     # precedente do A3. O que existe hoje contra isso é o teste de sentinela
-    # distinta por header, executado em 2026-09-15 (ver o B9 no estado atual):
+    # distinta por header, executado em setembro de 2026 (ver o B9 no estado atual):
     # ele discrimina troca de ordem, que uma sonda com a mesma chave nos quatro
     # não faria.
     headers_de_chave = {
@@ -432,7 +432,7 @@ def _invoke_llm(llm, messages, rota: str, provedor: str) -> str:
 
     Antes da fase 0 (passo 5a) os seis `invoke` rodavam soltos e qualquer erro
     de provedor virava `500 Internal Server Error` sem `detail` — medido em
-    2026-09-04: cinco 500 mudos durante os testes da cascata.
+    setembro de 2026: cinco 500 mudos durante os testes da cascata.
 
     O traceback completo vai para o log do servidor; o cliente recebe só
     `detail`, que é a decisão do C2/FLAG 003.

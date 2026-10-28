@@ -1,9 +1,9 @@
 """
 Testes da separação entre COTA (limite de uso) e CRÉDITO (conta sem saldo).
 
-Motivo: em 2026-10-02 a cota diária do plano gratuito do Gemini chegou ao editor
+Motivo: em outubro de 2026 a cota diária do plano gratuito do Gemini chegou ao editor
 como "falta de crédito", porque a mensagem do Google contém "billing" e o
-marcador "billing" estava em MARCADORES_CREDITO (o falso positivo de 04/09).
+marcador "billing" estava em MARCADORES_CREDITO (o falso positivo de setembro).
 
 As exceções são as classes REAIS dos SDKs instalados (google.api_core e openai),
 para exercitar os mesmos atributos (`.code`, `.status_code`) que o classificador
@@ -22,7 +22,7 @@ from app import generator
 
 CREDITO = "falta de crédito na conta"
 
-# REAL — `uvicorn.log` de 2026-10-02, 22:13:57, linha
+# REAL — `uvicorn.log` de outubro de 2026, 22:13:57, linha
 # "[generator] generate_one slot=0 ABORTADO por recusa do provedor: ResourceExhausted(...)".
 # Chave do painel no plano gratuito; o `repr` do log é a mensagem abaixo.
 GEMINI_COTA_DIARIA_REAL = (
@@ -46,7 +46,7 @@ GEMINI_COTA_POR_MINUTO_SINTETICA = (
 )
 
 # SINTÉTICO — não há texto real de `insufficient_quota` no projeto. O formato
-# "Error code: NNN - {'error': {...}}" é o REAL da OpenAI: o 401 de 02/10, 17:36,
+# "Error code: NNN - {'error': {...}}" é o REAL da OpenAI: o 401 de outubro, 17:36,
 # no uvicorn.log, veio exatamente assim.
 OPENAI_SEM_CREDITO_SINTETICA = (
     "Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check "

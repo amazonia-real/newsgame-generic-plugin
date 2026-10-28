@@ -20,13 +20,13 @@
  *   · três regras de `background-image`, SEM `linear-gradient`: as cenas de
  *     fábrica são claras e não levam véu
  *
- * ── COR — amostrada nas cenas e na miniatura (06/10) ──────────────────
+ * ── COR — amostrada nas cenas e na miniatura (outubro) ──────────────────
  * As três cenas têm DUAS cores e nenhuma outra: o fundo 239,239,239 e o azul
  * 27,53,200 das linhas e dos quadrados. A primária, o destaque e a tinta são o
  * mesmo azul — a skin é de uma cor só. Consequência aceita: o hover do CTA e do
  * "Continuar" não muda de cor, só sobe 1px.
  *
- * CONTRASTE MEDIDO (WCAG, 06/10; as cenas são chapadas, então o pior caso
+ * CONTRASTE MEDIDO (WCAG, outubro; as cenas são chapadas, então o pior caso
  * fora dos traços é o próprio fundo 239):
  *   texto e texto secundário/cena 6,53 · texto/cartão 7,41 · botão/cena 7,64
  *   · texto branco/botão 8,79 · contorno do cartão/cena 7,64 (o branco
@@ -83,7 +83,7 @@
   --ng-card-sombra-desfoque:     0;
   --ng-card-sombra-alfa:         0;
 
-  /* Radar sobre placa BRANCA (18/10): os tons escuros do verde, do vermelho e
+  /* Radar sobre placa BRANCA (outubro): os tons escuros do verde, do vermelho e
      do cinza — 5,94 / 5,98 / 5,94 contra o branco. Ver o bloco do radar no base. */
   --ng-radar-positive:           #157334;
   --ng-radar-positive-fill:      rgba(21, 115, 52, 0.2);

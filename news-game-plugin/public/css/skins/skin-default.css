@@ -3,9 +3,9 @@
  *
  * O Padrão continua partindo do arquivo base (`newsgame-game.css`): os valores
  * vêm do bloco de tokens de lá, e esta folha só declara o que difere — desde
- * 07/10, o par do painel de contexto, o cartão da pergunta (fundo, borda,
+ * outubro, o par do painel de contexto, o cartão da pergunta (fundo, borda,
  * sombra, título e `text-shadow`, por faixa), as alternativas e o modal (i);
- * desde 09/10, as fontes do JDA (Manrope e Inter).
+ * desde outubro, as fontes do JDA (Manrope e Inter).
  * Ela existe para que o Padrão tenha o MESMO caminho de carregamento das
  * outras skins (`skin-<slug>.css`, enfileirada depois do base) e um lugar próprio para
  * valores que só ele deve ter, sem arrastar as skins que herdam do base.
@@ -92,7 +92,7 @@
    *
    * O FUNDO ANDA JUNTO com o `text-shadow` e o título branco (regras de
    * componente no fim da folha): sozinho, o vidro claro derrubava o texto —
-   * medido em 07/10, foto clara sob o véu de 42%, situação 2,49:1 e título
+   * medido em outubro, foto clara sob o véu de 42%, situação 2,49:1 e título
    * 1,30:1 no celular. O `text-shadow` é como o JDA compensa; a WCAG não o
    * conta, e a medição sem ele continua abaixo de 4,5:1 no celular.
    */
@@ -125,7 +125,7 @@
    Chrome desenha e devolve 1px no estilo computado, lá e aqui (medido em
    densidade 1 e 2). Declarar 1px dá o mesmo traço e faz o painel de contexto,
    que se estende pela largura DECLARADA da borda, coincidir com o cartão — com
-   1.5px ele passava 0,5px de cada lado (16/10). */
+   1.5px ele passava 0,5px de cada lado (outubro). */
 @media (min-width: 1025px) {
   .ng-game-wrap.ng-skin-default {
     --ng-card-bg:              rgba(0, 0, 0, 0.28);
@@ -142,7 +142,7 @@
      (`jda-desktop.css:174`). O inner acompanha com a mesma folga de 40px de
      cada lado que o base tem entre 660 e 740. Só nas telas de pergunta e de
      contexto (`ng-bg-dilema`, a classe de momento que o JS põe no wrap): o inner
-     também segura a capa e o veredito, que ficam em 740 (16/10). Abaixo de
+     também segura a capa e o veredito, que ficam em 740 (outubro). Abaixo de
      1025px nada muda. */
   .ng-game-wrap.ng-skin-default.ng-bg-dilema {
     --ng-card-max-lg:          900px;
@@ -161,8 +161,8 @@
 }
 
 /*
- * O título da pergunta, que esta folha escondia desde 16/10, passou a ser
- * escondido no base, em todas as skins (18/10) — ver `.ng-dilema-title` em
+ * O título da pergunta, que esta folha escondia desde outubro, passou a ser
+ * escondido no base, em todas as skins (outubro) — ver `.ng-dilema-title` em
  * newsgame-game.css. A cor acima e as sombras abaixo seguem sem efeito visual.
  */
 
@@ -212,7 +212,7 @@
  * 1025px (era 4,70); hover 1,72 e 3,27. É o que o JDA tem. Pendência do bloco
  * (c). FICAM DE FORA: foco, sombra e halo neon do hover, blur e `translateY`.
  *
- * Desde o cartão único (16/10) a alternativa fica sobre o cartão, e não sobre
+ * Desde o cartão único (outubro) a alternativa fica sobre o cartão, e não sobre
  * a foto. O hover até 1024px desceu de .38 (o do JDA) para .29: com .38, o
  * texto dava 3,82:1 e o rótulo 3,66:1 sobre o cartão; com .29, 4,94 e 4,70
  * (percentil 5 por pixel, 390 e 768px). O hover segue distinto do repouso pela
@@ -307,7 +307,7 @@
 
 /*
  * Fontes por elemento: a família e o peso que VENCEM no JDA (estilo computado,
- * 09/10, iguais nas quatro faixas). Pesos sempre declarados: o tema zera os
+ * outubro, iguais nas quatro faixas). Pesos sempre declarados: o tema zera os
  * títulos para 400 e põe 300 no `body`, e o que o JDA mostra não pode depender
  * disso — nem o 300 do texto do modal, que lá vem herdado do tema.
  *
@@ -315,7 +315,7 @@
  * regra do modal, acima), dica 500, título da capa e do veredito 800 (família
  * pelo `--ng-font-title`), texto do veredito 400. Inter: alternativas 500,
  * resumo do painel 500, "Continuar" 700, CTA da capa 700 e "Compartilhar" 700.
- * ⚠️ Desde 18/10, situação, alternativas, texto do modal e texto do veredito
+ * ⚠️ Desde outubro, situação, alternativas, texto do modal e texto do veredito
  * saíram dos pesos do JDA e usam o `--ng-peso-leitura` (600) — ver abaixo.
  *
  * SEM PAR NO JDA, muda só a família: título da pergunta, título "Contexto" do
@@ -348,9 +348,9 @@
 }
 
 /*
- * TEXTO DE LEITURA no peso do token do base (18/10), como nas outras 6 skins:
+ * TEXTO DE LEITURA no peso do token do base (outubro), como nas outras 6 skins:
  * situação (era 700), alternativas (500), texto do modal (300) e texto do
- * veredito (400) passam a 600 — decisão de 18/10, que deixa de seguir o JDA
+ * veredito (400) passam a 600 — decisão de outubro, que deixa de seguir o JDA
  * nestes quatro pesos. O feedback herdava o 300 do tema e o título da pergunta
  * (oculto na Padrão) o 700 do base; os dois vêm do base agora.
  */

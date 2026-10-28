@@ -7,7 +7,7 @@
  *   · os 6 canais `-rgb`, e nada de token derivado
  *   · `--ng-font-title` (token do base desde fc452af) com a Pacifico
  *   · três regras de `background-image`, uma por momento do jogo
- *   · desde 05/10, o PAR do painel de contexto (`--ng-feedback-bg` /
+ *   · desde outubro, o PAR do painel de contexto (`--ng-feedback-bg` /
  *     `--ng-feedback-ink`), apontado para a CAIXA CHAPADA do base — creme opaco
  *     com tinta vinho. O vidro claro padrão dava 2,2:1 no pior caso; a caixa,
  *     16,5:1. O CARTÃO da pergunta continua escuro (ver mais abaixo): são
@@ -15,7 +15,7 @@
  * Raios, escala de fonte e o canal `--ng-on-primary-rgb` ficam os do base: a
  * primária é escura o bastante para o texto creme em cima (5,13:1).
  *
- * ── COR — amostrada nas próprias cenas (05/10) ────────────────────────
+ * ── COR — amostrada nas próprias cenas (outubro) ────────────────────────
  * Destaque e texto vêm da arte (ouro da moldura, creme das lâmpadas); fundo e
  * cartão do tecido no escuro. A primária é DOIS degraus mais clara que o
  * vermelho das poltronas (192,24,36): com ele, o botão "Iniciar jogo" contra a
@@ -59,7 +59,7 @@
  * nome dela no sufixo, e todas têm de acompanhar o pacote.
  *
  * Só o subconjunto `latin`, com o `unicode-range` original do Google Fonts:
- * cobre ã ç é õ e as maiúsculas acentuadas (conferido em 05/10). Fora dele, o
+ * cobre ã ç é õ e as maiúsculas acentuadas (conferido em outubro). Fora dele, o
  * navegador cai para `cursive`.
  *
  * Usada SÓ pelo `--ng-font-title`: capa, "Jogo concluído!" e nome do perfil. O
@@ -104,7 +104,7 @@
  * (base de resolução de `url()` em custom property diverge entre motores).
  *
  * Cenas em WebP com perda, q90, sem canal alfa: a arte é vetorial com degradês,
- * não pixel art. Conferido em 05/10 no feixe de luz do `fim`: o q90 não cria
+ * não pixel art. Conferido em outubro no feixe de luz do `fim`: o q90 não cria
  * bandas, só alisa o pontilhado fino do original.
  *
  *   CAPA      · marquise alongada no alto, centro livre para o conteúdo

@@ -1,5 +1,5 @@
 """
-Teto do `density` em `GenerateRequest` (etapa 1, 09/10).
+Teto do `density` em `GenerateRequest` (etapa 1, outubro).
 
 O `density` passou a ser a meta do CONJUNTO de aprovadas da instância, com teto
 120. O PHP o manda em todo `/generate-one` como o déficit do lote, e o backend

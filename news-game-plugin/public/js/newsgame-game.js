@@ -69,7 +69,7 @@
      A5 é um `grep`, e citá-lo em comentário inflaria a contagem que ele mede.
      Mesma regra registrada no comentário do crédito da foto, no shortcode.
 
-     Desde 25/09 a largura NÃO vai mais no markup: o HTML leva só o número em
+     Desde setembro a largura NÃO vai mais no markup: o HTML leva só o número em
      `data-pct`, e `aplicarProgresso()` a escreve por CSSOM depois da inserção.
      Era o último atributo de estilo inline da superfície do jogador, e o que
      fechou o A5: a CSP `style-src` bloqueia estilo no markup, mas não a
@@ -276,7 +276,7 @@
 
   /* ── Lição e desfecho num bloco contínuo ───────────────
      Um parágrafo só, no formato [lição] + " " + [desfecho], SEM rótulo: desde
-     16/10 a lição abre o texto, e o "Lição: " que o JS punha antes dela saiu.
+     outubro a lição abre o texto, e o "Lição: " que o JS punha antes dela saiu.
      Nenhuma quebra de linha: versões anteriores usaram \n\n e depois \n, e as
      duas cortavam a leitura em dois blocos visuais.
 
@@ -294,11 +294,11 @@
      UM elemento de texto: o bloco contínuo de lição + desfecho.
 
      A consequência da escolha (`option_x.consequencia`), que era o título em
-     destaque do card, saiu por decisão de UX de 16/10. Com ela saiu o único texto
+     destaque do card, saiu por decisão de UX de outubro. Com ela saiu o único texto
      do card que dependia da alternativa escolhida: lição e desfecho são do
      DILEMA, iguais para qualquer escolha. O campo segue gerado e gravado.
 
-     A linha "Sua escolha" saiu por decisão de UX de 29/08 — poluía o card, e a
+     A linha "Sua escolha" saiu por decisão de UX de agosto — poluía o card, e a
      opção escolhida continua visível atrás do vidro. Os badges de impacto nos
      eixos saíram na mesma linha de raciocínio: o peso da escolha reaparece
      somado no radar do fim, e no card eles competiam com o texto sem acrescentar
@@ -450,7 +450,7 @@
      *      CSSOM, e estilo inline vence qualquer folha: é o que faz este degrau
      *      ganhar do 2 sem precisar de `!important`.
      *   2. fundo da skin para o momento do jogo (capa/dilema/resultado) —
-     *      IMPLEMENTADO em 29/08, estreado pela skin `pixel`. O JS NÃO CONHECE
+     *      IMPLEMENTADO em agosto, estreado pela skin `pixel`. O JS NÃO CONHECE
      *      IMAGEM NENHUMA aqui: ele só marca o wrap com a classe do momento, e
      *      a folha da skin decide o arquivo. Skin sem fundo declarado não é
      *      afetada — a classe fica sem regra que a case, e o degrau 3 aparece.
@@ -715,7 +715,7 @@
        (i): controle que não pode funcionar não vai para a tela. */
     function montarTelaCheia() {
       if (!fullscreenSuportado()) {
-        /* Condição invisível até 29/08: sem este aviso, "o botão não apareceu" e
+        /* Condição invisível até agosto: sem este aviso, "o botão não apareceu" e
            "o botão não foi criado" são indistinguíveis na tela. Acontece em
            iframe sem allow="fullscreen", e no Safari do iPhone. */
         console.info('[news-game] tela cheia indisponível neste contexto — botão não montado');
@@ -889,7 +889,7 @@
     }
 
     /* ── Palco: construtor ÚNICO das telas de pergunta e de contexto ──
-       CARTÃO ÚNICO desde 16/10, como o `.glass-card` do JDA: pergunta,
+       CARTÃO ÚNICO desde outubro, como o `.glass-card` do JDA: pergunta,
        alternativas e painel de contexto moram DENTRO do `.ng-card`. O corpo
        (título, pergunta e o (i)) fica num bloco próprio, `.ng-card-corpo`, que
        é a âncora do (i) — sem ele o botão iria para o pé do cartão, abaixo das
@@ -929,7 +929,7 @@
          `backdrop-filter`, `transform` ou `filter` vira o bloco de contenção dos
          descendentes fixos, e o modal ficaria preso dentro do cartão em vez de
          cobrir a tela. O `.ng-game-inner` e os ancestrais dele não têm nenhum
-         desses (conferido em 16/10, nas 7 skins e em tela cheia). */
+         desses (conferido em outubro, nas 7 skins e em tela cheia). */
       inner.innerHTML =
         buildProgress(idx, idx + 1, dilemas.length) +
         buildPalco(d, null, temInfo, '') +
@@ -951,7 +951,7 @@
        limparTimers() cancela a espera, e o palco remontado nasce sem a classe.
        Por isso a luz para ao escolher e recomeça do zero na pergunta seguinte e
        em "Jogar novamente" — ao contrário do JDA, que a mantém na tela de
-       contexto (decisão de 16/10: a tela de contexto é de leitura). */
+       contexto (decisão de outubro: a tela de contexto é de leitura). */
     function agendarNeon() {
       if (!NEON_SUPORTADO) { return; }
       neonTimer = setTimeout(function () {
@@ -1077,15 +1077,15 @@
           (radar ? '<div class="ng-radar-wrap">' + radar + '</div>' : '') +
           '<h2>' + esc(perfil.nome) + '</h2>' +
           /*
-           * Síntese do perfil — desde 29/08 é o ÚNICO texto do veredito.
+           * Síntese do perfil — desde agosto é o ÚNICO texto do veredito.
            *
            * Campo obrigatório do contrato (ProfileSuggestion.descricao,
-           * models.py:198), que até 28/08 nunca havia chegado à tela. O ternário
+           * models.py:198), que até agosto nunca havia chegado à tela. O ternário
            * cobre a instância cuja matriz veio de versão anterior e talvez não
            * tenha a chave — nesse caso o veredito fica com radar e nome.
            *
            * ⚠️ Ao remover os blocos de "Sua força" e "Ponto cego" (decisão de
-           * 29/08), quatro campos do contrato passaram a ser gerados e nunca
+           * agosto), quatro campos do contrato passaram a ser gerados e nunca
            * exibidos: forca_dominante, ponto_cego, polo_positivo e
            * polo_negativo. A personalização do veredito vive agora só no radar,
            * porque o `descricao` é do PERFIL e não das escolhas do jogador.

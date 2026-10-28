@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # OPCIONAL desde a fase 0 do H1 (2026-09-04). Era campo sem default, e o
+    # OPCIONAL desde a fase 0 do H1 (setembro de 2026). Era campo sem default, e o
     # servidor não subia sem ele — inconsistente com a chave poder chegar por
     # requisição. Quem valida "existe alguma chave disponível" é
     # `_resolve_api_key()` (main.py), que levanta 401 quando os três degraus
@@ -19,23 +19,23 @@ class Settings(BaseSettings):
     # Consequência prática: um deploy que use APENAS chave por requisição
     # (vinda do painel WordPress) não precisa mais de GEMINI_API_KEY no .env.
     gemini_api_key: str = ""
-    # Chave do DeepSeek — segundo provedor, integrado em 2026-09-05.
+    # Chave do DeepSeek — segundo provedor, integrado em setembro de 2026.
     # Opcional pelo mesmo motivo do campo acima: a chave pode chegar por
     # requisição, vinda do painel WordPress. Quem valida "existe alguma chave
     # para o provedor pedido" é a resolução de chave em main.py, que levanta
     # 401 quando todos os degraus da cascata estão vazios.
     deepseek_api_key: str = ""
-    # Chave da OpenAI — terceiro provedor, integrado em 2026-09-14 (B8).
+    # Chave da OpenAI — terceiro provedor, integrado em setembro de 2026 (B8).
     # Opcional pelo mesmo motivo dos dois campos acima: a chave pode chegar por
     # requisição, vinda do painel WordPress.
     #
     # ⚠️ ESTE CAMPO É PRÉ-REQUISITO DE PÔR `OPENAI_API_KEY` NO .env, e não o
     # contrário. O pydantic-settings roda com extra='forbid' (ver a nota de
     # `llm_model` abaixo), então chave órfã no arquivo faz o servidor RECUSAR
-    # SUBIR com ValidationError — foi o incidente de 2026-08-07 com LOG_LEVEL e
+    # SUBIR com ValidationError — foi o incidente de agosto de 2026 com LOG_LEVEL e
     # ANONYMIZED_TELEMETRY. Declarar aqui primeiro, popular o .env depois.
     openai_api_key: str = ""
-    # Chave do Claude/Anthropic — quarto provedor, integrado em 2026-09-15 (B9).
+    # Chave do Claude/Anthropic — quarto provedor, integrado em setembro de 2026 (B9).
     # Opcional pelo mesmo motivo dos três campos acima: a chave pode chegar por
     # requisição, vinda do painel WordPress.
     #
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     # valor do arquivo, e o 401 de `_resolve_api_key()` nunca dispararia.
     #
     # Com `CLAUDE_API_KEY` não há colisão: o SDK não conhece esse nome, e a
-    # chave só entra pelo caminho que nós controlamos. Conferido em 2026-09-15
+    # chave só entra pelo caminho que nós controlamos. Conferido em setembro de 2026
     # no fonte do SDK (`anthropic/_client.py:214-224`): a cascata dele é
     # api_key explícito > ANTHROPIC_API_KEY > ANTHROPIC_AUTH_TOKEN >
     # ANTHROPIC_PROFILE > federação > perfil ativo em disco — cinco degraus que
@@ -67,12 +67,12 @@ class Settings(BaseSettings):
     # ⚠️ `llm_model` É O MODELO DO GEMINI. O nome sem sufixo de provedor é
     # COMPATIBILIDADE, não descuido: `LLM_MODEL` está no .env de quem já roda o
     # backend e no .env.example distribuído, e o pydantic-settings usa
-    # extra='forbid' (conferido em 2026-09-05: chave órfã no arquivo .env
+    # extra='forbid' (conferido em setembro de 2026: chave órfã no arquivo .env
     # levanta ValidationError). Renomear este campo para `llm_model_gemini`
     # faria o servidor RECUSAR SUBIR em toda instalação existente — por isso o
     # segundo provedor ganha campo com sufixo e este fica como está.
     #
-    # `gemini-3.6-flash` escolhido em 2026-09-16, e a escolha NÃO foi nossa: é a
+    # `gemini-3.6-flash` escolhido em setembro de 2026, e a escolha NÃO foi nossa: é a
     # substituição que o PRÓPRIO ERRO do Google indicou. O `gemini-2.5-flash`
     # anterior passou a devolver 404 — "This model models/gemini-2.5-flash is no
     # longer available to new users. Please update your code to use
@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     # mudança nossa.
     #
     # Disponibilidade CONFIRMADA NA FONTE, nunca de memória — mesmo protocolo do
-    # `deepseek-chat`: `GET /v1beta/models` com chave real em 2026-09-16 devolveu
+    # `deepseek-chat`: `GET /v1beta/models` com chave real em setembro de 2026 devolveu
     # 58 modelos, 41 com `generateContent`, e o `gemini-3.6-flash` entre eles.
     #
     # ⚠️ ARMADILHA MEDIDA NO MESMO DIA: `gemini-2.5-flash` APARECE no
@@ -95,11 +95,11 @@ class Settings(BaseSettings):
     # FLAG 001, porque o auto-reparo depende do formato do texto devolvido.
     llm_model: str = "gemini-3.6-flash"
     # Modelo do DeepSeek. `deepseek-v4-flash` com thinking DESLIGADO, conforme a
-    # calibração de 2026-09-04: o modo thinking levou 96s contra 4,6s e estouraria
+    # calibração de setembro de 2026: o modo thinking levou 96s contra 4,6s e estouraria
     # o teto de 120s do wp_remote_post. Nome confirmado no /models da DeepSeek com
     # chave real na mesma data — `deepseek-chat` NÃO existe mais.
     llm_model_deepseek: str = "deepseek-v4-flash"
-    # Modelo da OpenAI. `gpt-5.6-luna` escolhido em 2026-09-14 (B8), com nome
+    # Modelo da OpenAI. `gpt-5.6-luna` escolhido em setembro de 2026 (B8), com nome
     # confirmado no /v1/models com chave real — nunca de memória, que é a lição
     # do `deepseek-chat`, nome que não existe mais.
     #
@@ -114,10 +114,10 @@ class Settings(BaseSettings):
     # Trocar é UMA LINHA aqui: o `reasoning_effort="none"` do construtor cobre
     # os dois, e o nano é 1,7× mais rápido se a prioridade virar latência.
     #
-    # Medido em 2026-09-14: 4,7s, US$ 0,001442/dilema (contra US$ 0,00062 do
+    # Medido em setembro de 2026: 4,7s, US$ 0,001442/dilema (contra US$ 0,00062 do
     # DeepSeek v4-flash), reasoning_tokens=0, JSON válido na 1ª tentativa.
     llm_model_openai: str = "gpt-5.6-luna"
-    # Modelo do Claude. `claude-sonnet-5` escolhido em 2026-09-15 (B9), com o
+    # Modelo do Claude. `claude-sonnet-5` escolhido em setembro de 2026 (B9), com o
     # nome CONFIRMADO NO /v1/models COM CHAVE REAL na mesma data.
     #
     # ⚠️ A REGRA DE CONFIRMAR NA FONTE VALEU AQUI COM FORÇA EXTRA, e fica
@@ -128,7 +128,7 @@ class Settings(BaseSettings):
     # (nome que deixou de existir) e do `gpt-6-astra` (descartado antes de
     # gastar chamada) — bater na API e ler o que ela responde.
     #
-    # ⚠️ `llm_temperature` NÃO SE APLICA A ESTE PROVEDOR. Medido em 2026-09-15:
+    # ⚠️ `llm_temperature` NÃO SE APLICA A ESTE PROVEDOR. Medido em setembro de 2026:
     # `temperature=0.3` devolve **400** em `claude-sonnet-5` e em
     # `claude-opus-5` ("temperature is deprecated for this model"). O
     # construtor força `temperature=None` — ver a nota longa em

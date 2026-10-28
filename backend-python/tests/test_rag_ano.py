@@ -4,7 +4,7 @@ Testes do filtro "ano mínimo" (plugin 1.2.0): rag.mmr_search(), os modelos e as
 - composição do `where`: nenhum / só ano / só `$nin` / os dois com `$and`;
 - o relaxamento da exclusão de fontes relaxa SÓ o `$nin`: o ano nunca sai;
 - `ano_minimo` validado em 1900–2100 (ou nulo);
-- coleção TEMPORÁRIA REAL do ChromaDB (pasta em %TEMP%, embeddings falsos, sem rede);
+- coleção TEMPORÁRIA REAL do ChromaDB (pasta temporária, embeddings falsos, sem rede);
 - rotas: 409 com `codigo` + `detail` nas duas rotas, SEM chamar o provedor;
 - /health com api_compat 3.
 

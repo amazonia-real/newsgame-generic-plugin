@@ -131,7 +131,7 @@ class Newsgame_Shortcodes {
 
     /**
      * Enfileira CSS e JS do jogador no `wp_enqueue_scripts` — e não de dentro do
-     * shortcode, que era A CAUSA RAIZ do FOUC corrigido em 2026-08-29.
+     * shortcode, que era A CAUSA RAIZ do FOUC corrigido em agosto de 2026.
      *
      * O `render()` roda durante `the_content()`, depois de o `wp_head` já ter
      * impresso as folhas de estilo. O WordPress então imprimia a folha no
@@ -139,7 +139,7 @@ class Newsgame_Shortcodes {
      * uma linha do CSS do plugin: o jogo aparecia confinado no container do
      * tema, sem fundo, e o botão de tela cheia renderizava como item de flex
      * comum em vez de no canto. Enquanto o layout confinado ERA o desenho isso
-     * passava como um piscar; com o full-bleed de 29/08 virou salto visível.
+     * passava como um piscar; com o full-bleed de agosto virou salto visível.
      *
      * O `render()` CONTINUA enfileirando, de propósito: `wp_enqueue_style` é
      * idempotente por handle, e a duplicidade é a rede para o caso em que este
@@ -177,7 +177,7 @@ class Newsgame_Shortcodes {
      * tem casos que uma regex à mão erra — atributo entre aspas simples, forma
      * fechada, shortcode escapado com colchete duplo.
      *
-     * Exercitada em 2026-08-29 com o WordPress carregado, em 9 formas de
+     * Exercitada em agosto de 2026 com o WordPress carregado, em 9 formas de
      * conteúdo. Oito saíram como esperado (aspas duplas, sem aspas, aspas
      * simples, duas instâncias, duplicada deduplicada, sem `id`, outro
      * shortcode, conteúdo vazio).
@@ -295,7 +295,7 @@ class Newsgame_Shortcodes {
      * inline: inline exigiria 'unsafe-inline' em style-src no site hospedeiro e
      * desfaria o ganho do A1. Ver FLAG 007 e o A5.
      *
-     * Desde 07/10 'default' também tem folha (`skin-default.css`) e passa pelo
+     * Desde outubro 'default' também tem folha (`skin-default.css`) e passa pelo
      * mesmo caminho, sem exceção. A folha nasceu vazia: o custo é uma
      * requisição por render que não muda nada, aceito em troca de o Padrão ter
      * onde guardar valores só dele sem mexer no base, que as outras skins herdam.

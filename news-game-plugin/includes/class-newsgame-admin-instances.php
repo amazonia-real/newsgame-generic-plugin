@@ -12,7 +12,7 @@ class Newsgame_Admin_Instances {
      *
      * Whitelist FECHADA, e não lista extensível por filtro: a skin externa —
      * upload de skin de terceiro — está DESCARTADA como caminho do H2 (decisão
-     * registrada em 2026-08-24, ver §7 do roadmap). Acrescentar entrada aqui é
+     * registrada em agosto de 2026, ver §7 do roadmap). Acrescentar entrada aqui é
      * decisão de escopo do projeto, não configuração do editor.
      *
      * ⚠️ ACRESCENTAR SKIN EXIGE TRÊS ARQUIVOS, e faltar qualquer um degrada:
@@ -25,13 +25,13 @@ class Newsgame_Admin_Instances {
      * artes em `public/images/skins/<slug>/`, referenciadas pela própria folha
      * e por mais nada.
      *
-     * Desde 07/10 a regra vale também para `default`: ela tem folha própria
+     * Desde outubro a regra vale também para `default`: ela tem folha própria
      * (`skin-default.css`) e passa pelo mesmo enfileiramento das outras, sem
      * exceção no loader.
      *
-     * NOTA DE 29/08: o texto que vivia aqui dizia que estas entradas eram "o
+     * NOTA DE agosto: o texto que vivia aqui dizia que estas entradas eram "o
      * suporte de schema deste passo" e que "nenhuma tem folha de estilo ainda".
-     * Estava DEFASADO desde 27/08, quando as quatro folhas e o mecanismo de
+     * Estava DEFASADO desde agosto, quando as quatro folhas e o mecanismo de
      * enfileiramento entraram. Corrigido de passagem, não em silêncio.
      */
     const SKINS = array( 'default', 'mono', 'pixel', 'drama', 'games', 'popart', 'minimal' );
@@ -377,7 +377,7 @@ class Newsgame_Admin_Instances {
         $slug = self::unique_slug( $title, $id );
 
         /*
-         * SEM `status` no write, desde 05/10: o status é DERIVADO
+         * SEM `status` no write, desde outubro: o status é DERIVADO
          * (Newsgame_Status), calculado na leitura. A coluna fica no schema como
          * legado — o INSERT cai no DEFAULT dela e nada a lê. Saiu junto a trava
          * "publicar com aprovadas sem peso": sem 'published' não há o que travar,
@@ -853,7 +853,7 @@ class Newsgame_Admin_Instances {
      * É a pendência que faz o jogo entregar veredito genérico: o gate de
      * newsgame-game.js:342 exige pesoCount > 0 e degrada em silêncio sem ele.
      * Usado pelo aviso persistente da tela de edição. O bloqueio de publicação
-     * que também o usava saiu em 05/10, com o status derivado.
+     * que também o usava saiu em outubro, com o status derivado.
      */
     public static function count_unweighted_approved( $instance_id ) {
         global $wpdb;
@@ -965,7 +965,7 @@ class Newsgame_Admin_Instances {
                 'timeout'   => 120,
                 // Linha IDÊNTICA à das outras quatro chamadas ao backend, e ela
                 // faltava só aqui — inconsistência pré-existente, corrigida em
-                // 07/09. Em produção é no-op: com WP_DEBUG desligado a expressão
+                // setembro. Em produção é no-op: com WP_DEBUG desligado a expressão
                 // dá `true`, que é o default do WordPress. O único caso que muda
                 // é dev com WP_DEBUG e 'localhost' na URL, onde a verificação é
                 // pulada de propósito para aceitar certificado self-signed.

@@ -74,7 +74,7 @@ class Newsgame_Generator {
 
         // Déficit = meta − (aprovadas + pendentes). Descartadas não contam: não vão
         // ao jogo. Antes só as aprovadas contavam, e cada clique com pendentes na
-        // Mesa gerava a meta inteira de novo — medido em 02/10 na instância 8:
+        // Mesa gerava a meta inteira de novo — medido em outubro na instância 8:
         // 3 pendentes, 4 chamadas na segunda rodada, posição 1 repetida.
         // Com grupo, a conta é só das perguntas dele, contra a meta dele.
         $contagem = self::contar_vivas( $instance_id, $grupo );
@@ -161,9 +161,9 @@ class Newsgame_Generator {
      * buracos primeiro e depois continua depois da última. Descartada não ocupa.
      *
      * ⚠️ Não corrige posições JÁ duplicadas — elas contam como uma posição
-     * ocupada. Renumerar é outro passo (levantamento de 02/10, instâncias 4 e 8).
+     * ocupada. Renumerar é outro passo (levantamento de outubro, instâncias 4 e 8).
      *
-     * Pública desde 02/10: a Mesa (Newsgame_Review) usa a mesma regra para a
+     * Pública desde outubro: a Mesa (Newsgame_Review) usa a mesma regra para a
      * pergunta devolvida e para a substituta, em vez de reimplementá-la.
      */
     public static function posicoes_livres( int $instance_id, int $quantas ): ?array {
@@ -280,7 +280,7 @@ class Newsgame_Generator {
          * Antes deste passo o proxy não mandava chave nenhuma, e o backend caía
          * no `GEMINI_API_KEY` do `.env` dele. Ou seja: a chave configurada em
          * News-Game › Configurações **não governava a geração de dilemas**, que
-         * é o miolo do produto. Medido em 2026-09-04: com `.env` inválido e
+         * é o miolo do produto. Medido em setembro de 2026: com `.env` inválido e
          * painel válido, esta rota devolvia 422 "não foi possível gerar um
          * dilema válido"; com o header, gerou normalmente.
          *
@@ -414,7 +414,7 @@ class Newsgame_Generator {
             ) );
         }
 
-        // Sem promoção de status desde 05/10: o status é derivado
+        // Sem promoção de status desde outubro: o status é derivado
         // (Newsgame_Status) e passa a "Em revisão" sozinho quando houver
         // perguntas e matriz. Com isso saiu a terceira escrita do C13.
         wp_send_json_success( array(

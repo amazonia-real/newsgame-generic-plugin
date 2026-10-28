@@ -1,10 +1,10 @@
 """
 Testes do texto_da_resposta() — a normalização do `.content` de resposta de LLM.
 
-Motivo: em 2026-10-02 o Gemini devolveu `.content` como LISTA em 3 de 8
+Motivo: em outubro de 2026 o Gemini devolveu `.content` como LISTA em 3 de 8
 `/generate-one` e nas 2 tentativas de um `/analyze-domain`, e os pontos de
-leitura quebraram no `.replace`/`.strip` seguinte (ver CLAUDE.md, §10,
-"Aberto em 02/10").
+leitura quebraram no `.replace`/`.strip` seguinte (ver a FLAG 019 em
+docs/TECH_FLAGS.md).
 
 Rodar a partir de backend-python/:
     .\\.venv\\Scripts\\python.exe -m unittest tests.test_texto_da_resposta -v

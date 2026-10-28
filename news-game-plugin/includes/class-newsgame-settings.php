@@ -8,7 +8,7 @@ class Newsgame_Settings {
      *
      * ⚠️ A ORIGEM DESTA LISTA É `generator.PROVEDORES` (backend-python/app/
      * generator.py:656), e não este arquivo. Aqui é cópia declarada, e a decisão
-     * de que fosse cópia foi tomada em 2026-09-07 depois de medir a alternativa:
+     * de que fosse cópia foi tomada em setembro de 2026 depois de medir a alternativa:
      * buscar a lista do backend exigiria rota nova (não existe canal de
      * descoberta — o plugin nunca chama /health, e o $backend_ok de
      * page-instance-form.php:551 é só "a URL está preenchida") e seria CIRCULAR,
@@ -83,7 +83,7 @@ class Newsgame_Settings {
      *
      * ⚠️ ASSIMETRIA DELIBERADA: `newsgame_gemini_api_key` fica em `auto`, como
      * está hoje no banco. Mexer no autoload de uma option de produção já em uso
-     * é decisão própria e ficou FORA deste escopo, por decisão de 2026-09-07;
+     * é decisão própria e ficou FORA deste escopo, por decisão de setembro de 2026;
      * anotado como item futuro na FLAG 011.
      *
      * E não confundir com criptografia: isto é REDUÇÃO DE SUPERFÍCIE (o segredo
@@ -343,8 +343,8 @@ class Newsgame_Settings {
     }
 
     /**
-     * Terceiro provedor (B8, 2026-09-14). Existe por SIMETRIA com os dois
-     * acima, sob a decisão de 07/09 registrada em provider_key(): acessor de
+     * Terceiro provedor (B8, setembro de 2026). Existe por SIMETRIA com os dois
+     * acima, sob a decisão de setembro registrada em provider_key(): acessor de
      * chave de provedor ESPECÍFICO, para quando algo precisar dela fora do
      * fluxo "provedor ativo". Sem chamador hoje, como os outros dois — e a
      * assimetria seria pior que a linha extra: quem procurasse `openai_key()`
@@ -355,8 +355,8 @@ class Newsgame_Settings {
     }
 
     /**
-     * Quarto provedor (B9, 2026-09-15). Mesmo motivo do openai_key() acima —
-     * simetria, sob a decisão de 07/09 registrada em provider_key(). Não
+     * Quarto provedor (B9, setembro de 2026). Mesmo motivo do openai_key() acima —
+     * simetria, sob a decisão de setembro registrada em provider_key(). Não
      * repetir aqui o raciocínio inteiro: ele está a três linhas de distância.
      */
     public static function claude_key() {
@@ -396,7 +396,7 @@ class Newsgame_Settings {
      * chamador no B5. A tela **não** os usa — `page-settings.php` lê as duas
      * options por `get_option()` direto.
      *
-     * ✅ **DECISÃO TOMADA EM 07/09: MANTER OS DOIS.** Não é pendência e não é
+     * ✅ **DECISÃO TOMADA EM setembro: MANTER OS DOIS.** Não é pendência e não é
      * esquecimento. São acessores públicos da classe, e removê-los seria churn
      * sem ganho — quando algo precisar ler a chave de um provedor ESPECÍFICO,
      * fora do fluxo "provedor ativo" que este método atende, eles já existem

@@ -13,9 +13,9 @@ defined( 'ABSPATH' ) || exit;
  * que é a família de defeito do C13.
  *
  * O status NÃO bloqueia nada: o shortcode renderiza em qualquer estado (D4,
- * fechado por decisão em 05/10). Ele só informa o editor do que falta.
+ * fechado por decisão em outubro). Ele só informa o editor do que falta.
  *
- * Regras (decididas em 05/10; o limiar mudou em 09/10 e de novo no item 58):
+ * Regras (decididas em outubro de 2026; o limiar mudou depois, no mesmo mês, e de novo no item 58):
  *   Pronto     — eixos e perfis completos, TODAS as aprovadas com peso, gerais
  *                Prontas e, se a instância tem personagens, pelo menos um
  *                personagem Pronto (grupo Pronto = aprovadas >= meta dele; ver
@@ -213,11 +213,11 @@ class Newsgame_Status {
      * escolhas do jogador) e não cabe aqui. avaliar() a garante pelo lado forte:
      * todas as aprovadas com peso fazem pesoCount igual ao número de respostas.
      *
-     * ⚠️ LIMITAÇÃO CONHECIDA, aceita em 05/10: "com peso" é `axis_weights IS
+     * ⚠️ LIMITAÇÃO CONHECIDA, aceita em outubro: "com peso" é `axis_weights IS
      * NOT NULL`, o mesmo critério de count_unweighted_approved(). Não confere se
      * há chave para CADA letra — o jogo lê `axis_weights[letra escolhida]`, e
      * uma pergunta de 3 opções com peso só em A e B contaria como pesada. Medido
-     * em 05/10 nas 5 instâncias reais: nenhuma aprovada nessa situação, nem com
+     * em outubro nas 5 instâncias reais: nenhuma aprovada nessa situação, nem com
      * `axis_weights` vazio, JSON `null` ou `{}`.
      *
      * @param array $matriz Saída de matriz_do_jogo().
@@ -310,7 +310,7 @@ class Newsgame_Status {
      *
      * Pronto (item 58, rodada C): eixos e perfis completos, todas as aprovadas
      * com peso, gerais Prontas e, se a instância tem personagens, pelo menos um
-     * personagem Pronto. Continua NÃO bloqueando nada (05/10).
+     * personagem Pronto. Continua NÃO bloqueando nada (outubro).
      *
      * @return array{estado:string, rotulo:string, falta:string[]}
      */

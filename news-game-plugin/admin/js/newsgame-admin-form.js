@@ -203,7 +203,7 @@
      trecho, na view. Virou condicional de JS sobre o mesmo número, agora vindo
      do cfg — parseInt porque o localize entrega string.
 
-     O cancelamento foi reescrito depois do teste manual de 28/08, em que clicar
+     O cancelamento foi reescrito depois do teste manual de agosto, em que clicar
      em "Cancelar" deixava o rádio na opção nova. A lógica antiga era
      `r.checked = r.value === currentOptions` para os dois rádios, o que tem dois
      modos de falha: se `currentOptions` divergisse em tipo ou valor, DESMARCAVA
@@ -275,7 +275,7 @@
 
   /* ── Botões de ação ─────────────────────────────────────── */
   /*
-   * Um caminho só para os dois botões. Desde 05/10 o formulário não manda
+   * Um caminho só para os dois botões. Desde outubro o formulário não manda
    * status: ele é DERIVADO no servidor (Newsgame_Status). `destino` vai para o
    * handle_save(): 'stay' volta ao formulário com "Salvo ✓", 'list' volta à
    * listagem.

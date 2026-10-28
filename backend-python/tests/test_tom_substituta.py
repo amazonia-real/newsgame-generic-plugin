@@ -1,7 +1,7 @@
 """
-Tom da substituta = tom da geração (09/10).
+Tom da substituta = tom da geração (outubro).
 
-Até 09/10 o /regenerate calculava o tom por regra própria (`_nivel_nome`, pelo
+Até outubro o /regenerate calculava o tom por regra própria (`_nivel_nome`, pelo
 level e pela presença de personagem) e saía em outro tom em 2 dos 6 casos:
 lúdico sem personagens (virava PEDAGÓGICO) e pedagógico com personagens (virava
 LÚDICO). Agora os dois caminhos usam `generator.tom_do_nivel(nivel_padrao)`.

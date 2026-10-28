@@ -129,13 +129,13 @@
   });
 
   /* ── Botões de ação da linha, por aba ──────────────────────
-     Extraído de buildRow() em 29/08, quando a aba `approved` ganhou o botão de
-     salvar. É um dos três helpers previstos na dívida de complexidade de 28/08
+     Extraído de buildRow() em agosto, quando a aba `approved` ganhou o botão de
+     salvar. É um dos três helpers previstos na dívida de complexidade de agosto
      (`buildRowActions`, `buildRowMeta`, `buildEditTable`), e sem a extração o
      `buildRow` subiria de 15 para 16 — o `eslint-disable` de lá suprime o erro,
      mas piorar por baixo dele seria usar a supressão como desculpa.
 
-     ⚠️ AS TRÊS ABAS SÃO TRATADAS SEPARADAMENTE, e isso não é zelo: até 29/08
+     ⚠️ AS TRÊS ABAS SÃO TRATADAS SEPARADAMENTE, e isso não é zelo: até agosto
      `approved` e `discarded` caíam no mesmo `else`. O botão de salvar chama a
      MESMA action do aprovar — que grava os campos e escreve
      `review_status = 'approved'` —, então mostrá-lo numa linha descartada
@@ -166,8 +166,8 @@
 
   /* ── Constrói HTML de uma linha accordion ─────────────────
      Complexidade 11, medida com o ESLint — acima do limite 10. Eram 15 até
-     29/08, quando `buildRowActions()` saiu daqui (o `if/else` de abas valia 1
-     ponto), e 14 até 09/10, quando saiu o rótulo Aprendiz/Pro do
+     agosto, quando `buildRowActions()` saiu daqui (o `if/else` de abas valia 1
+     ponto), e 14 até outubro, quando saiu o rótulo Aprendiz/Pro do
      `enable_levels` (3 pontos). Diretiva e não refatoração completa, pelo mesmo
      critério que o A4 aplicou ao buildRadarSVG: os 11 restantes são ternários e
      `||` de default montando string de HTML, sem um `if`, `for` ou `case` no
@@ -409,7 +409,7 @@
 
   /* ── Descartar ──────────────────────────────────────────── */
   /* Salva os campos editados de uma linha JÁ APROVADA, sem mudar o status.
-     Era o caminho que faltava: até 29/08 a única forma de gravar uma edição era
+     Era o caminho que faltava: até agosto a única forma de gravar uma edição era
      aprovar uma pendente.
 
      USA A MESMA ACTION DO APROVAR, e não um handler novo, porque
@@ -610,7 +610,7 @@
   var assignMsg   = document.getElementById('ng-assign-msg');
 
   /* ── Indicadores de pendência de peso ──────────────────────
-     Fecha o C6, aberto no roadmap desde 13/08: "o notice de pendência não sai da
+     Fecha o C6, aberto no roadmap desde agosto: "o notice de pendência não sai da
      tela após atribuir pesos com sucesso; só com F5".
 
      O DADO JÁ VINHA NA RESPOSTA e era ignorado. `handle_assign_weights()` relê

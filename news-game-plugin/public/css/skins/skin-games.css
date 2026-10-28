@@ -17,7 +17,7 @@
  *   · três regras de `background-image`, SEM `linear-gradient`: as cenas de
  *     fábrica são claras e não levam véu
  *
- * ── COR — amostrada na miniatura e nas cenas (05/10) ──────────────────
+ * ── COR — amostrada na miniatura e nas cenas (outubro) ──────────────────
  * Fundo 253,253,251 é o papel das três cenas (93–96% dos pixels); a tinta
  * 20,20,20 é o traço do desenho e o contorno da miniatura. A primária é a
  * própria tinta (botão preto), e o destaque um grafite 64,64,64, para o hover
@@ -60,13 +60,13 @@
  *
  * Rajdhani é ESTÁTICA, quatro arquivos (400, 500, 600, 700) — os pesos que o
  * base usa. O 800 dos percentuais do radar cai no 700, sem engrossar (medido
- * em canvas em 05/10: tinta idêntica à do 700). Soma das duas: 75.524 bytes.
+ * em canvas em outubro: tinta idêntica à do 700). Soma das duas: 75.524 bytes.
  *
  * Oxanium é VARIÁVEL, um arquivo para 200–800 — e o PESO PADRÃO DO ARQUIVO É
  * 200. Por isso o `@font-face` declara o intervalo inteiro: com `font-weight`
  * de um valor só, o navegador usaria o arquivo como está, e o título — que sai
  * em 400 porque o tema zera o peso dos `h1`–`h6` — seria desenhado fino.
- * Troca de 07/10: a Oxanium substituiu a Orbitron, que declarava nome
+ * Troca de outubro: a Oxanium substituiu a Orbitron, que declarava nome
  * reservado no OFL.
  */
 @font-face {
@@ -150,7 +150,7 @@
   --ng-card-sombra-desfoque:     0;
   --ng-card-sombra-alfa:         1;
 
-  /* Radar sobre placa BRANCA (18/10): os tons escuros do verde, do vermelho e
+  /* Radar sobre placa BRANCA (outubro): os tons escuros do verde, do vermelho e
      do cinza — 5,94 / 5,98 / 5,94 contra o branco. Ver o bloco do radar no base. */
   --ng-radar-positive:           #157334;
   --ng-radar-positive-fill:      rgba(21, 115, 52, 0.2);

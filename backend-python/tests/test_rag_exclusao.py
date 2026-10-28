@@ -3,7 +3,7 @@ Testes do relaxamento da exclusão de fontes em rag.mmr_search().
 
 Motivo: com `fontes_usadas` cobrindo todo o acervo, o filtro `$nin` devolvia zero
 trechos, o contexto ficava vazio e o slot falhava com 422 — e retentar não
-adiantava, porque a exclusão só cresce. Decidido em 02/10: relaxar a exclusão
+adiantava, porque a exclusão só cresce. Decidido em outubro: relaxar a exclusão
 em vez de falhar o slot.
 
 O banco é FALSO: um objeto com o mesmo `max_marginal_relevance_search()` do Chroma,

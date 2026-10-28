@@ -15,7 +15,7 @@
  * muda pixel na skin `default` e é decisão fora do escopo desta skin.
  *
  * O QUE ESTE ARQUIVO MUDA: os seis canais `-rgb`, os três raios, --ng-font e,
- * desde 05/10, o PAR do painel de contexto (`--ng-feedback-bg` /
+ * desde outubro, o PAR do painel de contexto (`--ng-feedback-bg` /
  * `--ng-feedback-ink`), apontado para a CAIXA CHAPADA do base com tinta escura
  * — o vidro claro padrão reprovava o AA aqui (pior caso 2,1:1; com a caixa,
  * 16,2:1). Nada mais. Todo token de uso deriva no arquivo base.
@@ -87,7 +87,7 @@
   --ng-feedback-bg:  var(--ng-feedback-chapado);
   --ng-feedback-ink: var(--ng-bg);
 
-  /* Borda das alternativas: desde o cartão único (16/10) ela fica sobre o
+  /* Borda das alternativas: desde o cartão único (outubro) ela fica sobre o
      cartão carvão, e a primária (82) dava 2,38:1 contra ele. 98 é o mínimo com
      margem para o contorno >= 3:1 (3,05; com 97, 3,00 exatos), percentil 5 por
      pixel, em 390, 768 e 1340px. Só a borda: a primária segue em 82. */
@@ -95,7 +95,7 @@
 }
 
 /*
- * Placa do gráfico do veredito MAIS CLARA que o cartão (18/10). Na cor de
+ * Placa do gráfico do veredito MAIS CLARA que o cartão (outubro). Na cor de
  * cartão (23) ela quase sumia sobre o fundo da cena (10): 1,10:1. Com 54, a
  * placa fica a 1,63:1 do fundo, e contra ela o traço do radar dá 4,33, o
  * rótulo 6,04 e o vermelho 5,29 (o mais apertado) — acima de 3 e 4,5. O cinza
@@ -106,7 +106,7 @@
 }
 
 /*
- * Título do veredito menor (18/10): de 28 px (`--ng-fs-11`) para 24,48 px, o
+ * Título do veredito menor (outubro): de 28 px (`--ng-fs-11`) para 24,48 px, o
  * maior tamanho em que o mesmo título em Georgia 700 caberia nas linhas de
  * hoje, com todos os nomes de perfil, a 360, 390 e 1340 px (o limite vem de
  * 360). O peso segue o de hoje.

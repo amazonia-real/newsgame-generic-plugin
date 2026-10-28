@@ -19,7 +19,7 @@
  * componente no base para servir a uma skin. A decisão é reversível e o custo
  * dela está aqui: quem escrever a SEGUNDA skin com fundo e fonte deve tokenizar
  * em vez de copiar este arquivo.
- *   ⚠️ ATUALIZAÇÃO DE 05/10 — a segunda skin (`drama`) criou no base um destes
+ *   ⚠️ ATUALIZAÇÃO DE outubro — a segunda skin (`drama`) criou no base um destes
  *   tokens, o `--ng-feedback-bg`, agora em PAR com `--ng-feedback-ink` (fundo e
  *   tinta do painel de contexto), e um ANÁLOGO do `--ng-font-display`, o
  *   `--ng-font-title` (fonte dos títulos) — contrato de tokens do base; o par
@@ -56,7 +56,7 @@
  * ── SELETOR ───────────────────────────────────────────────────────────
  * `.ng-game-wrap.ng-skin-pixel`, e não `.ng-game-wrap` puro. Duas razões:
  *  1. Duas instâncias de skins diferentes na mesma página convivem — validado
- *     em runtime em 28/08. Com seletor puro, os dois arquivos carregariam
+ *     em runtime em agosto. Com seletor puro, os dois arquivos carregariam
  *     global e o último venceria para ambas.
  *  2. Especificidade 0-2-0 contra 0-1-0 do base: a skin vence INDEPENDENTE da
  *     ordem de origem, o que a protege de plugin de otimização que reordene ou
@@ -100,7 +100,7 @@
  * plugin. Copyright 2021 The Pixelify Sans Project Authors, sem nome reservado
  * na linha de copyright.
  *
- * TROCA DE 07/10: até aqui a fonte era a Press Start 2P, que declarava nome
+ * TROCA DE outubro: até aqui a fonte era a Press Start 2P, que declarava nome
  * reservado no OFL. A Pixelify Sans é outra fonte e outra métrica — PROPORCIONAL,
  * com minúsculas e descendentes —, e o que isso mudou na escala está no bloco
  * "Escala do cromo", logo abaixo da lista dos oito seletores.
@@ -112,7 +112,7 @@
  *
  * O INTERVALO `font-weight: 400 700` É O QUE TORNA OS NEGRITOS REAIS. O base
  * pede 700 no título do dilema e no rótulo e 600 nos dois botões (pedia também
- * 500 na consequência, que saiu da tela em 16/10); a Press Start 2P só tinha
+ * 500 na consequência, que saiu da tela em outubro); a Press Start 2P só tinha
  * 400, e o navegador engrossava os de 600 e 700 por síntese. Agora os pesos
  * saem do próprio arquivo.
  *
@@ -204,15 +204,15 @@
    * problema que `--ng-on-primary` tinha antes de ganhar canal próprio.
    *
    * O VALOR É A ALTURA VISUAL, e o tamanho aplicado é ele × `--ng-fator-display`
-   * (ver "Escala do cromo"). Os 0.78rem foram calibrados em 29/08 para a Press
+   * (ver "Escala do cromo"). Os 0.78rem foram calibrados em agosto para a Press
    * Start 2P, que gastava ~1em por glifo; com a Pixelify Sans a premissa caiu,
    * mas o número continua certo como ALTURA: com o fator, a maiúscula sai da
    * mesma altura de antes, e a largura cai para ~70%.
-   * ⚠️ MEDIDO EM 07/10, antes da troca: a 390px "Ver resultado final" em Press
+   * ⚠️ MEDIDO EM outubro, antes da troca: a 390px "Ver resultado final" em Press
    * Start 2P QUEBRAVA EM DUAS LINHAS (texto e padding pediam 305px num botão de
-   * 258px). A conta de 29/08 supunha botão de ~330px. Com a Pixelify cabe em
+   * 258px). A conta de agosto supunha botão de ~330px. Com a Pixelify cabe em
    * uma — os números estão no "Escala do cromo".
-   * ⚠️ HISTÓRICO, 29/08: o comentário da escala afirmava que `--ng-fs-4` vestia
+   * ⚠️ HISTÓRICO, agosto: o comentário da escala afirmava que `--ng-fs-4` vestia
    * estes dois botões, e a calibração nunca chegou a eles. `--ng-fs-4` veste
    * `.ng-modal-link`.
    */
@@ -221,7 +221,7 @@
   /*
    * ── DUAS FAMÍLIAS, e é a decisão central desta revisão ──
    *
-   * Em 29/08 a Press Start 2P vestiu o JOGO INTEIRO, e o teste em runtime
+   * Em agosto a Press Start 2P vestiu o JOGO INTEIRO, e o teste em runtime
    * mostrou o que a categoria oficial dela no Google Fonts já dizia — DISPLAY:
    * ela é monoespaçada QUADRADA (~1em de avanço por glifo, contra ~0.5em de uma
    * sans-serif) e sem ascendente nem descendente longos. Ótima em rótulo curto,
@@ -231,7 +231,7 @@
    * corpo. É como jogo de console de verdade faz — HUD em pixel, diálogo em
    * fonte legível.
    *
-   * 07/10: o display passou a ser a Pixelify Sans — pixel, mas PROPORCIONAL,
+   * outubro: o display passou a ser a Pixelify Sans — pixel, mas PROPORCIONAL,
    * com minúsculas e descendentes. A divisão em duas famílias continua: é
    * fonte de display, e o corpo segue em mono.
    *
@@ -258,13 +258,13 @@
    *
    * O ciclo inteiro fica registrado porque as três posições foram tomadas com
    * evidência diferente, e a próxima pessoa vai ter a mesma ideia de novo:
-   *   1. NÃO usar, por previsão (29/08): as artes são 1600×900 e o palco é
+   *   1. NÃO usar, por previsão (agosto): as artes são 1600×900 e o palco é
    *      menor, então há downscale, e `pixelated` num downscale gera serrilhado
    *      irregular. Era raciocínio, não tela.
-   *   2. USAR `crisp-edges` + `pixelated` (29/08): a interpolação do navegador
+   *   2. USAR `crisp-edges` + `pixelated` (agosto): a interpolação do navegador
    *      "lavava" o serrilhado, e o desfoque incomodava mais. Foi observação em
    *      runtime, e por isso ganhou da previsão.
-   *   3. NÃO usar, por observação (29/08, atual): com o nearest-neighbor os
+   *   3. NÃO usar, por observação (agosto, atual): com o nearest-neighbor os
    *      DEGRADÊS DE CÉU destas artes viram blocos estourados — e é degradê que
    *      ocupa a maior área das três cenas. A previsão do passo 1 estava certa
    *      sobre o downscale; errou só a razão, que não é o serrilhado das bordas
@@ -279,7 +279,7 @@
    * Isso deixa de ser um custo aceito e sai da lista de itens abertos — o
    * degrau 1 volta a ter a renderização normal do navegador.
    *
-   * ⚠️ CORREÇÃO DE 29/08, mantida aqui porque continua valendo e o bloco da
+   * ⚠️ CORREÇÃO DE agosto, mantida aqui porque continua valendo e o bloco da
    * escala de tipografia a referencia: houve uma versão deste comentário
    * afirmando que usar `rem` na escala "faria o navegador voltar a interpolar o
    * glifo" e "desfaria o que o image-rendering foi buscar". Isso está ERRADO e
@@ -291,7 +291,7 @@
 
   /*
    * ── Escala de tipografia ──
-   * DE VOLTA A `rem`, revertendo a decisão de px de 29/08. O motivo da reversão
+   * DE VOLTA A `rem`, revertendo a decisão de px de agosto. O motivo da reversão
    * não é o erro corrigido acima: é que px foi escolhido quando a fonte pixel
    * vestia TUDO, e o ganho de nitidez valia para todo o texto da tela. Agora
    * ela veste só o cromo — sete seletores de rótulo, título e botão —, então o
@@ -309,14 +309,14 @@
    * Os três últimos DESCERAM porque a Press Start 2P, quadrada, ocupava ~2x a
    * largura por glifo: a 1.9rem um nome de perfil de 21 caracteres passaria de
    * 600px e quebraria em três linhas no celular.
-   *   ⚠️ 07/10 — A PREMISSA "~1em POR GLIFO" NÃO VALE MAIS: a Pixelify Sans é
+   *   ⚠️ outubro — A PREMISSA "~1em POR GLIFO" NÃO VALE MAIS: a Pixelify Sans é
    *   proporcional e, na mesma altura de maiúscula, ocupa ~70% da largura da
    *   Press Start 2P. Os valores ficam como estão porque passaram a significar
    *   ALTURA VISUAL: o cromo os consome multiplicados por `--ng-fator-display`,
    *   e o que sobrou de largura virou folga, não tamanho. Subir algum deles é
    *   decisão de desenho, não correção.
    *
-   * ⚠️ CORREÇÃO DE 29/08: esta tabela listava um quinto token, `--ng-fs-4`,
+   * ⚠️ CORREÇÃO DE agosto: esta tabela listava um quinto token, `--ng-fs-4`,
    * como sendo o dos botões "Continuar" e CTA. É FALSO — `--ng-fs-4` veste
    * `.ng-modal-link`, e os dois botões vêm de `--ng-fs-8` e `--ng-fs-9`. A
    * consequência não era só de texto: a calibração de 0.78rem existia na tabela
@@ -357,14 +357,14 @@
  * nesta skin, e vê-la inteira num lugar é o que impede a fonte de vazar para
  * parágrafo na próxima edição.
  *
- * Eram oito até 16/10: o oitavo era o título do painel de contexto, que saiu
+ * Eram oito até outubro: o oitavo era o título do painel de contexto, que saiu
  * junto com a consequência da alternativa, deixada de exibir naquela tela.
  *
  * DOIS DELES NÃO EXISTEM COM O NOME ÓBVIO, e é bom saber ao editar: o título
  * da capa e o da tela de conclusão são `.ng-screen h2` (o `<h2>` não tem
  * classe), e o nome do perfil no veredito é `.ng-verdict-result h2`. Não há
  * `.ng-title` nem `.ng-veredicto-title` no projeto — a segunda saiu junto com
- * `.ng-veredicto`, removida em 29/08.
+ * `.ng-veredicto`, removida em agosto.
  *
  * O `.ng-opt-label` PRECISA estar aqui mesmo estando dentro do botão de
  * alternativa: o botão herda `--ng-font` (mono) pelo `font-family: inherit` do
@@ -399,7 +399,7 @@
  * A ORDEM IMPORTA ENTRE OS DOIS `h2`: as duas regras têm a mesma
  * especificidade, e o perfil vem depois da capa, como no base.
  *
- * MEDIDO EM 07/10 a 390px, Chrome headless, arquivos reais:
+ * MEDIDO EM outubro a 390px, Chrome headless, arquivos reais:
  *   "Ver resultado final"  Press Start 2P 2 linhas · Pixelify 1 linha
  *   capa de 60 caracteres  Press Start 2P 6 linhas · Pixelify 4 linhas
  */
@@ -431,7 +431,7 @@
 }
 
 /*
- * SAIU EM 07/10 a regra do título do dilema que trocava o `line-height` 1.3 do
+ * SAIU EM outubro a regra do título do dilema que trocava o `line-height` 1.3 do
  * base por 1.5 e o `letter-spacing` 0.01em por 0. As duas razões eram da Press
  * Start 2P: glifo quadrado, sem descendente, colava as linhas; e espaçamento
  * não faz nada numa monoespaçada. A Pixelify tem descendente (g e p descem
@@ -473,7 +473,7 @@
 /* "OPÇÃO A" — no base é `--ng-accent`, amarelo claro, que sobre a caixa amarela
    seria INVISÍVEL. Preto a 70% mantém o rótulo como informação secundária sem
    virar corpo de texto, e mede 7.02:1. O `letter-spacing` do base (0.1em)
-   VOLTOU em 07/10: era zerado porque a Press Start 2P, quadrada, já vinha
+   VOLTOU em outubro: era zerado porque a Press Start 2P, quadrada, já vinha
    espaçada; a Pixelify é proporcional, e o rótulo em caixa-alta pede o
    espaçamento do base, como nas outras skins. */
 .ng-game-wrap.ng-skin-pixel .ng-opt-label {
@@ -548,7 +548,7 @@
    * IGUAL à do cartão e rolagem interna quando o texto não cabe. Com a
    * consequência em Press Start 2P — maior por glifo — isso passou a acionar a
    * barra no desktop, e barra de rolagem dentro de uma caixa de diálogo de RPG
-   * é o oposto do que a skin promete. (07/10: com a Pixelify o painel ficou
+   * é o oposto do que a skin promete. (outubro: com a Pixelify o painel ficou
    * mais baixo, mas a regra continua — ela não custa nada quando o texto cabe,
    * e é o que segura uma consequência longa sem barra.)
    *
@@ -571,7 +571,7 @@
    * fluxo, o que é exatamente o que o parágrafo acima descarta. A barra de
    * rolagem foi trocada por transbordo controlado, de propósito.
    *
-   * Desde o cartão único (16/10) o painel mora DENTRO do cartão, e o base o
+   * Desde o cartão único (outubro) o painel mora DENTRO do cartão, e o base o
    * estende pela largura da borda dele para cobrir o mesmo retângulo. Aqui o
    * topo e os lados fazem o mesmo, e o `min-height` soma as duas bordas, para
    * o painel curto ainda cobrir o cartão até o pé.
@@ -621,23 +621,23 @@
  * consome, a base é inequívoca. Vale igual para o `src` do `@font-face`.
  * NÃO "corrigir" isto para token sem testar nos dois motores.
  *
- * ── LUZ DE DIA, desde 03/09 ──
+ * ── LUZ DE DIA, desde setembro ──
  * As três cenas são de DIA, e a partida inteira acontece na mesma luz:
  *   CAPA      · borda urbana, DIA  — skyline atravessando a largura, sol alto
  *   DILEMA    · floresta, DIA      — árvores em toda a largura, raios de luz
  *   RESULTADO · igarapé, DIA       — espelho d'água com os reflexos das árvores
  *
  * ── O QUE HAVIA ANTES, e por que o registro fica ──
- * De 29/08 a 03/09 estas três regras apontavam para arte NOTURNA, num "arco de
+ * De agosto a setembro estas três regras apontavam para arte NOTURNA, num "arco de
  * luz" deliberado: capa em borda urbana à noite, dilema em floresta no
  * CREPÚSCULO (a virada de temperatura no meio da partida) e resultado em
- * igarapé à noite. A troca de 03/09 foi decisão editorial — a série noturna não
+ * igarapé à noite. A troca de setembro foi decisão editorial — a série noturna não
  * satisfez —, não conserto de defeito.
  *
  * ⚠️ DUAS CONSEQUÊNCIAS DA TROCA, para não serem redescobertas:
  *
  *  1. O VÉU NÃO MUDOU, e isso foi MEDIDO, não presumido. `--ng-overlay` segue
- *     em 0,42. Contraste remedido em 03/09 sobre a série de dia (percentil 5 da
+ *     em 0,42. Contraste remedido em setembro sobre a série de dia (percentil 5 da
  *     região central, WCAG): acento/fundo 5,00–5,41 · texto .92/fundo
  *     5,64–6,08 · texto/card 9,99–11,53 · ícone de tela cheia 3,58–3,77. Todos
  *     acima dos limiares que a série noturna cumpria (que media, no mesmo véu,
@@ -646,7 +646,7 @@
  *     acento — não vale para estes arquivos. NÃO subir o véu sem remedir.
  *
  *  2. O ACOPLAMENTO CREPÚSCULO ↔ MOLDURA PRETA saiu de cena junto com o
- *     crepúsculo. O motivo registrado em 29/08 era que o amarelo #FFCE00 e um
+ *     crepúsculo. O motivo registrado em agosto era que o amarelo #FFCE00 e um
  *     céu laranja ocupam o mesmo campo de matiz, e a moldura de 3px das caixas
  *     de alternativa separava os dois por luminância. Com céu azul o problema
  *     de matiz não se apresenta. A moldura CONTINUA declarada, por ser parte da
@@ -659,7 +659,7 @@
  * alcançar. Exigiria expor o índice em `marcarMomento()`. Fica como item
  * aberto, não como omissão.
  *
- * As SEIS cenas de reserva — as três noturnas que saíram de produção em 03/09 e
+ * As SEIS cenas de reserva — as três noturnas que saíram de produção em setembro e
  * as três que já eram reserva — seguem versionadas em
  * `public/images/skins/pixel/`, e a troca é editar o `url()`. Nada foi apagado.
  */
@@ -747,7 +747,7 @@
     --ng-fs-10:  1.4rem;    /* título do dilema */
     --ng-fs-11:  1.5rem;    /* nome do perfil */
     --ng-fs-12:  1.75rem;   /* título da capa */
-    --ng-fs-btn:    0.95rem; /* altura; × fator: "Ver resultado final" em botão de 271px (07/10) */
+    --ng-fs-btn:    0.95rem; /* altura; × fator: "Ver resultado final" em botão de 271px (outubro) */
   }
 
   /* Corpo mais alto pede entrelinha maior. 1.6 nos dois, contra 1.65 e 1.55 do

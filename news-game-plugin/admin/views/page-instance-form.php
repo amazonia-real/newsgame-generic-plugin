@@ -260,7 +260,7 @@ $page_title = $is_edit
   $sem_peso = $id ? Newsgame_Admin_Instances::count_unweighted_approved( $id ) : 0;
   //
   // Os `id` abaixo existem para o JS poder atualizar isto SEM F5 depois de
-  // pesar — é o C6, aberto desde 13/08. O bloco continua condicional: quando não
+  // pesar — é o C6, aberto desde agosto. O bloco continua condicional: quando não
   // há pendência no carregamento, o notice simplesmente não existe, e o JS
   // (`pintarPendencia`) trata a ausência.
   if ( $sem_peso > 0 ) : ?>
@@ -499,7 +499,7 @@ Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal
            * a partir da skin do banco. Salvar o formulário sem tocar no seletor manda
            * de volta a skin que já estava gravada — nunca 'default'. É a mesma
            * propriedade que o <select> tinha, e é o que o `isset( $_POST['skin'] )`
-           * do handle_save() protege desde 27/08 (família do C11: sobrescrita
+           * do handle_save() protege desde agosto (família do C11: sobrescrita
            * silenciosa).
            *
            * ⚠️ NÃO ESCONDER O INPUT (display:none, opacity:0, largura zero) para

@@ -203,7 +203,7 @@ def mmr_search(db: Chroma, queries: list[str], fetch_k: int = 40, k: int = 5,
     # Exclusão que esgota o acervo RELAXA em vez de falhar o slot: num acervo
     # pequeno, repetir uma fonte é melhor que perder a pergunta. Sem isto o
     # contexto volta vazio, generate_one_dilema() devolve None e a rota dá 422 —
-    # e retentar não adianta, porque a exclusão só cresce. Decidido em 02/10.
+    # e retentar não adianta, porque a exclusão só cresce. Decidido em outubro.
     #
     # O critério é "algum trecho com URL rastreável", e não "algum resultado":
     # o laço abaixo descarta os trechos sem `http`, e esvaziaria o contexto mesmo

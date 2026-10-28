@@ -57,12 +57,12 @@ class GenerateRequest(BaseModel):
     # api_key NÃO saem do servidor". Para estas rotas o proxy manda a chave em
     # HEADER, adicionado server-side. Ver o passo 3 da fase 0.
     gemini_api_key: str = Field(default="")
-    # Segundo provedor (2026-09-05). O campo do provedor NÃO viaja no body:
+    # Segundo provedor (setembro de 2026). O campo do provedor NÃO viaja no body:
     # ele vem no header X-LLM-Provider, ou do default global do backend.
     deepseek_api_key: str = Field(default="")
-    # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
+    # Terceiro provedor (setembro de 2026). Mesma regra dos dois acima.
     openai_api_key: str = Field(default="")
-    # Quarto provedor (2026-09-15). Mesma regra dos três acima.
+    # Quarto provedor (setembro de 2026). Mesma regra dos três acima.
     claude_api_key: str = Field(default="")
 
 
@@ -202,12 +202,12 @@ class RegenerateRequest(BaseModel):
     # inteiramente no servidor (class-newsgame-review.php:266-275), sem passar
     # pelo browser, mas o proxy manda a chave em header pelo mesmo padrão.
     gemini_api_key: str = Field(default="")
-    # Segundo provedor (2026-09-05). O campo do provedor NÃO viaja no body:
+    # Segundo provedor (setembro de 2026). O campo do provedor NÃO viaja no body:
     # ele vem no header X-LLM-Provider, ou do default global do backend.
     deepseek_api_key: str = Field(default="")
-    # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
+    # Terceiro provedor (setembro de 2026). Mesma regra dos dois acima.
     openai_api_key: str = Field(default="")
-    # Quarto provedor (2026-09-15). Mesma regra dos três acima.
+    # Quarto provedor (setembro de 2026). Mesma regra dos três acima.
     claude_api_key: str = Field(default="")
 
 
@@ -241,12 +241,12 @@ class DomainAnalysisRequest(BaseModel):
     context_text: str
     perfis_disponiveis: List[str] = Field(default_factory=list)
     gemini_api_key: str = Field(default="")
-    # Segundo provedor (2026-09-05). O campo do provedor NÃO viaja no body:
+    # Segundo provedor (setembro de 2026). O campo do provedor NÃO viaja no body:
     # ele vem no header X-LLM-Provider, ou do default global do backend.
     deepseek_api_key: str = Field(default="")
-    # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
+    # Terceiro provedor (setembro de 2026). Mesma regra dos dois acima.
     openai_api_key: str = Field(default="")
-    # Quarto provedor (2026-09-15). Mesma regra dos três acima.
+    # Quarto provedor (setembro de 2026). Mesma regra dos três acima.
     claude_api_key: str = Field(default="")
 
 
@@ -262,12 +262,12 @@ class AssignWeightsRequest(BaseModel):
     dilemmas: List[dict]
     eixos: AxisSet
     gemini_api_key: str = Field(default="")
-    # Segundo provedor (2026-09-05). O campo do provedor NÃO viaja no body:
+    # Segundo provedor (setembro de 2026). O campo do provedor NÃO viaja no body:
     # ele vem no header X-LLM-Provider, ou do default global do backend.
     deepseek_api_key: str = Field(default="")
-    # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
+    # Terceiro provedor (setembro de 2026). Mesma regra dos dois acima.
     openai_api_key: str = Field(default="")
-    # Quarto provedor (2026-09-15). Mesma regra dos três acima.
+    # Quarto provedor (setembro de 2026). Mesma regra dos três acima.
     claude_api_key: str = Field(default="")
 
 
@@ -289,12 +289,12 @@ class GenerateVerdictRequest(BaseModel):
     perfis_disponiveis: List[ProfileSuggestion]
     eixos: AxisSet
     gemini_api_key: str = Field(default="")
-    # Segundo provedor (2026-09-05). O campo do provedor NÃO viaja no body:
+    # Segundo provedor (setembro de 2026). O campo do provedor NÃO viaja no body:
     # ele vem no header X-LLM-Provider, ou do default global do backend.
     deepseek_api_key: str = Field(default="")
-    # Terceiro provedor (2026-09-14). Mesma regra dos dois acima.
+    # Terceiro provedor (setembro de 2026). Mesma regra dos dois acima.
     openai_api_key: str = Field(default="")
-    # Quarto provedor (2026-09-15). Mesma regra dos três acima.
+    # Quarto provedor (setembro de 2026). Mesma regra dos três acima.
     claude_api_key: str = Field(default="")
 
 

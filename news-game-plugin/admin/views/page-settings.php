@@ -110,7 +110,7 @@
                  value="<?php echo esc_attr( get_option( 'newsgame_claude_api_key', '' ) ); ?>"
                  class="regular-text" autocomplete="off">
           <p class="description">
-            <?php /* URL conferida em 2026-09-15: console.anthropic.com REDIRECIONA para
+            <?php /* URL conferida em setembro de 2026: console.anthropic.com REDIRECIONA para
                      platform.claude.com, então a canônica é esta. Não escrever a antiga
                      de memória — mesma regra do nome do modelo. */ ?>
             Obtida em <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Claude Platform</a>.

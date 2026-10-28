@@ -46,7 +46,7 @@
   // A linha de progresso é lida por leitor de tela a cada mudança de texto.
   pLabel.setAttribute('aria-live', 'polite');
 
-  // Tetos do lote — decididos em 02/10. O plano gratuito do Gemini tem 20
+  // Tetos do lote — decididos em outubro. O plano gratuito do Gemini tem 20
   // requisições por DIA, então cada chamada desperdiçada é cara.
   var MAX_TENTATIVAS  = 3;  // por posição: a 1ª chamada + 2 retentativas
   // Teto global de chamadas do lote = posições × MAX_TENTATIVAS: o máximo que a

@@ -224,7 +224,7 @@ class Newsgame_Review {
 
         // A posição original pode ter sido ocupada enquanto a pergunta estava
         // descartada — pela substituta que herdou a vaga, ou por um "Gerar as que
-        // faltam". Devolver por cima repetia a posição: medido em 02/10 na
+        // faltam". Devolver por cima repetia a posição: medido em outubro na
         // instância 9 (97 e 99 na 3, e a 4 vazia). Em vez de recusar, a devolvida
         // assume a menor posição livre, e a Mesa avisa.
         $original = (int) $wpdb->get_var( $wpdb->prepare(
@@ -261,7 +261,7 @@ class Newsgame_Review {
      * Ignorar o próprio `$id` é o que permite devolver uma APROVADA: a vaga que
      * ela mesma ocupa não conta como ocupada. Devolve null em erro de SELECT.
      *
-     * A regra mora em Newsgame_Generator::posicao_para_gravar() desde 09/10,
+     * A regra mora em Newsgame_Generator::posicao_para_gravar() desde outubro,
      * compartilhada com o salvamento da geração.
      */
     private static function posicao_para_devolver( int $instance_id, int $id, int $original ): ?int {
@@ -388,7 +388,7 @@ class Newsgame_Review {
         // A substituta herda a posição da original, descartada logo abaixo: a
         // vaga troca de dono. A rota /regenerate não devolve `position`, e
         // save_dilema() caía no default 0 — a substituta aprovada virava a
-        // PRIMEIRA pergunta do jogo (id 68 da instância 3, em 16/09). Original
+        // PRIMEIRA pergunta do jogo (id 68 da instância 3, em setembro). Original
         // com posição < 1 (resíduo desse defeito) dá a menor posição livre.
         //
         // ⚠️ Se o descarte abaixo falhar, original e substituta ficam vivas na
@@ -545,9 +545,9 @@ class Newsgame_Review {
         }
 
         /*
-         * Remoção numa transação (até 05/10, junto com o rebaixamento do status,
+         * Remoção numa transação (até outubro, junto com o rebaixamento do status,
          * que saiu com o status derivado) — mesmo padrão do handle_delete()
-         * (0ba8f8c). Antes eram dois passos independentes: medido em 25/09, com o
+         * (0ba8f8c). Antes eram dois passos independentes: medido em setembro, com o
          * rebaixamento falhando, as perguntas JÁ tinham sido apagadas e a
          * instância ficava em `review` com zero perguntas, sob uma mensagem que
          * não dizia isso.
@@ -575,10 +575,10 @@ class Newsgame_Review {
             self::abortar_limpeza( 'o DELETE no banco' );
         }
 
-        // O rebaixamento para 'draft' que ficava aqui saiu em 05/10: o status é
+        // O rebaixamento para 'draft' que ficava aqui saiu em outubro: o status é
         // derivado (Newsgame_Status), e sem perguntas ele já é "Rascunho". A
         // transação fica: com um só DELETE ela é redundante, mas é o caminho
-        // validado em 25/09, e removê-la não traria ganho.
+        // validado em setembro, e removê-la não traria ganho.
 
         if ( false === $wpdb->query( 'COMMIT' ) ) {
             self::abortar_limpeza( 'a confirmação da transação' );

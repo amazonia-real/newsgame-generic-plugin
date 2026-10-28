@@ -38,7 +38,7 @@ def generate_one(
     ⚠️ E o import é POR VALOR (`from app.generator import _get_llm`), então
     patchear `generator._get_llm` num teste NÃO alcança este módulo — tem de
     ser `regenerator._get_llm`. Errar isso faz o teste usar o cliente real e
-    falhar na rede sem dizer por quê; aconteceu em 2026-09-04.
+    falhar na rede sem dizer por quê; aconteceu em setembro de 2026.
     """
     cfg            = get_settings()
     db             = get_collection(req.site_id)
@@ -108,7 +108,7 @@ def generate_one(
             # RECUSA DO PROVEDOR aborta na primeira — passo 5b da fase 0.
             # Este laço era o pior dos três: sem nenhuma classificação, ele
             # retentava QUALQUER exceção até `max_retries_batch`. Medido em
-            # 2026-09-04 com chave inválida: **cinco** tentativas contra uma só
+            # setembro de 2026 com chave inválida: **cinco** tentativas contra uma só
             # do `generate_one_dilema`, todas condenadas, e no fim um 422
             # dizendo "não foi possível gerar uma pergunta substituta válida".
             if erro_fatal_de_provedor(exc):

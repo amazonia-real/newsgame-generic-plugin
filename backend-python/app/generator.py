@@ -307,7 +307,7 @@ código markdown ou qualquer texto explicativo fora do objeto JSON.
 
 # ⚠️ OS VALORES DE `impacto` NO SCHEMA ABAIXO SÃO EXEMPLOS DIFERENCIADOS, E ISSO
 # É DELIBERADO. Eles eram `{"popularidade": 0, "recursos": 0}` nas três
-# alternativas, e o efeito foi medido em 2026-09-04: **24 de 24** dilemas no banco
+# alternativas, e o efeito foi medido em setembro de 2026: **24 de 24** dilemas no banco
 # — todos gerados pelo Gemini — saíram com os quatro valores em ZERO. O modelo
 # copiava o exemplo literalmente.
 #
@@ -397,7 +397,7 @@ def texto_da_resposta(content, contexto: str) -> str:
     devolve LISTA quando a resposta tem mais de uma parte de texto (lista de
     `str`) ou uma parte de raciocínio (dict `{"type": "thinking"}`) —
     `chat_models.py:572-588` e `:600-618` da versão instalada. Medido em
-    2026-10-02: 3 de 8 `/generate-one` e as 2 tentativas de um
+    outubro de 2026: 3 de 8 `/generate-one` e as 2 tentativas de um
     `/analyze-domain` quebraram no `.replace`/`.strip` seguinte.
 
     Regra: `str` passa intacta; lista junta, sem separador, os itens `str` e
@@ -490,7 +490,7 @@ def _aplicar_fallback_correta(dilema: DilemaNg, nivel_nome: str) -> None:
 # compartilhado, e cópia em dois lugares é a família do C13.
 #
 # ⚠️ ESTES MARCADORES SÃO A RESERVA, NÃO O CAMINHO PRINCIPAL — desde
-# 2026-09-04. O caminho principal é o código HTTP (ver `_status_http()` abaixo);
+# setembro de 2026. O caminho principal é o código HTTP (ver `_status_http()` abaixo);
 # a substring só entra quando o provedor NÃO expõe status, que hoje é o caso de
 # um só: o Gemini.
 #
@@ -522,10 +522,10 @@ MARCADORES_CHAVE = (
 # Crédito esgotado. Já era tratado como fatal no laço de geração (bare `raise`),
 # mas o `raise` cru virava 500 "Erro interno" na rota — agora vira 502 com causa.
 #
-# ⚠️ "billing" SAIU em 2026-10-02. A mensagem de COTA do Google — "You exceeded
+# ⚠️ "billing" SAIU em outubro de 2026. A mensagem de COTA do Google — "You exceeded
 # your current quota, please check your plan and billing details" — casava com
 # ele, e o editor lia "falta de crédito" para o limite diário do plano gratuito.
-# Medido no uvicorn.log de 02/10, 22:13. Era o falso positivo registrado em 04/09.
+# Medido no uvicorn.log de outubro, 22:13. Era o falso positivo registrado em setembro.
 #
 # "insufficient_quota" é o código da OpenAI para conta SEM CRÉDITO. O texto que o
 # acompanha é o mesmo da cota do Google ("exceeded your current quota… billing"),
@@ -566,7 +566,7 @@ def _status_http(exc: Exception) -> int | None:
     `InvalidArgument` do gRPC cujo `.code()` é **400** — e 400 não distingue
     "chave inválida" de "payload malformado". Descer no encadeamento traria um
     número inútil e tiraria o Gemini do caminho de texto, que é o único que
-    funciona para ele. Medido em 2026-09-04.
+    funciona para ele. Medido em setembro de 2026.
 
     ⚠️ `.code` NÃO é consultado: nas exceções da família OpenAI ele é string
     ("invalid_request_error") e no gRPC é método. Só `status_code`/`http_status`
@@ -587,7 +587,7 @@ def _status_por_code(exc: Exception) -> int | None:
     Código HTTP lido de `.code` quando ele é INTEIRO — o caso das exceções do
     `google.api_core` que o wrapper do Gemini deixa passar sem embrulhar
     (`PermissionDenied.code` = 403, `NotFound.code` = 404, como `HTTPStatus`,
-    que é `IntEnum`). Medido em 2026-09-25.
+    que é `IntEnum`). Medido em setembro de 2026.
 
     O `isinstance(int)` é o que torna seguro ler `.code` sem importar SDK: na
     família OpenAI ele é string ("invalid_api_key") e no gRPC é método — os
@@ -636,7 +636,7 @@ def espera_sugerida_s(exc: Exception) -> float | None:
     """Segundos que o provedor pede antes de tentar de novo, se ele disser.
 
     O Gemini escreve das duas formas na mesma exceção: "Please retry in
-    22h46m4.68s" e "retry_delay { seconds: 81964 }". Lido no log de 02/10.
+    22h46m4.68s" e "retry_delay { seconds: 81964 }". Lido no log de outubro.
     """
     texto = str(exc)
     m = re.search(r"retry_delay\s*\{\s*seconds:\s*(\d+)", texto)
@@ -709,7 +709,7 @@ def erro_fatal_de_provedor(exc: Exception) -> bool:
     NÃO inclui rate limit que renova logo (429 por minuto), que continua no
     caminho de sleep+retry. Inclui a cota LONGA — quando o provedor diz que a
     renovação passa de TETO_ESPERA_COTA_S, como a diária do plano gratuito do
-    Gemini (2026-10-02) —, porque esperar 60 s por slot contra ela só gasta o
+    Gemini (outubro de 2026) —, porque esperar 60 s por slot contra ela só gasta o
     tempo do editor. Também não inclui erro de rede transitório — este último segue caindo no `break` que
     devolve None e faz a rota responder 422, porque num lote de 15 slots pular
     um slot é melhor que abortar o lote inteiro. Escopo estreito de propósito:
@@ -839,7 +839,7 @@ def detail_de_provedor(exc: Exception, provedor: str) -> str:
 # exatamente o que criaria as duas cópias que divergem em silêncio quando um
 # provedor entra. Uma tabela, no arquivo que pode conhecer as duas coisas.
 #
-# ACRESCENTAR PROVEDOR — a lista abaixo foi CORRIGIDA no B8 (2026-09-14), ao
+# ACRESCENTAR PROVEDOR — a lista abaixo foi CORRIGIDA no B8 (setembro de 2026), ao
 # ser conferida contra a realidade da execução. A versão anterior listava só os
 # três primeiros itens, que são de fato os que quebram FUNCIONALMENTE ("o
 # provedor fica selecionável e não funciona"), mas omitia quatro que a
@@ -855,7 +855,7 @@ def detail_de_provedor(exc: Exception, provedor: str) -> str:
 #      var no .env: o pydantic-settings usa extra='forbid' e o servidor RECUSA
 #      SUBIR com chave órfã no arquivo — ver a nota daquele campo;
 #   3b. as linhas correspondentes no `.env.example`. ACRESCENTADO NO B9
-#      (2026-09-15) porque a omissão foi encontrada na prática: o B8 seguiu
+#      (setembro de 2026) porque a omissão foi encontrada na prática: o B8 seguiu
 #      esta lista e deixou o arquivo defasado — sem `OPENAI_API_KEY` e sem
 #      `LLM_MODEL_OPENAI` —, e o B9 teve de fechar os dois de passagem, já que
 #      acrescentar só o quarto provedor criaria a falsidade NOVA de sugerir que
@@ -879,13 +879,13 @@ PROVEDOR_DEFAULT = "gemini"
 
 def _cliente_gemini(modelo: str, temperatura: float, api_key: str) -> BaseChatModel:
     # `google_api_key=` — é a ÚNICA diferença de assinatura em relação ao
-    # DeepSeek, medida na POC de 2026-09-04. O resto da forma de chamada
+    # DeepSeek, medida na POC de setembro de 2026. O resto da forma de chamada
     # (`model=`, `temperature=`, `max_retries=`) é idêntico, e é o que permitiu
     # o pipeline de geração rodar sem ajuste com o segundo provedor.
     #
     # ⚠️ `thinking_budget=0` DESLIGA O RACIOCÍNIO, e é o análogo do `extra_body`
     # do DeepSeek, do `reasoning_effort="none"` da OpenAI e do
-    # `thinking={"type": "disabled"}` do Claude. Entrou em 2026-09-16, junto da
+    # `thinking={"type": "disabled"}` do Claude. Entrou em setembro de 2026, junto da
     # troca para `gemini-3.6-flash`: o `gemini-2.5-flash` anterior não tinha o
     # modo, então esta linha nunca havia sido necessária.
     #
@@ -894,7 +894,7 @@ def _cliente_gemini(modelo: str, temperatura: float, api_key: str) -> BaseChatMo
     # default do SERVIDOR — que na linha 3 é LIGADO. É a armadilha dos dois
     # defaults empilhados que `_cliente_claude()` já descreve.
     #
-    # MEDIDO em 2026-09-16, mesma instância e mesmo prompt, mudando só este
+    # MEDIDO em setembro de 2026, mesma instância e mesmo prompt, mudando só este
     # parâmetro — `usage_metadata` lido da resposta real:
     #   sem o parâmetro : 2.339 tokens de raciocínio (84,9% da saída), 56 s
     #   com `=0`        : 0 tokens de raciocínio, 4 s
@@ -942,7 +942,7 @@ def _cliente_gemini(modelo: str, temperatura: float, api_key: str) -> BaseChatMo
 
 def _cliente_deepseek(modelo: str, temperatura: float, api_key: str) -> BaseChatModel:
     # ⚠️ `extra_body` DESLIGA O MODO THINKING, e não é ajuste fino: com
-    # thinking ligado a calibração de 2026-09-04 mediu 96 s e até 12.322 tokens
+    # thinking ligado a calibração de setembro de 2026 mediu 96 s e até 12.322 tokens
     # de saída (95% deles `reasoning`), contra 4,6 s e 480 tokens desligado —
     # 21× mais rápido. O teto de 120 s do `wp_remote_post` do plugin torna o
     # modo thinking inviável na prática, não apenas caro.
@@ -958,7 +958,7 @@ def _cliente_deepseek(modelo: str, temperatura: float, api_key: str) -> BaseChat
 def _cliente_openai(modelo: str, temperatura: float, api_key: str) -> BaseChatModel:
     # `api_key=` — mesma forma do DeepSeek (é alias de `openai_api_key` no
     # ChatOpenAI), e `model=` é alias de `model_name`. Conferido no
-    # `model_fields` da langchain-openai 0.3.35 em 2026-09-14, não suposto.
+    # `model_fields` da langchain-openai 0.3.35 em setembro de 2026, não suposto.
     #
     # ⚠️ `reasoning_effort="none"` É O ANÁLOGO DO `extra_body` DO DEEPSEEK, e é
     # EXPLÍCITO de propósito — não confiar no default do modelo. Os defaults
@@ -968,18 +968,18 @@ def _cliente_openai(modelo: str, temperatura: float, api_key: str) -> BaseChatMo
     # preço, troca de aparência inócua — LIGARIA O RACIOCÍNIO EM SILÊNCIO, com a
     # conta e a latência que vêm com ele. Reasoning token é cobrado como saída.
     #
-    # Medido em 2026-09-14: com esta linha, `reasoning_tokens = 0` nas seis
+    # Medido em setembro de 2026: com esta linha, `reasoning_tokens = 0` nas seis
     # chamadas do `luna` e do `nano`, incluindo as do `luna`, cujo default é
     # `medium`. A doc dizia que aceita `none`; o `usage` provou que pegou.
     #
     # ⚠️ `gpt-6-astra` NÃO É SUBSTITUÍVEL AQUI sem revisar esta decisão: o
-    # `reasoning.effort` dele não aceita `none` (doc de 2026-09-14), ou seja o
+    # `reasoning.effort` dele não aceita `none` (doc de setembro de 2026), ou seja o
     # raciocínio não desliga — e a $50/1M de saída isso sai caríssimo.
     #
     # ⚠️⚠️ `temperatura` É IGNORADA NA FAMÍLIA gpt-5.x, E NÃO É DEFEITO DAQUI.
     # A `langchain-openai` 0.3.35 REMOVE `temperature` do payload quando o nome
     # do modelo é `gpt-5*`, porque aquela API não aceita o parâmetro. Medido em
-    # 2026-09-14 inspecionando `_default_params`:
+    # setembro de 2026 inspecionando `_default_params`:
     #   gpt-5.6-luna  -> temperature=None  (removida)
     #   gpt-5.4-nano  -> temperature=None  (removida)
     #   gpt-4o-mini   -> temperature=0.3   (preservada)
@@ -988,7 +988,7 @@ def _cliente_openai(modelo: str, temperatura: float, api_key: str) -> BaseChatMo
     # CONSEQUÊNCIA A CONHECER: o `llm_temperature = 0.3` do projeto vale para o
     # Gemini e o DeepSeek, mas NÃO para a OpenAI com o modelo padrão atual — as
     # chamadas rodam no default da API. Não é divergência a corrigir: forçar o
-    # parâmetro faria a API recusar. A calibração de 2026-09-14 foi medida
+    # parâmetro faria a API recusar. A calibração de setembro de 2026 foi medida
     # justamente nessas condições, então os números valem para o que roda.
     #
     # O parâmetro CONTINUA sendo recebido e repassado, de propósito: é o
@@ -1005,13 +1005,13 @@ def _cliente_openai(modelo: str, temperatura: float, api_key: str) -> BaseChatMo
 
 def _cliente_claude(modelo: str, temperatura: float, api_key: str) -> BaseChatModel:
     # `api_key=` e `model=` — mesma forma do DeepSeek e da OpenAI. Conferido no
-    # `model_fields` da langchain-anthropic 0.3.22 em 2026-09-15, não suposto:
+    # `model_fields` da langchain-anthropic 0.3.22 em setembro de 2026, não suposto:
     # o campo se chama `anthropic_api_key` e tem `alias="api_key"`, e a classe
     # roda com `populate_by_name=True`, então os dois nomes funcionam. `model` é
     # alias de `model_name`. O Gemini segue sendo o único fora do padrão.
     #
     # ⚠️⚠️ `temperature=None` SEMPRE, E O PARÂMETRO RECEBIDO É IGNORADO. Isto é
-    # DECISÃO MEDIDA, não omissão: em 2026-09-15, `temperature=0.3` devolveu
+    # DECISÃO MEDIDA, não omissão: em setembro de 2026, `temperature=0.3` devolveu
     # **HTTP 400** em `claude-sonnet-5` E em `claude-opus-5`, com a mensagem
     # "temperature is deprecated for this model". Não é degradação silenciosa —
     # é a requisição inteira falhando.
@@ -1020,7 +1020,7 @@ def _cliente_claude(modelo: str, temperatura: float, api_key: str) -> BaseChatMo
     # `langchain-openai` REMOVE `temperature` do payload sozinha quando o modelo
     # é `gpt-5*`, então passar 0.3 é inócuo. Aqui NÃO existe essa limpeza — a
     # `langchain-anthropic` põe `"temperature": self.temperature` no payload e
-    # só descarta os `None` (`chat_models.py:1601-1617`, lido em 2026-09-15).
+    # só descarta os `None` (`chat_models.py:1601-1617`, lido em setembro de 2026).
     # Ou seja: o 0.3 CHEGARIA à API e derrubaria toda chamada. O `None` tem de
     # ser nosso.
     #
@@ -1038,7 +1038,7 @@ def _cliente_claude(modelo: str, temperatura: float, api_key: str) -> BaseChatMo
     # "desligado"; quem decide então é o default do SERVIDOR, que varia por
     # modelo e em parte da linha atual é LIGADO.
     #
-    # Medido em 2026-09-15 com o prompt real do projeto: neste modo o texto veio
+    # Medido em setembro de 2026 com o prompt real do projeto: neste modo o texto veio
     # SEM vazamento de tag, o JSON saiu limpo e `_is_valid_dilema` devolveu True.
     # Ou seja o Claude segue o MESMO padrão dos outros três (thinking sempre
     # desligado), e NÃO o padrão oposto que a leitura prévia levantou como risco
@@ -1142,7 +1142,7 @@ def normalizar_provedor(valor: str) -> str:
 # `_make_llm()` próprio, sem cache) e `regenerator.py` também. Um caminho só.
 #
 # ── POR QUE CACHE, E NÃO CONSTRUIR POR CHAMADA ─────────────────────
-# Medido em 2026-09-04, com chave falsa (falha de autenticação, custo zero):
+# Medido em setembro de 2026, com chave falsa (falha de autenticação, custo zero):
 #   · construir o cliente custa  ~1,3 ms  — irrelevante
 #   · MAS o TRANSPORTE é reaproveitado dentro do mesmo cliente: chamada em
 #     cliente reusado = mediana 152,7 ms; em cliente novo = 218,9 ms.
@@ -1325,7 +1325,7 @@ def tom_do_nivel(nivel_padrao: str) -> tuple[int, str]:
     """
     Fonte ÚNICA da regra de tom: o `nivel_padrao` da instância decide o nível
     gravado e o tom do prompt, com ou sem personagens. Usada pela geração e pela
-    substituta (/regenerate). Até 09/10 a substituta tinha regra própria
+    substituta (/regenerate). Até outubro a substituta tinha regra própria
     (`_nivel_nome`, pelo level e pela presença de personagem) e saía em outro tom
     em 2 dos 6 casos: lúdico sem personagens e pedagógico com personagens.
     """
@@ -1449,7 +1449,7 @@ def generate_one_dilema(
             # falha de geração — passo 5b da fase 0. Antes, chave inválida caía
             # no `break` abaixo e a rota respondia 422 "não foi possível gerar
             # um dilema válido": mensagem que culpa o dilema por um problema de
-            # credencial. Medido em 2026-09-04: aqui gastava 1 tentativa, e o
+            # credencial. Medido em setembro de 2026: aqui gastava 1 tentativa, e o
             # mesmo erro no regenerator gastava 5.
             #
             # O crédito esgotado já era fatal (bare `raise`), mas o `raise` cru
