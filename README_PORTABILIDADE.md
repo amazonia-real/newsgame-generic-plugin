@@ -360,8 +360,9 @@ Tamanhos recomendados:
 ### Limitações conhecidas do jogo
 
 - O botão **"Aprofundar"** (o (i) do contexto) abre a matéria em outra aba e **tira o jogo da
-  tela cheia**; o jogador volta para ele pela aba original. O **"Compartilhar"** não faz isso:
-  em tela cheia ele copia o link em vez de abrir o menu do aparelho.
+  tela cheia**; o jogador volta para ele pela aba original. O **"Compartilhar"** abre o menu do
+  aparelho também em tela cheia, e o menu pode tirar o jogo da tela cheia; sem menu
+  disponível, ele copia o link.
 - Não testado com leitor de tela real.
 - **"Ano mínimo dos textos"** (opcional, por instância; plugin 1.2.0): com o filtro
   ativo, os textos **sem data conhecida ficam de fora** da geração das perguntas, assim

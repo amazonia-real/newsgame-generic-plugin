@@ -385,10 +385,10 @@
   function compartilhar(btn, titulo, perfil) {
     var url   = urlCompartilhavel();
     var dados = { title: titulo, text: perfil ? titulo + ' — ' + perfil : titulo, url: url };
-    /* Em tela cheia (API padrão ou prefixo WebKit) o menu nativo tira o jogo da tela
-       cheia: nesse caso copia o link, com a mesma confirmação de sempre. */
-    if (elementoEmTelaCheia() ||
-        typeof navigator.share !== 'function' ||
+    /* Tenta o menu nativo também em tela cheia: no Android, copiar o link ali deixava
+       o jogador sem como compartilhar (teste real). O menu pode tirar o jogo da tela
+       cheia; é o custo aceito. Só cai na cópia sem suporte ou com dados recusados. */
+    if (typeof navigator.share !== 'function' ||
         (typeof navigator.canShare === 'function' && !navigator.canShare(dados))) {
       copiarLink(btn, url);
       return;
