@@ -331,7 +331,7 @@ $page_title = $is_edit
                     placeholder="Descreva o tema do jogo e o acervo que o alimenta.
 
 Exemplo:
-Este jogo é sobre a história do teatro brasileiro, baseado no acervo do portal Exemplo com 800 reportagens. Os dilemas exploram escolhas éticas e artísticas de diretores, atores e produtores ao longo de décadas. O público-alvo são jovens entre 18 e 30 anos."><?php echo esc_textarea( $theme ); ?></textarea>
+Este jogo é sobre a história do teatro brasileiro, baseado no acervo de um portal de notícias com 800 reportagens. Os dilemas exploram escolhas éticas e artísticas de diretores, atores e produtores ao longo de décadas. O público-alvo são jovens entre 18 e 30 anos."><?php echo esc_textarea( $theme ); ?></textarea>
           <p class="description">
             Este texto é enviado à IA como contexto da geração. Seja específico:
             descreva o tema, o tipo de acervo e quem é o público-alvo.
