@@ -73,6 +73,8 @@ Em ordem aproximada de interesse, não de compromisso:
 - **Internacionalização:** hoje todos os textos da interface estão em português;
   decidir entre internacionalizar ou remover a declaração de domínio de tradução.
 - **Acessibilidade:** teste com leitor de tela real (ainda não feito).
+- **Mesa editorial: contagem na hora.** Depois de descartar uma pergunta, atualizar o botão
+  "Gerar os que faltam (N)" sem precisar salvar e reabrir a tela.
 - **Instalação do backend sem Docker:** alternativa ainda não comprovada.
 - **Outros provedores de IA**, como o Kimi, hoje fora do escopo.
 
