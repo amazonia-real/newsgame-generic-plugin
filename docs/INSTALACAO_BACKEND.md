@@ -5,7 +5,7 @@ em Python que lê o acervo e conversa com o provedor de IA) num servidor própri
 O plugin WordPress fala com esse backend pela internet, por HTTPS, enviando uma
 chave no cabeçalho `X-Api-Key`.
 
-> Este roteiro foi executado e provado num servidor de ensaio em 18/10/2026
+> Este roteiro foi executado e provado num servidor de ensaio em outubro de 2026
 > (Ubuntu 24.04, 1 vCPU, 4 GB de RAM). Os números da seção
 > [Medido no ensaio](#medido-no-ensaio) vêm dele.
 
@@ -306,7 +306,7 @@ pelo painel do WordPress (reindexando o acervo), mas leva tempo.
 ## Alternativa sem Docker (uvicorn + systemd) — NÃO PROVADA
 
 > ⚠️ **NÃO PROVADA.** Nenhum comando desta seção foi executado, nem no ensaio de
-> 18/10 nem em outro servidor. Ela transcreve para o systemd o que o `Dockerfile` e o
+> outubro nem em outro servidor. Ela transcreve para o systemd o que o `Dockerfile` e o
 > `docker-compose.yml` fazem, e por isso pode ter erro. **Até ser testada, use o
 > Docker.** Quem testar, registre o que mudou.
 
@@ -410,7 +410,7 @@ requirements.txt` no `.venv` e `systemctl restart newsgame-backend`. **Backup do
 
 ## Medido no ensaio
 
-Servidor de ensaio, 18/10/2026: Ubuntu 24.04.5, 1 vCPU, 3,8 GB de RAM, 48 GB de
+Servidor de ensaio, outubro de 2026: Ubuntu 24.04.5, 1 vCPU, 3,8 GB de RAM, 48 GB de
 disco, Docker 29.9.1, Compose v5.6.0, Python 3.11.17 no container.
 
 | Medida | Antes (PyTorch com CUDA) | Agora (PyTorch só de CPU) |

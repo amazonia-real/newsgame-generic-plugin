@@ -1,5 +1,12 @@
 # News Game Plugin
 
+> **English.** News Game is an open-source WordPress plugin plus a Python backend
+> (FastAPI, ChromaDB, RAG) that turns a newsroom's archive into journalistic-dilemma games.
+> Requirements: WordPress 6.x with PHP 8.1 or newer (tested on 8.2 and 8.3), and a server for the Python backend
+> (3.11 is the tested version; Docker is the documented path). Install guide: [`docs/INSTALACAO_BACKEND.md`](docs/INSTALACAO_BACKEND.md)
+> (in Portuguese). Roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md). License: GPL-2.0-or-later
+> ([`LICENSE`](LICENSE)). The interface and the documentation are in Portuguese.
+
 Plugin WordPress open source para criar jogos de dilemas interativos
 a partir do acervo editorial de qualquer veículo jornalístico.
 
@@ -59,8 +66,8 @@ provedor resolvido por header próprio → campo no body → variável de ambien
 
 ## Requisitos
 
-- PHP 8.1+ / WordPress 6.x
-- Python 3.11+
+- PHP 8.1+ (testado em 8.2 e 8.3) / WordPress 6.x
+- Python 3.11 (versão testada)
 - [ChromaDB](https://www.trychroma.com/) (local ou containerizado)
 - Chave de API de **um** dos quatro provedores suportados — ver abaixo
 - Um servidor para o backend Python (Docker com Caddy, ou uvicorn direto) — o backend
@@ -136,7 +143,7 @@ python -m uvicorn app.main:app --port 8000
   é assinado e pode ser bloqueado. Com `python -m`, quem roda é o `python.exe`, que
   é assinado.
 - `--reload` é opcional. No Windows ele aceita dois servidores na mesma porta sem
-  erro — ver a **FLAG 013** em `TECH_FLAGS.md` antes de usar.
+  erro — ver a **FLAG 013** em `docs/TECH_FLAGS.md` antes de usar.
 
 ### Plugin WordPress
 
@@ -246,9 +253,11 @@ news-game/
 │   └── public/            ← CSS + JS do jogo
 ├── FEW_SHOT_EXAMPLES.md   ← exemplos canônicos de dilemas — não editar
 ├── AGENTS.md              ← diretrizes de geração de conteúdo
-├── CLAUDE.md              ← instruções operacionais para Claude Code
-├── ROADMAP_OPEN_SOURCE.md ← roadmap de universalização
-└── TECH_FLAGS.md          ← decisões de arquitetura e dívida técnica
+├── LICENSE                ← GPL-2.0-or-later
+└── docs/
+    ├── INSTALACAO_BACKEND.md ← instalação do backend em servidor
+    ├── ROADMAP.md            ← direção do projeto
+    └── TECH_FLAGS.md         ← decisões de arquitetura e dívida técnica
 ```
 
 ---
@@ -287,9 +296,9 @@ ou pelo body. Preencha só a do provedor que o backend deve atender sozinho.
 ## Contribuição
 
 Veja `CONTRIBUTING.md` para contribuir e `SECURITY.md` para relatar falhas de segurança.
-O estado atual e os próximos passos estão em `ROADMAP_OPEN_SOURCE.md`; a dívida técnica,
-em `TECH_FLAGS.md`; as decisões de arquitetura e as regras de desenvolvimento, em
-`CLAUDE.md`.
+A direção do projeto está em [`docs/ROADMAP.md`](docs/ROADMAP.md); a dívida técnica,
+em [`docs/TECH_FLAGS.md`](docs/TECH_FLAGS.md); as diretrizes de geração de conteúdo, em
+`AGENTS.md`.
 
 ---
 
@@ -299,6 +308,6 @@ em `TECH_FLAGS.md`; as decisões de arquitetura e as regras de desenvolvimento, 
 
 O Jogo da Amazônia e o News Game Plugin foram inteiramente desenvolvidos pelo jornalista Eduardo Nunomura, em vibe coding com o apoio de ferramentas de IA generativa: o Claude (Claude.ai e Claude Code, da Anthropic) e o Gemini (Google). Cerca de 80% do trabalho foi feito com o Claude e 20% com o Gemini.
 
-Todas as decisões de produto são do autor. O código escrito por IA é apresentado em diff e revisado antes de cada commit, e o que ainda não foi testado em execução está marcado como tal na documentação do projeto (`CLAUDE.md`, §10). A autoria por ferramenta é registrada nesta declaração, e não commit a commit.
+Todas as decisões de produto são do autor. O código escrito por IA é apresentado em diff e revisado antes de cada commit, e o que ainda não foi testado em execução está marcado como tal na documentação do projeto. A autoria por ferramenta é registrada nesta declaração, e não commit a commit.
 
 As perguntas geradas pelo plugin passam obrigatoriamente pela Mesa Editorial, com revisão humana antes de ir ao ar.

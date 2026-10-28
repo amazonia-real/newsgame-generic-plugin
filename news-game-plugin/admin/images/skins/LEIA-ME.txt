@@ -39,7 +39,7 @@ tipo de borda que a compressão com perda do WebP costuma sujar. Se a miniatura
 da `pixel` mostrar serrilhado sujo ou halo em volta dos blocos, só ELA vira
 `skin-pixel.png`. As outras são fotografia/degradê e não têm esse risco — a
 `drama` inclusive: ilustração vetorial, e a miniatura dela é WebP SEM perda —
-como as da `games` e da `popart` (05/10) e a da `minimal` (06/10).
+como as da `games` e da `popart` (outubro de 2026) e a da `minimal` (outubro de 2026).
 
 Enquanto não houver miniatura real, o teste do serrilhado não pode ser feito —
 o que existe é o caminho pronto para ele.

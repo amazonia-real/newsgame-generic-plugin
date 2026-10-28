@@ -235,14 +235,13 @@ nenhuma origem de browser faz requisição direta a ele.
 
 A chave do Gemini segue prioridade própria, resolvida a cada chamada às
 rotas `/analyze-domain`, `/assign-weights` e `/generate-verdict`:
-`header X-Gemini-Api-Key` → `body.gemini_api_key` → `env GEMINI_API_KEY`
-(ver `CLAUDE.md` §5).
+`header X-Gemini-Api-Key` → `body.gemini_api_key` → `env GEMINI_API_KEY`.
 
-Detalhe histórico das decisões acima: `TECH_FLAGS.md` FLAGS 003 e 005.
+Detalhe histórico das decisões acima: `docs/TECH_FLAGS.md`, FLAGS 003 e 005.
 
 ### 8.1 Complemento — provedor, limite de uso, TLS e veredito
 
-> Acrescentado para fechar o item C3 do `ROADMAP_OPEN_SOURCE.md`. O texto acima
+> Complemento ao texto acima. Ele
 > fica como estava; onde ele envelheceu, a correção está aqui.
 
 **Resolução da chave, com quatro provedores.** O parágrafo acima descreve só a

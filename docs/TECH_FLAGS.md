@@ -1,5 +1,6 @@
 # Tech Flags — Dívida Técnica Monitorada
 > Consulte este arquivo antes de qualquer alteração no backend ou no plugin.
+> Os códigos como A3, B8, C10 e H1 que aparecem ao longo do texto são identificadores do plano de trabalho interno do projeto, não de um documento público.
 > FLAGS 001+ documentam decisões do news-game. Arquivo ao final contém FLAGS herdadas do JDA.
 
 ---
@@ -59,11 +60,11 @@ editor na interface WordPress.
 
 ## FLAG 002 — Complexidade Ciclomática do JavaScript
 
-**Status:** ✅ Implementado — A4, 2026-08-21. **Cobertura completada pelo A3 em
-2026-08-28** (`30f8b17`).
+**Status:** ✅ Implementado — A4, agosto de 2026. **Cobertura completada pelo A3 em
+agosto de 2026** (`30f8b17`).
 
 **Cobertura: todo o JS do plugin — 1.982 linhas.** 1.279 em `admin/js/` (6
-arquivos) e 703 em `public/js/`. Até 27/08 eram ~33%: a trava alcançava dois
+arquivos) e 703 em `public/js/`. Até agosto eram ~33%: a trava alcançava dois
 arquivos `.js` (~472 linhas) e as outras ~959 viviam **inline** em blocos
 `<script>` dentro dos views PHP, que não são lintáveis porque ESLint não lê JS
 dentro de PHP. O A3 tirou os cinco blocos de lá.
@@ -83,12 +84,12 @@ ciclomática. Durante a fase de UX, o JS vai crescer significativamente.
 1. *"Adicionar apenas a regra `complexity` na config ESLint existente"* —
    **não havia config ESLint.** Não havia `package.json`, `.eslintrc` nem
    `eslint.config.*` em nenhum lugar do repositório. Executar a flag exigiu
-   criar o ferramental do zero (reescopado no roadmap em 2026-08-05)
+   criar o ferramental do zero (reescopado no roadmap em agosto de 2026)
 2. *"Não instalar dependências adicionais"* — o ESLint **é** uma dependência
    (69 pacotes com as transitivas). Fica como `devDependency` e `node_modules/`
    segue fora do git: **não entra no runtime do jogo e não é requisito de
    instalação do plugin**. Quem só quer usar precisa de WordPress + Python,
-   como antes. A regra do `CLAUDE.md` §7 ("JS vanilla, sem bibliotecas novas")
+   como antes. A regra do projeto ("JS vanilla, sem bibliotecas novas")
    governa o que o navegador do leitor baixa, e isso não mudou
 
 **O que foi implementado:**
@@ -111,9 +112,9 @@ ciclomática. Durante a fase de UX, o JS vai crescer significativamente.
 | `renderEnd` | 5 |
 | (cauda: 43 funções) | 1–4 |
 
-> ⚠️ *A tabela acima é a auditoria de **2026-08-21** e fica como registro: duas das
+> ⚠️ *A tabela acima é a auditoria de **agosto de 2026** e fica como registro: duas das
 > funções listadas **não existem mais**. `buildNarrativa` e `renderVeredicto` foram
-> removidas em 29/08 (`67aea9a`) — a primeira por ficar sem chamador com o veredito
+> removidas em agosto (`67aea9a`) — a primeira por ficar sem chamador com o veredito
 > simplificado, a segunda renomeada para `renderFeedback` na anatomia do JDA. O
 > `buildRadarSVG` caiu de 12 para **exatamente 10** na fase 1 do H2 e segue no teto,
 > com margem zero.*
@@ -124,13 +125,13 @@ com justificativa no código: os 12 não são fluxo de controle (não há um
 `if`, `for` ou `case` no corpo), são 9 curtos-circuitos de valor default
 mais 2 ternários de cor — a regra cobra `||` com o mesmo peso de um `if`.
 Não foi refatorado porque é o código do gráfico triangular validado em
-runtime em 13/08 (C7), e mexer nele exigiria nova partida completa.
+runtime em agosto (C7), e mexer nele exigiria nova partida completa.
 
-**Limite de cobertura — reescrito em 2026-08-28, depois do A3:**
+**Limite de cobertura — reescrito em agosto de 2026, depois do A3:**
 A redação anterior dizia que o bloco `<script>` inline de
 `page-instance-form.php` não era lintável, que eram 5 blocos e ~959 linhas
 contra ~472 cobertas, e que os outros 67% só entrariam com o A3 — que
-estava fora do escopo do lançamento. **Os 5 blocos saíram em 28/08** e a
+estava fora do escopo do lançamento. **Os 5 blocos saíram em agosto** e a
 cobertura é integral.
 
 O limite que **sobra** é de outra natureza, e é permanente enquanto a trava
@@ -151,7 +152,7 @@ teórica:
 | Handler do "Analisar Acervo" (`newsgame-admin-axis.js`) | **12** | Resolvido: a cadeia de 5 `\|\|` saiu para `acharCampoAcervo()`. Handler **7**, helper **6**. Sem diretiva |
 
 **Validação (regra do ✅ — ver §6 do roadmap):**
-Quatro testes executados em 2026-08-21, config nunca aceita por leitura:
+Quatro testes executados em agosto de 2026, config nunca aceita por leitura:
 1. `npm run lint` na árvore limpa → exit 0
 2. Função-sonda com complexidade 11 gravada em `public/js/` → erro
    apontando a sonda, exit 1. **Prova que a regra alcança os arquivos do
@@ -184,7 +185,7 @@ do `.venv` do backend estão excluídos.
 
 ## FLAG 003 — Segurança: Segredos Fora do Browser e Autenticação Robusta
 
-**Status:** ✅ Implementado — commits `C1+A2`, `C2`, `C3`, `C4` (10/06/2026)
+**Status:** ✅ Implementado — commits `C1+A2`, `C2`, `C3`, `C4` (junho de 2026)
 
 **Problema:**
 O JS do painel WordPress chamava `/analyze-domain` e `/assign-weights` diretamente do
@@ -223,7 +224,7 @@ Nenhuma rota nova deve ser exposta ao JS do painel sem seguir este mesmo padrão
 
 ## FLAG 004 — Resiliência e Limpeza de Dívida Técnica
 
-**Status:** ✅ Implementado — commits `A1`, `A3`, `A4`, `A5` (10–11/06/2026)
+**Status:** ✅ Implementado — commits `A1`, `A3`, `A4`, `A5` (junho de 2026)
 
 **Problema:**
 Quatro pontos de fragilidade acumulados: geração de veredito sem limite de taxa
@@ -249,7 +250,7 @@ em background que nunca era alcançado no plugin.
 - `backend-python/app/ingestor.py` (A4)
 - `news-game-plugin/includes/class-newsgame-generator.php` (A5)
 
-### Correção do A1 — 2026-08-05
+### Correção do A1 — agosto de 2026
 
 **O throttle do A1 foi deletado um mês depois de ser criado, e esta FLAG
 registrou como implementado algo que já não existia.**
@@ -258,9 +259,9 @@ O commit seguinte ao `cfe686b` neste mesmo arquivo foi o `6347b4c` ("veredito
 dinâmico local"), que moveu o cálculo do veredito para o JS e removeu 94
 linhas de `class-newsgame-shortcodes.php` — levando o endpoint AJAX inteiro,
 com throttle e cache dentro. A FLAG 004 foi redigida retroativamente em
-`c5d7700` (21/07/2026) sem notar a remoção.
+`c5d7700` (julho de 2026) sem notar a remoção.
 
-Estado medido em 2026-08-05, antes da correção: `grep` por
+Estado medido em agosto de 2026, antes da correção: `grep` por
 `set_transient|get_transient|rate.?limit|throttle` no plugin inteiro não
 retornava **nenhum** throttle. `class-newsgame-shortcodes.php` tem 127 linhas
 e nenhum handler AJAX — o veredito é 100% client-side, sem custo de API por
@@ -300,7 +301,7 @@ permissivo — nunca mais restritivo.
 
 ## FLAG 005 — Infraestrutura: Proxy Sem CORS, Logging Estruturado, Telemetria
 
-**Status:** ✅ Implementado — commits `M1`, `M2`, `M4`, `M5` (11/06/2026)
+**Status:** ✅ Implementado — commits `M1`, `M2`, `M4`, `M5` (junho de 2026)
 
 **Problema:**
 A rota `/generate-one` ainda era chamada diretamente do browser (expondo `api_key`),
@@ -333,7 +334,7 @@ respeitava o `.env` por falta de `load_dotenv` em certos pontos de entrada.
 (nenhuma rota chamada direto do browser) — decisão coerente com e reforçada pela
 FLAG 003.
 
-**Risco remanescente do M5 — medido em 2026-08-05:**
+**Risco remanescente do M5 — medido em agosto de 2026:**
 O M5 está correto sobre o encanamento e sobre o `.env.example`, mas a afirmação
 "telemetria desativada por padrão" merece precisão, porque esta FLAG é citada
 como trilha de auditoria no guia de portabilidade:
@@ -352,9 +353,8 @@ como trilha de auditoria no guia de portabilidade:
 
 Nenhum dos dois é vazamento de dado — a telemetria **falha** ao ser enviada.
 São questões de reprodutibilidade de install e de precisão da documentação.
-Ação registrada como D3 no `ROADMAP_OPEN_SOURCE.md`.
 
-**Atualização 2026-08-07 — `.env` corrigido e efeito colateral no `Settings`:**
+**Atualização de agosto de 2026 — `.env` corrigido e efeito colateral no `Settings`:**
 `LOG_LEVEL` e `ANONYMIZED_TELEMETRY` foram acrescentados ao `.env` desta máquina,
 o que resolve o primeiro item do risco acima (o segundo, o `posthog` não pinado,
 continua aberto como D3). O acréscimo, porém, quebrou o boot do uvicorn com
@@ -380,8 +380,8 @@ fonte única. Hoje os dois caminhos concordam porque compartilham o default
 
 ## FLAG 006 — Incidente: Contaminação Cruzada JDA → News-Game (RESOLVIDO)
 
-**Status:** ✅ Corrigido em 21/07/2026 — registrado retroativamente (o incidente
-ocorreu em 12/06/2026)
+**Status:** ✅ Corrigido em julho de 2026 — registrado retroativamente (o incidente
+ocorreu em junho de 2026)
 
 **Problema:**
 O commit `83f41e1` ("veredito dinâmico local...") misturou, junto com a mudança real
@@ -391,7 +391,7 @@ arquivos do Jogo da Amazônia original**: `acervo_amazonia.txt`,
 (`build_db.py`, `check_db_count.py`, `clean_identity.py`, `completar_matriz.py`,
 `config.py`, `exportar_dilemas.py`, `extrair_acervo_wp.py`,
 `gerar_acervo_imagens.py`, `gerar_matriz_crise_climatica.py`,
-`inserir_tags_imagem.py`). Viola diretamente a regra absoluta do `CLAUDE.md` §8.
+`inserir_tags_imagem.py`). Viola diretamente a regra de separação entre projetos.
 
 Os commits seguintes (`07b743a`, `86e8ff8`) desindexaram os arquivos de dados
 (`.txt`/`.json`) e reforçaram o `.gitignore`, mas os 10 scripts Python continuaram
@@ -406,40 +406,37 @@ arquivos `.py` na raiz voltem a ser rastreados.
 **Lição para não repetir:**
 Antes de commitar mudanças que tocam múltiplos arquivos, revisar `git status`/
 `git diff --stat` para confirmar que só os arquivos pretendidos estão staged —
-especialmente ao trabalhar em paralelo nos dois repositórios (`E:\news-game` e
-`E:\jogo-da-amazonia`).
+especialmente ao trabalhar em paralelo nos dois repositórios (o do plugin e o do projeto de origem).
 
-**Atualização de 2026-07-31 — o histórico FOI reescrito.** Este parágrafo dizia
+**Atualização de julho de 2026 — o histórico FOI reescrito.** Este parágrafo dizia
 que não haveria rewrite porque o conteúdo não era sensível. Deixou de valer: a
-auditoria de segurança de 2026-07-29 encontrou **PII de terceiros** (16 CPFs,
-114 e-mails, 3 chaves PIX) nos arquivos de acervo commitados no commit inicial
-`fcd775b`, o que bloqueava tornar o repositório público. Em 2026-07-31 o
+auditoria de segurança de julho de 2026 encontrou **dados pessoais de terceiros** nos arquivos de acervo commitados no commit inicial
+`fcd775b`, o que bloqueava tornar o repositório público. Em julho de 2026 o
 histórico foi reescrito com `git filter-repo` (removendo `acervo_amazonia*`,
-`jogo-amazonia-plugin/` herdado e `.claude/`, e redigindo os segredos
-`jda2026`/`teste123`), o repositório do GitHub foi **deletado e recriado** — não
+`jogo-amazonia-plugin/` herdado e `.claude/`, e redigindo senhas de teste e de ambiente), o repositório do GitHub foi **deletado e recriado** — não
 foi `push --force`, para não deixar blobs órfãos alcançáveis pela API — e o
 histórico limpo foi enviado. Novo HEAD de referência: `eab2329`. Pack de ~88 MB
 para ~1 MB.
 
-**Consequência prática:** qualquer clone anterior a 2026-07-31 está obsoleto e
-não deve receber merge nem push — reclonar. Os históricos antigos, com a PII,
-sobrevivem só em espelhos locais na máquina do Eduardo e são material sensível.
+**Consequência prática:** qualquer clone anterior a julho de 2026 está obsoleto e
+não deve receber merge nem push — reclonar. Os históricos antigos, com os dados pessoais,
+sobrevivem só em espelhos locais na máquina do autor e são material sensível.
 
 **Onde está:** commit `2c89798` (a correção original) e a reescrita de
-2026-07-31. O detalhamento completo está em
-`E:\jogo-da-amazonia\AUDITORIA_SEGURANCA.md` e
-`REAUDITORIA_ZERADA_2026-07-31.md`.
+julho de 2026. O detalhamento completo está nos
+relatórios de auditoria do projeto de origem (`AUDITORIA_SEGURANCA.md` e
+o relatório de reauditoria de julho de 2026).
 
 ---
 
 ## FLAG 007 — Compatibilidade com CSP estrita (pré-requisito de distribuição)
 
-**Status:** 🟡 Parcial — superfície **pública** fechada em 2026-08-08 (passos 1 e 2),
-superfície **autenticada** em 2026-08-28 (passo 3, `30f8b17`). Segue parcial por
+**Status:** 🟡 Parcial — superfície **pública** fechada em agosto de 2026 (passos 1 e 2),
+superfície **autenticada** em agosto de 2026 (passo 3, `30f8b17`). Segue parcial por
 causa do **passo 4** (exemplo de CSP no README). A dependência do **A5** caiu em
-**2026-09-25**: a superfície pública passou a funcionar sem `'unsafe-inline'` também
+**setembro de 2026**: a superfície pública passou a funcionar sem `'unsafe-inline'` também
 em `style-src`, e o passo 4 está desbloqueado.
-Diagnóstico original de 2026-07-31.
+Diagnóstico original de julho de 2026.
 
 > ⚠️ **A precisão que esta flag tem de carregar depois do passo 3, para não virar
 > um ✅ que promete mais do que entrega:** o admin ficou com **zero JS inline de
@@ -452,7 +449,7 @@ Diagnóstico original de 2026-07-31.
 > — é a mesma classe de defeito de redação que a ressalva do A5 registra para
 > `style-src`, logo abaixo.
 
-**Validado em runtime em 2026-08-08** — não marcado ✅ por revisão de código:
+**Validado em runtime em agosto de 2026** — não marcado ✅ por revisão de código:
 - **Passo 1** (`f2dcffd`): jogo carregado do início ao fim, dilemas corretos,
   `Ctrl+U` confirmou o bloco `application/json` e a ausência de
   `window._ngGame_` na página
@@ -461,14 +458,14 @@ Diagnóstico original de 2026-07-31.
   `Cancelar` mantendo na listagem sem excluir
 
 > Achado durante o teste do passo 1, **sem relação com a CSP**: o veredito e o
-> gráfico triangular não aparecem no news-game, embora a §10 do `CLAUDE.md` os
-> registre como ✅. Suspeita no gate de `public/js/newsgame-game.js:342`
+> gráfico triangular não aparecem no news-game, embora o registro de estado do
+> projeto os marcasse como ✅. Suspeita no gate de `public/js/newsgame-game.js:342`
 > (`data.perfis && data.eixos && pesoCount > 0`), que degrada em silêncio nos
 > três termos. O transporte dos dados está descartado como causa: todo o objeto
 > vem de um único `JSON.parse`, então os dilemas renderizarem prova que
 > `perfis`/`eixos` também chegaram. Em diagnóstico.
 
-**Origem:** reauditoria de segurança do Jogo da Amazônia (2026-07-31), que
+**Origem:** reauditoria de segurança do Jogo da Amazônia (julho de 2026), que
 concluiu: *no JDA a defesa real contra conteúdo malicioso é a revisão humana
 das fundadoras — e essa defesa não viaja com o plugin.* O news-game é
 justamente o plugin que **vai** viajar.
@@ -490,13 +487,13 @@ defesa. Daí a CSP ser requisito de distribuição, não refinamento.
 hospedeiro. O plugin deve ser **compatível** com uma CSP estrita que o site
 imponha, sem exigir `'unsafe-inline'` por causa dele.
 
-### Estado medido (2026-07-31)
+### Estado medido (julho de 2026)
 
 | Superfície | Bloqueadores de `script-src` | Gravidade |
 |---|---|---|
 | **Pública** (o que o leitor carrega) | **1** — `wp_add_inline_script` em `includes/class-newsgame-shortcodes.php:90`, que emite `window._ngGame_<id> = {...}` | 🎯 é o único que importa |
 | **Admin** (autenticada) | 5 blocos `<script>` inline: `admin/views/page-instance-form.php:387, 601, 819, 1233` e `page-settings.php:108`; mais 1 `onclick` em `page-instances.php:84` | Baixa — só usuário logado |
-| Estilos | ~70 atributos `style="` | Ignorar — `style-src` não vale o esforço. *Os ~70 são plugin inteiro; na superfície **pública** são 5 desde 29/08 (eram 6), em 4 grupos — ver a ressalva do passo 4 e o A5.* **Atualizado em 2026-09-25: na superfície pública são ZERO** — os 4 grupos foram fechados pelo A5. O admin segue com os seus, e "ignorar" continua valendo para ele |
+| Estilos | ~70 atributos `style="` | Ignorar — `style-src` não vale o esforço. *Os ~70 são plugin inteiro; na superfície **pública** são 5 desde agosto (eram 6), em 4 grupos — ver a ressalva do passo 4 e o A5.* **Atualizado em setembro de 2026: na superfície pública são ZERO** — os 4 grupos foram fechados pelo A5. O admin segue com os seus, e "ignorar" continua valendo para ele |
 
 **Boa notícia: a página pública está a UMA mudança de ficar limpa.** Isso é
 melhor que o JDA, onde há 4 `onerror` inline no template mais 2 `<script>`
@@ -531,10 +528,10 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
 
 ### Ordem de execução sugerida
 
-1. ✅ **O par acima** (`f2dcffd`, 2026-08-08) — fecha a superfície pública. É o
+1. ✅ **O par acima** (`f2dcffd`, agosto de 2026) — fecha a superfície pública. É o
    item que habilita a promessa "compatível com CSP estrita" no README.
 2. ✅ `onclick="return confirm(...)"` de `page-instances.php:84` →
-   `addEventListener` (`bb51370`, 2026-08-08).
+   `addEventListener` (`bb51370`, agosto de 2026).
 
    **Custou mais que as ~2 linhas previstas aqui, e vale registrar por quê:** o
    plugin não tinha **nenhum** `admin_enqueue_scripts` — os únicos enqueues
@@ -550,7 +547,7 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    **obrigatório** (o destino deixou de ser string JS e passou a ser atributo
    HTML), e o `\n\n` precisa ser newline real do PHP — `&#10;` não serve,
    porque o `esc_attr` escaparia o `&`.
-3. ✅ **Concluído em 2026-08-28** (`30f8b17`, item A3 do roadmap) — os 5
+3. ✅ **Concluído em agosto de 2026** (`30f8b17`, item A3 do roadmap) — os 5
    `<script>` inline do admin viraram arquivos `.js` enfileirados com
    `wp_enqueue_script`, dados via `wp_localize_script`.
    **`page-instance-form.php` 1529 → 546 linhas; `page-settings.php` 183 → 110.**
@@ -560,7 +557,7 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    - **Acertou** que o `enqueue_assets()` do passo 2 seria o ponto de entrada.
    - **A armadilha da guarda** (*"sai fora quando `action` é `new`/`edit`,
      exatamente as telas do passo 3"*) **não custou nada**: foi paga
-     antecipadamente no H2 de 21/08, quando o `wp_enqueue_media()` precisou da
+     antecipadamente no H2 de agosto, quando o `wp_enqueue_media()` precisou da
      mesma correção.
    - **A armadilha do `esc_js` → `esc_attr`** do passo 2 **nunca mordeu**: nenhum
      dado do passo 3 foi para atributo HTML. Todos passaram por
@@ -581,15 +578,15 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
 4. **Documentar no README** um exemplo de cabeçalho CSP que o veículo pode
    aplicar, e declarar que o plugin funciona sob ele. Isso é argumento de
    adoção: nenhum plugin de quiz WP oferece isso. Já desbloqueado: a superfície
-   pública não exige mais `'unsafe-inline'` **em `script-src`** (desde 08/08)
-   **nem em `style-src`** (desde 25/09, A5).
+   pública não exige mais `'unsafe-inline'` **em `script-src`** (desde agosto)
+   **nem em `style-src`** (desde setembro, A5).
 
-   > ✅ **RESSALVA ENCERRADA em 2026-09-25 — `style-src` resolvido na superfície
+   > ✅ **RESSALVA ENCERRADA em setembro de 2026 — `style-src` resolvido na superfície
    > pública.** Os 4 grupos da tabela abaixo foram fechados: 3 por classe no CSS e
    > a barra de progresso por CSSOM, exatamente os dois caminhos que esta ressalva
    > descreveu. O `grep` de auditoria devolve **zero** `style=` em
    > `newsgame-game.js`, `class-newsgame-shortcodes.php` e `news-game.php`.
-   > ✅ *Validado em runtime em 25/09: partida completa da instância 2 em Chrome
+   > ✅ *Validado em runtime em setembro: partida completa da instância 2 em Chrome
    > headless, com `Content-Security-Policy: script-src 'self'; style-src 'self'`
    > injetada no documento. A barra aplicou a largura em todas as telas, os botões
    > do veredito ficaram empilhados e centralizados, e nenhuma das 28 violações
@@ -598,17 +595,17 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    > precisa dizer ao redigir o exemplo:** a promessa é do **plugin** (o tema do
    > site pode exigir `'unsafe-inline'` por conta própria) e da superfície
    > **pública** (o admin não está coberto — ver a precisão do passo 3, acima).
-   > **O texto da ressalva, daqui até o fim do bloco, é de 21/08 e descreve o
+   > **O texto da ressalva, daqui até o fim do bloco, é de agosto e descreve o
    > estado de então**; fica como histórico, com a tabela já atualizada.
    >
-   > **RESSALVA, registrada em 2026-08-21 — a frase acima promete mais do que
+   > **RESSALVA, registrada em agosto de 2026 — a frase acima promete mais do que
    > entrega, e é preciso ler a diretiva.** A superfície pública **ainda exige
    > `style-src 'unsafe-inline'`**, por causa de **5 atributos `style=`, em 4
    > grupos**. Atributo `style` exige `style-src 'unsafe-inline'` pelo mesmo
    > mecanismo que script inline exige `script-src` — não é uma classe
    > diferente de problema, e **as 5 acionam a diretiva**.
    >
-   > *Eram 6 até 2026-08-28. O `67aea9a` (29/08) baixou para 5 por consequência
+   > *Eram 6 até agosto de 2026. O `67aea9a` (agosto) baixou para 5 por consequência
    > da extração do `buildProgress()`, que fundiu num só os dois atributos de
    > largura da barra de progresso — as duas telas montavam o mesmo HTML. O grupo
    > dinâmico passou de 2 ocorrências para 1. **Nenhum dos 4 grupos foi fechado**,
@@ -617,15 +614,15 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    >
    > | Onde | O quê | Removível? |
    > |---|---|---|
-   > | `newsgame-game.js:307` | `color:#f88` — mensagem de erro | Sim — ✔ **removido em 2026-09-25**: classe `.ng-empty-msg` (`newsgame-game.css:810`) e token `--ng-error-text` (`:116`) |
-   > | `newsgame-game.js:716`, `:717` | `display:block;margin:0 auto` — layout dos botões de compartilhar e reiniciar | Sim — ✔ **removido em 2026-09-25**: `.ng-btn-share`/`.ng-btn-restart` sob `.ng-game-wrap` (`newsgame-game.css:797`) |
-   > | `class-newsgame-shortcodes.php:237` | `font-family:monospace` — erro de instância sem dilemas aprovados | Sim — ✔ **removido em 2026-09-25**: modificadora `.newsgame-error-vazio` (`newsgame-game.css:819`) |
-   > | `newsgame-game.js:67` | `width:N%` — barra de progresso | ✔ **removido em 2026-09-25: convertido para CSSOM** (`aplicarProgresso()`, `:78`, `el.style.width` depois da inserção) |
+   > | `newsgame-game.js:307` | `color:#f88` — mensagem de erro | Sim — ✔ **removido em setembro de 2026**: classe `.ng-empty-msg` (`newsgame-game.css:810`) e token `--ng-error-text` (`:116`) |
+   > | `newsgame-game.js:716`, `:717` | `display:block;margin:0 auto` — layout dos botões de compartilhar e reiniciar | Sim — ✔ **removido em setembro de 2026**: `.ng-btn-share`/`.ng-btn-restart` sob `.ng-game-wrap` (`newsgame-game.css:797`) |
+   > | `class-newsgame-shortcodes.php:237` | `font-family:monospace` — erro de instância sem dilemas aprovados | Sim — ✔ **removido em setembro de 2026**: modificadora `.newsgame-error-vazio` (`newsgame-game.css:819`) |
+   > | `newsgame-game.js:67` | `width:N%` — barra de progresso | ✔ **removido em setembro de 2026: convertido para CSSOM** (`aplicarProgresso()`, `:78`, `el.style.width` depois da inserção) |
    >
-   > *Referências de linha reconferidas em 2026-09-25, depois da edição: apontam
+   > *Referências de linha reconferidas em setembro de 2026, depois da edição: apontam
    > para onde cada grupo está hoje, já sem o atributo. As que a tabela trazia
    > (`:226`, `:406`, `:407`, `:269`, `:320` e `shortcodes.php:38`) eram de antes
-   > de 21/08 e não batiam nem com a lista `57,287,633,634`/`:94` do parágrafo de
+   > de agosto e não batiam nem com a lista `57,287,633,634`/`:94` do parágrafo de
    > cima, que também já estava defasada.*
    >
    > **As 6 são removíveis, por dois caminhos diferentes** — e a coluna acima
@@ -649,8 +646,8 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    > Eu havia escrito aqui que ela não existia; estava errado, e a correção
    > amplia as opções em vez de reduzi-las.
    >
-   > *(Nota de 25/09: a decisão foi revertida para a superfície pública — ver a
-   > nota em "O que NÃO fazer". O parágrafo abaixo é o raciocínio de 21/08.)*
+   > *(Nota de setembro: a decisão foi revertida para a superfície pública — ver a
+   > nota em "O que NÃO fazer". O parágrafo abaixo é o raciocínio de agosto.)*
    >
    > **Isso não reabre a decisão** de "O que NÃO fazer" abaixo: perseguir
    > `style-src` segue fora de escopo, e o argumento de retorno marginal de
@@ -675,14 +672,14 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
   nonce com o plugin. O bloco de dados não exige nada do hospedeiro.
 - Não perseguir `style-src` — os ~70 `style="` são cosméticos e a CSP de estilo
   tem retorno de segurança marginal.
-  *Decisão mantida em 2026-08-21, com dois números corrigidos: na superfície
-  **pública** são **5, em 4 grupos** — eram 6 até 28/08 — e não ~70, que incluem
+  *Decisão mantida em agosto de 2026, com dois números corrigidos: na superfície
+  **pública** são **5, em 4 grupos** — eram 6 até agosto — e não ~70, que incluem
   o admin. E o
   "cosméticos" merece nuance: um dos grupos é `width:N%` de barra de progresso,
   valor calculado em runtime, que não sai por classe no CSS (sai por CSSOM, que
   a diretiva não alcança). A consequência da decisão é que a promessa de CSP
   tem de ser escrita qualificada por diretiva; ver a ressalva no passo 4 e o A5.*
-  **Revertida em 2026-09-25 para a superfície pública; mantida para o admin.** Na
+  **Revertida em setembro de 2026 para a superfície pública; mantida para o admin.** Na
   superfície pública o custo se mostrou pequeno (5 atributos, fechados num passo),
   e o ganho é o argumento de adoção do passo 4, não segurança. O "retorno de
   segurança marginal" continua correto. O A5 fechou os 4 grupos. No **admin**, que
@@ -690,15 +687,15 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
   fica de pé.
 
 **Ver também:** FLAG 003 (segredos fora do browser) e a correção de
-2026-07-31 que aplicou `esc()` nos nomes de eixo do radar mais
+julho de 2026 que aplicou `esc()` nos nomes de eixo do radar mais
 `sanitize_text_field()` no save — a CSP é a terceira camada sobre essas duas.
 
 ---
 
 ## FLAG 008 — Incidente de ambiente: MariaDB com `force_recovery` ligado e grant tables Aria corrompidas (RESOLVIDO)
 
-**Status:** ✅ Ambiente reconstruído em 2026-08-22. Registrado retroativamente em
-2026-08-24.
+**Status:** ✅ Ambiente reconstruído em agosto de 2026. Registrado retroativamente em
+agosto de 2026.
 
 **Por que isto virou FLAG, sendo defeito de ambiente e não do plugin:** porque três
 itens de documentação já apontavam para um episódio que não estava escrito em lugar
@@ -715,11 +712,11 @@ da §6 do roadmap. Sem este registro, as três referências ficam órfãs.
    abortar**: a query volta com menos linhas — ou zero — e **sem erro**. Escrita
    continua permitida nesse nível, o que torna o modo indistinguível do normal em uso
    casual. É deste comportamento que sai o mecanismo candidato do C10.
-2. **19/08 — o incidente do C10** (`wp_newsgame_dilemas` vazia) ocorreu **com o
+2. **agosto — o incidente do C10** (`wp_newsgame_dilemas` vazia) ocorreu **com o
    `force_recovery` ligado**. Isso não era conhecido na sessão de diagnóstico, e é o
-   único dado novo que o item recebeu desde então. Ver a atualização de 24/08 lá —
+   único dado novo que o item recebeu desde então. Ver a atualização de agosto lá —
    **sem evidência positiva**, e não reabre o item.
-3. **22/08 — erro 1130 ao tentar o `mysqldump`.** `ERROR 1130 (HY000): Host … is not
+3. **agosto — erro 1130 ao tentar o `mysqldump`.** `ERROR 1130 (HY000): Host … is not
    allowed to connect to this MariaDB server`. A leitura intuitiva do 1130 é "host
    bloqueado", e está errada aqui: é também o que o servidor devolve quando **não
    conseguiu carregar o cache de ACL**, porque não pôde ler as grant tables. Seis
@@ -729,10 +726,10 @@ da §6 do roadmap. Sem este registro, as três referências ficam órfãs.
    seis, não quais.
 4. **O 1130 é o que criou o backup falso.** O `mysqldump --result-file=…` cria o
    arquivo de destino **antes** de saber se a conexão funciona, então
-   `backup-mesa-2026-08-22.sql` nasceu com **0 bytes** e ficou dois dias na raiz do
+   o dump `.sql` de agosto de 2026 nasceu com **0 bytes** e ficou dois dias na raiz do
    repositório. O aprendizado de método está na §6 do roadmap ("Backup não verificado
    é pior que nenhum"), não repetido aqui.
-5. **22/08 — reconstrução.** Datadir novo criado com `mysql_install_db`,
+5. **agosto — reconstrução.** Datadir novo criado com `mysql_install_db`,
    `innodb_force_recovery` **desligado**, e o banco `jda` reimportado de dump
    verificado: 14/14 tabelas conferidas e `CHECK TABLE` OK nas 14. Foi sobre este
    estado que o C8 rodou no mesmo dia.
@@ -758,7 +755,7 @@ usada.
 
 **Consequência de método, e é a razão de a correção estar aqui e não só numa nota:**
 em perícia de corrupção, `aria_chk --check` sem `-T` **altera a evidência**. É a mesma
-classe de erro do aprendizado de 19/08 na §6 do roadmap ("em perda de dado, medir antes
+classe de erro do aprendizado de agosto na §6 do roadmap ("em perda de dado, medir antes
 de restaurar"), um nível abaixo — lá o reparo destruiu a medição; aqui é a **própria
 ferramenta de medição** que mexe no que mede. Copiar o arquivo antes, ou passar `-T`.
 
@@ -770,7 +767,7 @@ ferramenta de medição** que mexe no que mede. Copiar o arquivo antes, ou passa
   de código, que foi exaustiva.
 - **Antes de mexer em banco, dump verificado e fora do repositório.** Verificado =
   tamanho maior que zero **e** última linha `-- Dump completed on …`. Destino:
-  `E:\db-backups\`, nunca `E:\news-game\` (§7 do `CLAUDE.md`).
+  uma pasta de backup fora do repositório, nunca a pasta do próprio repositório.
 - **Corrupção de grant table se apresenta como 1130**, não como erro de permissão. Não
   gastar tempo procurando bloqueio de host antes de checar as tabelas do banco `mysql`.
 
@@ -782,7 +779,7 @@ de restaurar).
 
 ## FLAG 009 — Contraste: dois tokens de alpha baixo que não alcançam o mínimo AA
 
-**Status:** 🔵 Registrado em 2026-09-03, **não corrigido**. Achado durante a remedição
+**Status:** 🔵 Registrado em setembro de 2026, **não corrigido**. Achado durante a remedição
 de contraste da troca de arte da skin `pixel` (as três cenas de dia).
 
 **Por que isto é FLAG e não item de bloco:** são **dois valores no arquivo base**
@@ -794,8 +791,7 @@ de vista se ficar anotado dentro do relato de uma skin.
 
 Metodologia: percentil 5 (pior 5%) da região central da imagem de fundo — onde o
 conteúdo do jogo assenta com `background-size: cover` + `background-position: center` —,
-blend em espaço sRGB e luminância relativa WCAG. Mesma sonda usada em 2026-09-02 e
-2026-09-03, descartada depois de cada uso.
+blend em espaço sRGB e luminância relativa WCAG. Mesma sonda usada em duas ocasiões de setembro de 2026, descartada depois de cada uso.
 
 **1. `--ng-muted` — `rgba(var(--ng-on-rgb), 0.55)` (`newsgame-game.css:61`)**
 
@@ -806,12 +802,12 @@ assentam direto sobre a imagem de fundo com o véu.
 
 | Série de fundo | véu 0,42 | mínimo AA (texto normal) |
 |---|---|---|
-| noite/crepúsculo — **em produção de 29/08 a 03/09** | 3,39 – 4,01 | 4,5 ❌ |
-| `dia-*` — **em produção desde 03/09** | 3,15 – 3,31 | 4,5 ❌ |
-| série `fundo-*` (descartada em 03/09) | 2,33 – 2,37 | 4,5 ❌ |
+| noite/crepúsculo — **em produção de agosto a setembro** | 3,39 – 4,01 | 4,5 ❌ |
+| `dia-*` — **em produção desde setembro** | 3,15 – 3,31 | 4,5 ❌ |
+| série `fundo-*` (descartada em setembro) | 2,33 – 2,37 | 4,5 ❌ |
 
 **A falha é PRÉ-EXISTENTE e independe da arte.** Já não passava com as noturnas. A
-troca de 03/09 piora o número (de ~3,7 para ~3,2 de média), não cria o problema.
+troca de setembro piora o número (de ~3,7 para ~3,2 de média), não cria o problema.
 
 Elevar o véu **não é a saída**: para levar `--ng-muted` a 4,5 nos três fundos de dia
 seria preciso 0,68 — medido: 0,62 dá 4,61 / 4,48 / 4,46, e **falha por 0,02 e 0,04**
@@ -862,7 +858,7 @@ componente daquela skin.
 
 ## FLAG 010 — Duas casas de CSS na mesma tela do admin
 
-**Status:** 🔵 Registrado em 2026-09-04, **aceito por ora, não corrigido**. Nasceu com o
+**Status:** 🔵 Registrado em setembro de 2026, **aceito por ora, não corrigido**. Nasceu com o
 seletor visual de skins, que trouxe o primeiro pipeline de CSS do admin.
 
 ### O estado, medido
@@ -876,7 +872,7 @@ As duas vestem a **mesma tela**. `page-settings.php` e `page-instances.php` não
 de estilo — conferido por `grep`, e é o que mantém o item restrito a uma tela.
 
 ⚠️ **O `wp_enqueue_style` de `enqueue_form_styles()` é o PRIMEIRO do admin em todo o
-plugin.** O buraco era exatamente o mesmo que o A2 encontrou no JS em 08/08 (nenhum
+plugin.** O buraco era exatamente o mesmo que o A2 encontrou no JS em agosto (nenhum
 `admin_enqueue_scripts` existia), e pela mesma razão histórica: todo estilo do painel
 nasceu dentro da view.
 
@@ -885,8 +881,8 @@ nasceu dentro da view.
 1. **Precedente do A3, aplicado literalmente.** Mover 106 linhas de CSS no mesmo commit
    que introduz um componente novo tornaria impossível saber, se a tela quebrasse, qual
    das duas mudanças quebrou. É o argumento que deixou o `buildRow` sem refatoração
-   enquanto ele mudava de arquivo em 28/08, e o que deixou `doSave()` duplicando payload
-   em 29/08.
+   enquanto ele mudava de arquivo em agosto, e o que deixou `doSave()` duplicando payload
+   em agosto.
 2. **As 106 linhas não têm cobertura própria.** Elas vestem a Mesa Editorial, que é a
    maior massa de UI do admin — abas, accordion, tabela de edição, paginação. O teste de
    uma migração dessas é comparação visual da tela inteira, e é trabalho de passo
@@ -941,12 +937,12 @@ cinco arquivos, e a nota de precisão sobre as duas superfícies) e **A5** (a d�
 ## FLAG 011 — Ausência de criptografia na chave de API armazenada
 
 **Status:** 🔴 Aberto — **decisão de arquitetura, não implementado**. Registrado em
-2026-09-04, no diagnóstico do H1.
+setembro de 2026, no diagnóstico da abstração de provedor.
 
 **Problema:**
 As duas chaves que o plugin persiste ficam em `wp_options` em **texto claro**, com
 `autoload = auto` — ou seja, carregadas na memória de todo request do WordPress, não
-só das telas que precisam delas. Medido em runtime em 2026-09-04, no banco local:
+só das telas que precisam delas. Medido em runtime em setembro de 2026, no banco local:
 
 | `option_name` | tamanho do valor | autoload |
 |---|---|---|
@@ -962,7 +958,7 @@ não cifra.
 
 ⚠️ **A tela de configurações AFIRMAVA O CONTRÁRIO até esta sessão.** O texto de
 `page-settings.php` dizia *"Armazenada criptografada no banco WordPress — nunca em
-arquivo."* — falso nas duas metades. Corrigido em 2026-09-04 para "Armazenada nas
+arquivo."* — falso nas duas metades. Corrigido em setembro de 2026 para "Armazenada nas
 configurações do WordPress, sem criptografia. Restrito a administradores com
 permissão de gerenciar opções." **A correção é de texto: o comportamento não mudou**,
 e é por isso que esta FLAG existe.
@@ -976,9 +972,9 @@ Duas superfícies de exposição, medidas e distintas da questão do repouso:
   `GEMINI_API_KEY` e `API_SECRET_TOKEN` em texto claro no disco (conferidos por nome;
   valores não lidos). `config.py:35` declara `{"env_file": ".env"}`.
 
-⚠️ **Nota factual acrescentada em 2026-09-16 — o `.env` guarda uma chave MORTA, e as
+⚠️ **Nota factual acrescentada em setembro de 2026 — o `.env` guarda uma chave MORTA, e as
 duas cópias DIVERGIRAM.** *(Não corresponde mais ao estado real desde, no máximo,
-25/09 — ver a atualização logo depois desta nota. O texto de 16/09 fica preservado.)*
+setembro de 2026 — ver a atualização logo depois desta nota. O texto anterior fica preservado.)*
 Medido nesta data, por comprimento e `md5[0:8]`, sem leitura de valor:
 
 | onde | comprimento | `md5[0:8]` | estado |
@@ -986,8 +982,8 @@ Medido nesta data, por comprimento e `md5[0:8]`, sem leitura de valor:
 | painel (`newsgame_gemini_api_key`) | 53 | `eee6baac` | **viva** — `ListModels` 200 |
 | `backend-python/.env` (`GEMINI_API_KEY`) | 39 | `dedc9c80` | **bloqueada** — `403 API_KEY_SERVICE_BLOCKED`, medido no mesmo dia |
 
-Em 15/09 as duas eram **idênticas** (o `.env` foi reposto com o valor do painel). Em
-16/09 o editor rotacionou a chave **só no painel**, e o `.env` ficou com a anterior —
+Em setembro as duas eram **idênticas** (o `.env` foi reposto com o valor do painel). Em
+setembro o editor rotacionou a chave **só no painel**, e o `.env` ficou com a anterior —
 que, medida horas antes, já vinha sendo **recusada pelo Google**.
 
 **Por que isto NÃO quebra nada hoje, e por que é risco:** o plugin manda a chave em
@@ -1008,15 +1004,15 @@ o `.env` a cada rotação (mantém o fallback útil e cria um segundo lugar a le
 **esvaziá-lo** de propósito e deixar o 401 de `_resolve_api_key()` falar — o que é
 possível desde a fase 0, que tornou `gemini_api_key` opcional em `config.py`.
 
-✅ **Atualização de 2026-09-25 — a divergência NÃO existe mais.** Uma comparação feita
+✅ **Atualização de setembro de 2026 — a divergência NÃO existe mais.** Uma comparação feita
 dentro do processo, sem impressão de valores, mostrou o `.env` (`GEMINI_API_KEY`) e o
 painel (`newsgame_gemini_api_key`) **já com a mesma chave**, de 53 caracteres. O pedido
 era substituir a chave do `.env` por uma nova, e ela era justamente a que já estava lá:
 a substituição deixou o arquivo byte-idêntico ao backup. A chave autentica: `ListModels`
 com ela deu **HTTP 200** (61 modelos, 44 com `generateContent`).
 - ⚠️ **A origem e a data dessa correção anterior são DESCONHECIDAS.** Não há registro
-  de quem sincronizou o `.env` nem quando, entre 16/09 e 25/09. **A data de modificação
-  do arquivo não serve de evidência:** o `.env` foi regravado na sessão de 25/09, com o
+  de quem sincronizou o `.env` nem quando, em setembro de 2026. **A data de modificação
+  do arquivo não serve de evidência:** o `.env` foi regravado na sessão de setembro, com o
   mesmo conteúdo, e o mtime passou a ser o dessa regravação
 - **Na prática foi aplicada a primeira das duas saídas de higiene** (sincronizar o
   `.env`), mas **sem decisão registrada**: o risco de uma próxima rotação feita só no
@@ -1053,19 +1049,19 @@ superfície **autenticada**. Não somar as duas.
 
 ## FLAG 012 — SDK do Gemini descontinuado (`google-generativeai` → `google-genai`)
 
-**Status:** 🟡 **PARCIALMENTE RESOLVIDA desde 2026-09-05** (commit `5641fcc`) — status
-corrigido em 2026-09-25. A mensagem daquele commit já dizia *"Fecha a FLAG 012
+**Status:** 🟡 **PARCIALMENTE RESOLVIDA desde setembro de 2026** (commit `5641fcc`) — status
+corrigido em setembro de 2026. A mensagem daquele commit já dizia *"Fecha a FLAG 012
 parcialmente"*, mas esta flag nunca havia sido atualizada. *Status original,
 preservado:* 🔴 Aberto — **não é urgente por quebra; é dívida com prazo de validade.**
-Registrado em 2026-09-04, no diagnóstico do H1.
+Registrado em setembro de 2026, no diagnóstico da abstração de provedor.
 
-> ✅ **O que JÁ foi resolvido (05/09, `5641fcc`).** `langchain-google-genai` passou de
+> ✅ **O que JÁ foi resolvido (setembro, `5641fcc`).** `langchain-google-genai` passou de
 > **2.0.1 para 2.1.12**, que importa `google.ai.generativelanguage_v1beta` e **dispensa o
-> `google-generativeai`**, o pacote descontinuado. Conferido no venv em 25/09:
+> `google-generativeai`**, o pacote descontinuado. Conferido no venv em setembro:
 > `google-generativeai` **ausente**, `google-ai-generativelanguage 0.12.0` presente, e a
 > 2.1.12 pede só `langchain-core>=0.3.75`. Por isso **não saiu da linha 0.3** e o teto
 > `<1.0` do `64cc21e` ficou intacto. O `FutureWarning` de fim de suporte transcrito
-> abaixo **não aparece mais**. O texto de 04/09 abaixo descreve o estado **anterior** e
+> abaixo **não aparece mais**. O texto de setembro abaixo descreve o estado **anterior** e
 > fica como histórico: as versões (`2.0.1`, `0.8.6`) e as linhas citadas em "Onde está"
 > não valem mais.
 >
@@ -1073,7 +1069,7 @@ Registrado em 2026-09-04, no diagnóstico do H1.
 > no venv). Isso só vem com a `langchain-google-genai` **4.x**, que exige `langchain-core`
 > **1.x**. A 4.x também é a que traz `thinking_level`, a revisão amarrada à **FLAG 017**.
 > Subir o core de 0.3 para 1.x arrasta hoje **todos os pacotes com teto `<1.0`**,
-> conferidos nos metadados instalados em 25/09:
+> conferidos nos metadados instalados em setembro:
 >
 > | pacote | versão fixada | exige de `langchain-core` |
 > |---|---|---|
@@ -1083,7 +1079,7 @@ Registrado em 2026-09-04, no diagnóstico do H1.
 > | `langchain-huggingface` | 0.1.0 | `>=0.3.0,<0.4` |
 > | `langchain` | 0.3.27 | `<1.0.0,>=0.3.72` |
 >
-> Os dois primeiros foram fixados **depois** da estimativa de 05/09, pelo mesmo motivo.
+> Os dois primeiros foram fixados **depois** da estimativa de setembro, pelo mesmo motivo.
 > O `langchain` não estava na lista do pedido desta correção: apareceu na conferência dos
 > metadados. `langchain-community` (0.3.31) e `langchain-text-splitters` (0.3.11) aceitam
 > `<2.0.0` e **não** bloqueiam a subida. **A estimativa de "19 pacotes" do roadmap (§5,
@@ -1093,7 +1089,7 @@ Registrado em 2026-09-04, no diagnóstico do H1.
 
 **Problema:**
 `langchain-google-genai 2.0.1` depende de `google-generativeai 0.8.6`, cujo suporte
-**terminou**. Confirmado em runtime em 2026-09-04, por `import` direto no `.venv` do
+**terminou**. Confirmado em runtime em setembro de 2026, por `import` direto no `.venv` do
 backend — o aviso é emitido pelo próprio pacote:
 
 ```
@@ -1124,16 +1120,15 @@ precisa estar numa versão que já o use. Antes de fechar esta FLAG é obrigató
 SDK novo: o auto-reparo depende do formato do texto devolvido e de o `.content` vir
 como string, e nenhuma das duas coisas é garantida por contrato entre SDKs.
 
-⚠️ **Isto muda a conta do H1.** A migração é necessária **mesmo que o projeto decida
+⚠️ **Isto muda a conta da abstração de provedor.** A migração é necessária **mesmo que o projeto decida
 ficar só no Gemini** — não é custo da abstração de provedor, é custo de manutenção que
-já está no caixa. Ver o bloco de correção de 2026-09-04 na §4 (D1) do
-`ROADMAP_OPEN_SOURCE.md`.
+já está no caixa.
 
 ---
 
 ## FLAG 013 — Armadilha de ambiente: `uvicorn --reload` no Windows aceita bind duplo na mesma porta
 
-**Status:** 🔵 Registrado em 2026-09-04. **Não é defeito do produto** — é
+**Status:** 🔵 Registrado em setembro de 2026. **Não é defeito do produto** — é
 propriedade do ambiente de desenvolvimento, e entra aqui pela mesma razão da
 FLAG 008: custou tempo duas vezes no mesmo dia e vai custar de novo sem registro.
 
@@ -1158,8 +1153,7 @@ Somam-se duas armadilhas de identificação de processo:
    **não os alcança**, e um `taskkill` filtrado assim deixa o worker vivo,
    segurando a porta e servindo código velho.
 
-**Onde custou** — os dois primeiros medidos em 2026-09-04, o terceiro em 2026-09-07, o
-quarto em 2026-09-14:
+**Onde custou** — os quatro medidos em setembro de 2026:
 - **Episódio 1.** Um processo meu em `127.0.0.1:8000` ficou de pé por engano e
   interceptou quatro `POST /generate-one` disparados do painel pelo editor. Ele
   havia lido o `.env` 13 minutos antes da troca de chave, o que tornou o teste do
@@ -1169,15 +1163,15 @@ quarto em 2026-09-14:
   comportamento **antigo** depois de um restart aparentemente bem-sucedido. Causa:
   o worker anterior sobreviveu ao `taskkill` filtrado por linha de comando e
   continuou ganhando o socket.
-- **Episódio 3, em 2026-09-07 — e a CAUSA É DIFERENTE das duas de cima, que é o
+- **Episódio 3, em setembro de 2026 — e a CAUSA É DIFERENTE das duas de cima, que é o
   motivo de valer registro próprio.** Nos episódios 1 e 2 a flag veio de **restart
   manual**: alguém religou o servidor e esqueceu de tirar `--reload`. Aqui **não
   houve restart** — a máquina **reiniciou sozinha** (erro crítico do Windows,
   boot às 21:55:24) e o uvicorn voltou na **forma padrão do ambiente**, com a flag,
   às 21:59:49. Ninguém decidiu nada: o defeito reentrou por baixo, num momento em
   que o trabalho da sessão estava todo **não commitado**.
-  - **Segunda ocorrência DO DIA, e quarta registrada.** A primeira de 07/09 foi o
-    restart no início do B6, que está no `CLAUDE.md` e não aqui.
+  - **Segunda ocorrência DO DIA, e quarta registrada.** A primeira daquele dia foi um
+    restart anterior, que não está registrado aqui.
   - **Custo real desta vez: baixo, e só porque foi checado antes de testar.** A
     árvore de 4 processos apareceu na conferência de estado pós-reinício; foi morta
     pelo topo e o servidor religado sem a flag (3 processos, socket do próprio
@@ -1192,7 +1186,7 @@ quarto em 2026-09-14:
   - **Regra que se acrescenta:** depois de qualquer boot inesperado, conferir a
     **forma da árvore** antes de confiar em teste — 3 processos com o socket na
     folha, e não 4 com o socket no *reloader*.
-- **Episódio 4, em 2026-09-14 — MESMO MECANISMO do Episódio 1, com os PAPÉIS
+- **Episódio 4, em setembro de 2026 — MESMO MECANISMO do Episódio 1, com os PAPÉIS
   INVERTIDOS.** Registrado na checagem que precedeu o B8.
   - ⚠️ **NÃO é mecanismo novo, e a primeira redação deste item dizia que era.** O
     bind concorrente é o **cabeçalho desta flag** e está descrito no "Problema" acima,
@@ -1259,17 +1253,17 @@ quarto em 2026-09-14:
 mesma forma: estado de ambiente esquecido ligado, que depois contamina a
 interpretação de um teste.
 
-### Nota de 2026-10-05 — o executável `uvicorn.exe` bloqueado pelo Smart App Control
+### Nota de outubro de 2026 — o executável `uvicorn.exe` bloqueado pelo Smart App Control
 
 Outra armadilha de subir o uvicorn no Windows, medida nesta máquina, só lendo:
 - **Smart App Control ligado** — `HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy`,
   `VerifiedAndReputablePolicyState = 1`
 - **Bloqueio registrado** — log `Microsoft-Windows-CodeIntegrity/Operational`, evento
-  **3077** em 02/10/2026 às 17:14: o `powershell.exe` tentou carregar
-  `C:\Program Files\Python314\Scripts\uvicorn.exe`, que não atendeu ao nível de
+  **3077** em outubro de 2026 às 17:14: o `powershell.exe` tentou carregar
+  o `uvicorn.exe` da instalação do Python do sistema, que não atendeu ao nível de
   assinatura exigido
 - **A saída é `python -m uvicorn`**: quem roda passa a ser o `python.exe`, que é
-  assinado. É o que o README recomenda desde 05/10, sem as medições, que ficam aqui
+  assinado. É o que o README recomenda desde outubro, sem as medições, que ficam aqui
 
 O bloqueio medido foi do `uvicorn.exe` do Python do **sistema**. O do `.venv` é o mesmo
 tipo de executável gerado pelo pip, mas **não foi visto bloqueado** — o README diz
@@ -1279,12 +1273,12 @@ tipo de executável gerado pelo pip, mas **não foi visto bloqueado** — o READ
 
 ## FLAG 014 — Impacto zerado em 24 de 24 dilemas: restrição declarada onde o LLM não lê
 
-**Status:** 🟡 **Parcial.** A **causa** foi corrigida em 2026-09-04 (commit
+**Status:** 🟡 **Parcial.** A **causa** foi corrigida em setembro de 2026 (commit
 `259b779`) e validada nos dois provedores. O **dado histórico** segue zerado: os
 24 dilemas que já estão no banco não foram regerados.
 
 **Problema:**
-Consulta direta ao MySQL em 2026-09-04: **24 de 24** dilemas de
+Consulta direta ao MySQL em setembro de 2026: **24 de 24** dilemas de
 `wp_newsgame_dilemas` — todos gerados pelo Gemini — tinham os quatro valores de
 `impacto` (`popularidade` e `recursos` das duas alternativas) em **zero**.
 
@@ -1325,7 +1319,7 @@ DeepSeek **5/5** na faixa com o prompt corrigido, contra **2/5** sem a instruç�
   valor nunca existiu para ser recuperado.
 - **Hoje nada exibe o campo.** Ele é gravado (`class-newsgame-generator.php:316`)
   e editável na Mesa Editorial (`class-newsgame-review.php:506`), mas os badges de
-  impacto saíram da superfície do jogador em 2026-08-29 — `newsgame-game.js:253`
+  impacto saíram da superfície do jogador em agosto de 2026 — `newsgame-game.js:253`
   guarda só o comentário disso. O radar do veredito usa `axis_weights`, que vem de
   `/assign-weights` e **não** deste campo.
 - **A cópia literal não desapareceu:** 1 das 3 gerações do Gemini devolveu
@@ -1348,27 +1342,26 @@ antes do parse e nada quebrou, mas é a razão pela qual a rede em código conti
 valendo a pena.
 
 **Ver também:** **FLAG 001** (a validação Pydantic + auto-reparo que explica por
-que não há structured output) e a subseção de POC do DeepSeek na §5 do
-`ROADMAP_OPEN_SOURCE.md`, onde o achado apareceu.
+que não há structured output) e o POC do DeepSeek, onde o achado apareceu.
 
 ---
 
 ## FLAG 015 — Incidente de ambiente: `mysqld` abortando por leitura de página que volta com zero bytes
 
 **Status:** 🔴 **ABERTA, sem causa determinada.** Servidor restabelecido manualmente
-em 2026-09-07 às 20:25:58 e estável desde então. Registrada no mesmo dia.
+em setembro de 2026 às 20:25:58 e estável desde então. Registrada no mesmo dia.
 
 **Por que virou FLAG, sendo defeito de ambiente e não do plugin:** pelo mesmo critério
 da **FLAG 008** — o episódio bloqueou os testes de um passo de desenvolvimento (o B5),
-e produziu um dado que o **C10** carrega desde 24/08 como *mecanismo candidato
+e produziu um dado que o **C10** carrega desde agosto como *mecanismo candidato
 inverificável*. Sem registro, a referência do C10 fica órfã e a próxima recorrência
 começa do zero.
 
 ### Linha do tempo, medida
 
-| hora (07/09) | evento |
+| hora (dia do incidente) | evento |
 |---|---|
-| 16:59:05 | MariaDB 10.4.32 sobe em `C:/xampp/mysql/data-novo`, **já com crash recovery** do LSN 23326306 |
+| 16:59:05 | MariaDB 10.4.32 sobe num diretório de dados novo, **já com crash recovery** do LSN 23326306 |
 | 17:48:44 | **5× `LiveKernelEvent`** no log Application do Windows |
 | 18:10:07 | falha de I/O do InnoDB (mensagem abaixo) |
 | 18:10:08 | **`mysqld.exe` APPCRASH, código de exceção `0x80000003`** |
@@ -1407,8 +1400,8 @@ junto. **Consequência de método: em crash de MariaDB no Windows, o `mysql_erro
 pode ser incompleto, e o Event Viewer é a fonte a consultar** — foi ele que deu a causa
 proximal. `Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='MariaDB'}`.
 
-⚠️ **RUÍDO CONHECIDO NO `mysql_error.log`, GRAVADO POR MIM EM 2026-09-14 — NÃO É
-RECORRÊNCIA DESTA FLAG.** Às **12:07:39 de 14/09** o arquivo recebeu sete linhas
+⚠️ **RUÍDO CONHECIDO NO `mysql_error.log`, GRAVADO POR MIM EM SETEMBRO DE 2026 — NÃO É
+RECORRÊNCIA DESTA FLAG.** Às **12:07:39 de setembro** o arquivo recebeu sete linhas
 terminando em `[ERROR] Aborting`, precedidas de
 `[ERROR] InnoDB: The innodb_system data file 'ibdata1' must be writable` (duas vezes) e
 `[ERROR] Unknown/unsupported storage engine: InnoDB`. **Causa conhecida e benigna:
@@ -1445,48 +1438,46 @@ peso, schema 1.6, `innodb_force_recovery = 0`).
 ### O que sobra, e não é conclusão
 
 - **Este `mysqld` nunca desliga limpo.** Todos os boots registrados desde a
-  reconstrução de 22/08 (FLAG 008) começam com *crash recovery*: 27/08, 29/08, 03/09 e
-  os dois de 07/09
-- O log de **27/08** ainda trazia `InnoDB: Page [page id: space=1, page number=3] log
+  reconstrução de agosto de 2026 (FLAG 008) começam com *crash recovery*: dois em agosto de 2026 e três em setembro de 2026
+- O log de **agosto** ainda trazia `InnoDB: Page [page id: space=1, page number=3] log
   sequence number 14046149 is in the future!` — tablespace e redo dessincronizados,
   anterior a este episódio
-  - **Quantificado em 14/09, e é maior do que esta linha sugeria: 136 linhas**, todas
-    do **mesmo instante** (`2026-08-27 13:36:17`) e de um boot só. São
+  - **Quantificado em setembro, e é maior do que esta linha sugeria: 136 linhas**, todas
+    do **mesmo instante** (`13:36:17`, em agosto de 2026) e de um boot só. São
     `[Warning] InnoDB: Ignoring a doublewrite copy of page [page id: space=N, page
     number=N] with future log sequence number …` seguidas de
     `[ERROR] InnoDB: Your database may be corrupt or you may have copied the InnoDB
     tablespace but not the InnoDB log files`. **O servidor recuperou e seguiu servindo**
     — a sessão do mecanismo de skins rodou naquele dia
   - **Nota de BAIXA PRIORIDADE, não tarefa.** Fica registrada para não se perder: é o
-    único evento de dano no `data-novo` **anterior** a 07/09, e é a origem provável do
+    único evento de dano no `data-novo` **anterior** a setembro, e é a origem provável do
     "nunca desliga limpo" acima. Não há linha de investigação viva e não se pede uma —
-    o critério é o do C10, e a evidência de 27/08 já foi sobrescrita pelos boots
+    o critério é o do C10, e a evidência de agosto já foi sobrescrita pelos boots
     seguintes
 - Os `LiveKernelEvent` de 17:48:44, 22 minutos antes da falha de I/O, **não foram
   investigados** e são a única pista que aponta para fora do MariaDB
 
-### Nota de 2026-09-25 — o reinício das 21:55 tem causa, e ela é o driver Warsaw
+### Nota de setembro de 2026 — o reinício das 21:55 tem causa, e ela é o driver Warsaw
 
-⚠️ **NÃO FECHA A FLAG.** Explica **um** dos dois eventos de 07/09 e parte do "nunca
+⚠️ **NÃO FECHA A FLAG.** Explica **um** dos dois eventos de setembro e parte do "nunca
 desliga limpo". **Não** explica o abort de I/O das 18:10.
 
-- **O reinício das 21:55:24 de 07/09 foi tela azul do `wsddpp.sys`** — o driver Warsaw,
+- **O reinício das 21:55:24 de setembro foi tela azul do `wsddpp.sys`** — o driver Warsaw,
   módulo de segurança bancária da Topaz OFD. O minidump `090726-17656-01.dmp`, analisado
   com `cdb -z … -c "!analyze -v"`, dá `BUGCHECK_CODE 0x50`, `SYMBOL_NAME wsddpp+0x2d9c`
   e `FAILURE_ID_HASH {735da6ee-5c56-de2d-255c-3359921f37d9}`. As duas telas azuis de
-  25/09 (17:34 e ~21:36) dão **o mesmo offset e o mesmo hash**. Detalhe e recomendação
-  no bloco "Aberto em 25/09" da §10 do `CLAUDE.md`
+  setembro (17:34 e ~21:36) dão **o mesmo offset e o mesmo hash**.
 - **Pelo menos 3 crash recoveries têm essa tela azul como causa provável**, e não falha
-  própria do MySQL: 07/09 às 21:58:55, 25/09 às 17:39:43 e 25/09 às 21:38:34. Os três
+  própria do MySQL: três em setembro de 2026, às 21:58:55, 17:39:43 e 21:38:34. Os três
   vêm de 2 a 5 minutos depois de um Kernel-Power 41 com bugcheck do `wsddpp`, e o
   `mysql_error.log` não tem nenhuma linha entre o boot anterior e o crash recovery
-- **Contagem medida em 25/09 no `mysql_error.log` do `data-novo`: 16 boots desde 22/08,
+- **Contagem medida em setembro no `mysql_error.log` do `data-novo`: 16 boots desde agosto,
   14 com crash recovery.** Os 2 sem crash recovery corrigem a frase "todos os boots" do
   item acima:
-  - o de **24/08 às 15:01:46** subiu **limpo**, sem `Starting crash recovery`
-  - o de **14/09 às 12:07:39** é a segunda instância benigna, que abortou antes de
+  - o de **agosto às 15:01:46** subiu **limpo**, sem `Starting crash recovery`
+  - o de **setembro às 12:07:39** é a segunda instância benigna, que abortou antes de
     recuperar (ver o ruído conhecido acima)
-- **O abort de I/O das 18:10 de 07/09 continua SEM causa.** Foi com a máquina de pé, com
+- **O abort de I/O das 18:10 de setembro continua SEM causa.** Foi com a máquina de pé, com
   APPCRASH do próprio `mysqld.exe` e "Tried to read … only able to read 0" — nada disso
   é tela azul. Os crash recoveries das 18:20 e das 20:25 do mesmo dia vêm **dessa**
   falha e da morte seguinte (≤18:22), e não de queda da máquina. O das **16:59**, o
@@ -1496,7 +1487,7 @@ desliga limpo". **Não** explica o abort de I/O das 18:10.
   máquina que caiu, ou se há também desligamentos de máquina de pé em que o `mysqld` não
   fecha limpo (serviço morto no shutdown do Windows, por exemplo) — **mais de uma causa**
   é a hipótese a descartar. É consulta de leitura, e **não foi feita**
-- ⚠️ **Desvio a declarar, pelo item 4 do roteiro abaixo:** no levantamento de 25/09 eu
+- ⚠️ **Desvio a declarar, pelo item 4 do roteiro abaixo:** no levantamento de setembro eu
   rodei `CHECK TABLE` em `wp_options`, `wp_newsgame_instances` e `wp_newsgame_dilemas`
   (os três `OK`) **antes** de ter a causa. Não era recorrência desta flag — a queda foi da
   máquina, e o boot já tinha feito crash recovery limpo —, mas o roteiro pede para não
@@ -1504,15 +1495,15 @@ desliga limpo". **Não** explica o abort de I/O das 18:10.
 
 ### Relação com o C10 — eleva o candidato, NÃO reabre o item
 
-O C10 (`wp_newsgame_dilemas` vazia em 19/08) recebeu em 24/08 um **mecanismo
+O C10 (`wp_newsgame_dilemas` vazia em agosto de 2026) recebeu em agosto de 2026 um **mecanismo
 candidato**: com `innodb_force_recovery` no nível 1, leitura de página corrompida
 **volta com zero linhas, sem erro e sem log**. Estava anotado como **inverificável**.
 
 Este episódio mostra o mesmo mecanismo — leitura devolvendo zero bytes — só que
-**ruidoso**, porque o `force_recovery` está **desligado** desde 22/08 e o InnoDB
+**ruidoso**, porque o `force_recovery` está **desligado** desde agosto e o InnoDB
 aborta em vez de ignorar. É o contraste exato que a FLAG 008 descreve.
 
-⚠️ **O que isto NÃO é:** evidência positiva do que aconteceu em 19/08. O C10 continua
+⚠️ **O que isto NÃO é:** evidência positiva do que aconteceu em agosto. O C10 continua
 sem hipótese sustentável e **não reabre**. O que muda é o status do candidato — de
 "mecanismo sem demonstração possível" para **"mecanismo demonstrado nesta máquina, com
 data e log"**.
@@ -1534,17 +1525,17 @@ Na ordem, e as três primeiras são grátis:
    o servidor é, ele mesmo, alteração de evidência
 
 **Ver também:** **FLAG 008** (mesma máquina, mesmo datadir, e a regra de que
-`force_recovery` é medida de emergência e não configuração), o **C10** e o aprendizado
-de método da §6 do `ROADMAP_OPEN_SOURCE.md` — *em perda de dado, medir antes de
+`force_recovery` é medida de emergência e não configuração), e o aprendizado
+de método do projeto — *em perda de dado, medir antes de
 restaurar*.
 
 ---
 
 ## FLAG 016 — Cobertura do classificador de erro de provedor: o `422` é o destino de tudo o que ele não pega
 
-**Status:** ✅ **RESOLVIDA em 2026-09-25** para os dois casos medidos (403 e 404) — ver
+**Status:** ✅ **RESOLVIDA em setembro de 2026** para os dois casos medidos (403 e 404) — ver
 a seção "Resolução" no fim desta flag. *Status original, preservado:* 🔴 **ABERTA —
-decisão, não tarefa.** Registrada em 2026-09-16, a partir de **dois casos medidos no
+decisão, não tarefa.** Registrada em setembro de 2026, a partir de **dois casos medidos no
 mesmo dia**, os dois no Gemini.
 
 **O que acontece.** As rotas de geração devolvem **422 "Não foi possível gerar um dilema
@@ -1569,7 +1560,7 @@ saindo como 422, inclusive erro que **retentar nunca resolve**.
 expõem nenhum dos três atributos lidos, então `_status_http()` devolve `None` e **o
 Gemini sempre cai no texto**.
 
-### Os dois casos medidos em 2026-09-16
+### Os dois casos medidos em setembro de 2026
 
 | caso | erro real do provedor | por que o classificador não pegou | o que o editor viu |
 |---|---|---|---|
@@ -1620,7 +1611,7 @@ acrescenta é o **custo medido** desse escopo, que antes era hipotético.
    não produziu dilema válido"*. É a maior das três e a única que resolve a **classe** em
    vez dos dois casos. Pede uma exceção irmã da `ErroDeProvedor`.
 
-### Resolução (2026-09-25)
+### Resolução (setembro de 2026)
 
 **A escolha não foi exatamente nenhuma das três saídas acima.** Ficou entre a 2 e a 3: lê
 o status do Gemini, mas **sem acoplar ao SDK**; e trata o 404 como erro de configuração,
@@ -1660,7 +1651,7 @@ onde 403 se confunde com nonce/permissão do WordPress e 404 com rota inexistent
 mesmo critério que fez a fase 0 escolher 502 em vez de 401. O código real do provedor
 vai **na mensagem**.
 
-✅ *Testes em 2026-09-25:*
+✅ *Testes em setembro de 2026:*
 - **Unidade, 15/15**, com as classes de exceção **reais** dos SDKs instalados: os dois
   casos desta flag; as regressões que **não** podiam mudar (429 de quota não-fatal, 429
   com "prepayment" fatal, 500 com "billing" não-fatal, chave inválida do Gemini pelo
@@ -1684,9 +1675,9 @@ de modelo inválido (a saída 3 citava "404/400") segue sem degrau próprio — 
 distingue modelo inválido de payload malformado. E qualquer erro sem status e sem
 marcador continua caindo no 422, que segue sendo o destino padrão.
 
-### Atualização de 2026-10-02 — cota separada de crédito (`59bbf84`)
+### Atualização de outubro de 2026 — cota separada de crédito (`59bbf84`)
 
-**O falso positivo do `"billing"` aconteceu de verdade.** Em 02/10, às 22:13, no
+**O falso positivo do `"billing"` aconteceu de verdade.** Em outubro, às 22:13, no
 `uvicorn.log`: a cota diária do plano gratuito do Gemini — 429, *"You exceeded your
 current quota, please check your plan and **billing** details"*,
 `generate_content_free_tier_requests, limit: 20`, *"Please retry in 22h46m"* — chegou
@@ -1711,29 +1702,28 @@ Era o marcador "largo demais" que a saída 1 desta flag já citava como preceden
   o informa.
 
 ✅ *Teste unitário:* `tests/test_classificador_cota.py`, **5 testes, OK** (rodados de
-novo em 05/10), com as exceções **reais** de `google.api_core` e `openai`. Contra o
+novo em outubro), com as exceções **reais** de `google.api_core` e `openai`. Contra o
 `generator.py` anterior ao `59bbf84`, 3 dos 5 falham. **Rótulo de cada texto, como
-está no teste:** só a mensagem de cota do Gemini é **real** (copiada do log de 02/10); a
+está no teste:** só a mensagem de cota do Gemini é **real** (copiada do log de outubro); a
 de crédito do Gemini é **fragmento** (o único registro é o commit `c6575cc`); as duas da
 OpenAI são **sintéticas**.
 
 ⚠️ **NÃO REPRODUZIDO em runtime depois da correção.** Nenhuma chamada real com cota
 esgotada passou pelo classificador novo: a chave trocada às 22:38 do mesmo dia não bateu
 no limite. A mensagem nova nunca foi vista pelo editor. E a prova dependeria do log do
-backend, que não é escrito em arquivo desde 03/10 (ver a FLAG 019).
+backend, que não é escrito em arquivo desde outubro (ver a FLAG 019).
 
 **Onde está:**
 - `backend-python/app/generator.py` — `_status_http()` (`:495`), `MARCADORES_CHAVE`
   (`:472`), `MARCADORES_CREDITO` (`:485`), `erro_de_chave()` (`:540`),
   `erro_fatal_de_provedor()` (`:556`), `detail_de_provedor()` (`:581`) — linhas de
-  16/09, deslocadas pela resolução; desde 25/09 também `_status_por_code()` e
+  setembro de 2026, deslocadas pela resolução; desde setembro de 2026 também `_status_por_code()` e
   `STATUS_CONFIG`
 - `backend-python/app/main.py` — as rotas que traduzem `ErroDeProvedor` para 502
 
 **Ver também:** **FLAG 001** (é o laço de validação + auto-reparo que produz o 422, e é
 por isso que ele é o destino padrão), **FLAG 012** (o SDK descontinuado é o que hoje
-decide qual caminho de exceção existe para o Gemini), e o item 4 do bloco de 16/09 na
-§10 do `CLAUDE.md`, que tem a evidência de log dos dois casos.
+decide qual caminho de exceção existe para o Gemini).
 
 ---
 
@@ -1741,7 +1731,7 @@ decide qual caminho de exceção existe para o Gemini), e o item 4 do bloco de 1
 
 **Status:** 🟡 **CORREÇÃO APLICADA, dívida residual registrada.** Não é "risco sem
 correção proposta": a linha existe, está em produção e foi calibrada. O que fica é a
-**natureza retrocompatível** do parâmetro e a revisão futura. Aberta em 2026-09-16
+**natureza retrocompatível** do parâmetro e a revisão futura. Aberta em setembro de 2026
 (commit `31902a6`).
 
 **O problema, medido.** O `gemini-3.6-flash` vem com raciocínio **LIGADO por default do
@@ -1824,15 +1814,15 @@ fonte, com a precisão extra de que *fonte certa* também importa.
   `gemini-3.6-flash`
 
 **Ver também:** **FLAG 012** (o upgrade que destrava o `thinking_level`), **FLAG 001** (o
-auto-reparo que a calibração exercitou sem acionar), **FLAG 016** (o 404 que expôs o
-modelo morto saiu como 422 enganoso) e o item 9 do bloco de 16/09 na §10 do `CLAUDE.md`.
+auto-reparo que a calibração exercitou sem acionar) e **FLAG 016** (o 404 que expôs o
+modelo morto saiu como 422 enganoso).
 
 ---
 
 ## FLAG 018 — `ajax_approve()` descarta `alternativa_correta` ao remontar o veredito
 
-**Status:** ✅ **CORRIGIDA na versão 1.1.2 (2026-10-27)** — ver "Correção" no fim desta
-FLAG. Registrada em 2026-09-25, a partir da aprovação do dilema 68 (instância 3,
+**Status:** ✅ **CORRIGIDA na versão 1.1.2 (outubro de 2026)** — ver "Correção" no fim desta
+FLAG. Registrada em setembro de 2026, a partir da aprovação do dilema 68 (instância 3,
 `jogo-teste-skin`) pelo handler real.
 
 **O que acontece.** `Newsgame_Review::ajax_approve()` (`class-newsgame-review.php:137`)
@@ -1848,7 +1838,7 @@ que existe hoje é `alternativa_correta`.
 - O botão **`💾 Salvar alterações`** das linhas aprovadas usa a **mesma action**, então
   salvar uma edição num aprovado também passa por aqui (e o campo já não existe mais)
 
-**Medido em 2026-09-25, no banco `jda` local:**
+**Medido em setembro de 2026, no banco `jda` local:**
 
 | status | total | com `alternativa_correta` |
 |---|---|---|
@@ -1859,7 +1849,7 @@ que existe hoje é `alternativa_correta`.
 - **24 dilemas passaram pela aprovação e perderam o campo:** os 23 aprovados hoje, mais o
   68, que foi aprovado e depois descartado na mesma sessão (o descarte só muda o status
   e não devolve nada). O outro descartado, o 58, também está sem o campo, o que é
-  coerente: ele foi aprovado antes de ser descartado pelo `/regenerate` em 16/09
+  coerente: ele foi aprovado antes de ser descartado pelo `/regenerate` em setembro
 - **Nenhum pendente foi afetado** — os cinco ainda têm o campo intacto
 - **Evidência direta da perda no 68:** antes da aprovação o veredito tinha
   `"alternativa_correta":"B"`, e depois não tinha mais. Título, enunciado, as três opções
@@ -1876,14 +1866,14 @@ algo voltar a consumi-lo.
 gerado e gravado corretamente e **se perde depois**, na revisão editorial.
 
 **Onde está a referência da medição:** o backup da linha do dilema 68 **antes** da
-aprovação está em `%TEMP%\ng-bk-dilema68-20260925-161613.sql` (3.399 bytes, com o
-veredito original). ⚠️ **`%TEMP%` é volátil:** mover para fora de lá se precisar dele.
+aprovação está num arquivo `.sql` na pasta temporária do desenvolvedor (3.399 bytes, com o
+veredito original). ⚠️ **A pasta temporária é volátil:** mover para fora de lá se precisar dele.
 
-**Ver também:** item "substituta id 68" no bloco de 16/09 da §10 do `CLAUDE.md`, e a
+**Ver também:** a
 família das escritas que regravam campo não enviado — o `image_id` já é tratado com
 `isset()` em `edited_fields()` justamente para não apagar o que o chamador não mandou.
 
-**Correção (2026-10-27, plugin 1.1.2).** `ajax_approve()` passou a ler o `veredicto` já
+**Correção (outubro de 2026, plugin 1.1.2).** `ajax_approve()` passou a ler o `veredicto` já
 gravado e a mesclá-lo com o que o formulário envia (`preservar_chaves_do_veredicto()`):
 as chaves editadas (`desfecho`, `licao`, `sintese`) ganham, as demais
 (`alternativa_correta`) continuam. A função só é chamada se `$data['veredicto']` existir
@@ -1899,10 +1889,10 @@ sintoma para o jogador.
 ## FLAG 019 — Gemini devolve `.content` como LISTA, e não como string, de forma intermitente
 
 **Status:** 🟡 **Mitigado no código, NÃO REPRODUZIDO depois da mitigação.** Registrado
-em 2026-10-05, sobre medições de 2026-10-02. O helper `texto_da_resposta()` entrou no
+em outubro de 2026, sobre medições do mesmo mês. O helper `texto_da_resposta()` entrou no
 `59bbf84` e **nunca foi exercitado em runtime contra uma lista real**.
 
-### O que foi medido (02/10, `uvicorn.log`)
+### O que foi medido (outubro, `uvicorn.log`)
 
 | Rota | Quando | Erro | Resposta |
 |---|---|---|---|
@@ -1910,9 +1900,9 @@ em 2026-10-05, sobre medições de 2026-10-02. O helper `texto_da_resposta()` en
 | `/generate-one` | 17:47:05, 17:50:34 e 17:52:15 — **3 de 8 chamadas** | `AttributeError("'list' object has no attribute 'replace'")` | **422** cada. Não é rate limit, então cai no `break`: o slot teve **uma** tentativa, embora `max_retries_batch=5` |
 
 **Na fonte instalada** (`langchain-google-genai` 2.1.12, `chat_models.py:572-588` e
-`:600-618`, conferido de novo em 05/10), o `content` vira lista em dois casos: resposta
+`:600-618`, conferido de novo em outubro), o `content` vira lista em dois casos: resposta
 com **mais de uma parte de texto** (lista de `str`) ou com uma parte `thought` (dict
-`{"type": "thinking"}`). **Qual dos dois aconteceu em 02/10 NÃO está medido.**
+`{"type": "thinking"}`). **Qual dos dois aconteceu em outubro NÃO está medido.**
 
 ### A mitigação (`59bbf84`)
 
@@ -1929,7 +1919,7 @@ provedor.*
 
 ### Não reproduzido
 
-Sonda em runtime em 02/10, às 22:38, **com outra chave e outro projeto do Google**: 8
+Sonda em runtime em outubro, às 22:38, **com outra chave e outro projeto do Google**: 8
 `/generate-one` e 2 `/analyze-domain` direto no backend, **10/10 com HTTP 200**,
 `/generate-one` em 3–4 s e `/analyze-domain` em 9 s, e **zero** linhas
 `[texto_da_resposta]` — todas as respostas vieram como string.
@@ -1946,9 +1936,9 @@ A linha `[texto_da_resposta]` no log do backend traz os tipos de bloco e decide 
 entre "várias partes de texto" (`str`) e "raciocínio" (`thinking`).
 
 ⚠️ **O sinal de reabertura depende de um log que hoje não existe.** O
-`backend-python/uvicorn.log` não é escrito desde 03/10, às 00:08: o uvicorn em execução
+`backend-python/uvicorn.log` não é escrito desde outubro, às 00:08: o uvicorn em execução
 loga só no terminal. Um warning `[texto_da_resposta]` emitido agora **se perde** quando
-o terminal fecha. Um log próprio do backend em arquivo foi pedido em 05/10 como
+o terminal fecha. Um log próprio do backend em arquivo foi pedido em outubro como
 proposta, e ainda não foi entregue nem aplicado.
 
 **Onde está:**
@@ -1969,9 +1959,9 @@ FLAG 001), **FLAG 017** (a hipótese do raciocínio ligado).
 ## FLAG 020 — Painel de contexto (`.ng-feedback`) reprovava o AA no pior caso
 
 **Status:** 🟡 **Resolvido nas skins que declaram o próprio painel — a Padrão inclusive,
-desde `376976b` (2026-10-07).** Segue aberta, na Padrão, a trava "Leia antes de avançar"
-abaixo de 4,5:1 — ver a atualização de 2026-10-07, no fim desta FLAG. Registrado em
-2026-10-05, a partir do defeito achado pelo editor em partida real na skin `drama`
+desde `376976b` (outubro de 2026).** Segue aberta, na Padrão, a trava "Leia antes de avançar"
+abaixo de 4,5:1 — ver a atualização de outubro de 2026, no fim desta FLAG. Registrado em
+outubro de 2026, a partir do defeito achado pelo editor em partida real na skin `drama`
 ("cartão de contexto", 2,7:1 e 4,0:1).
 
 ### O mecanismo
@@ -1999,10 +1989,10 @@ dele (percentis 1 e 99 de luminância) — o pior caso de cada elemento. Mínimo
 | `neutro`, `colorido`, `futurista` | 2,07 a 2,17 | — | **deixam de contar**: removidas em `0700353` |
 
 A linha da `default` descreve o estado depois de `6561d68`; a Padrão mudou em
-`376976b` — ver a atualização de 2026-10-07, abaixo.
+`376976b` — ver a atualização de outubro de 2026, abaixo.
 
 O defeito atingia **6 das 7** skins de então — todas menos a `pixel`, que já tinha
-painel próprio (a contagem "5" que circulou em 05/10 era das seis **outras** além da
+painel próprio (a contagem "5" que circulou em outubro era das seis **outras** além da
 drama, sem a pixel). Os 2,7 e 4,0 do editor na drama batem com o pior caso escuro e
 claro medido (2,59 e 3,99).
 
@@ -2014,10 +2004,10 @@ claro medido (2,59 e 3,99).
 - **`drama` e `mono`** declaram o par na própria folha: caixa chapada e tinta escura
 - **Prova com os arquivos reais:** estilo computado do painel e dos três textos
   **IDÊNTICO** antes e depois na `default` e na `pixel`
-- Contrato na **regra 13** da §5.4 do `GEMINI.md`: skin que precisa de outro painel
+- Contrato: skin que precisa de outro painel
   sobrescreve o par, declarando os dois tokens
 
-### Por que a Padrão fica reprovando *(superado em 2026-10-07 — ver abaixo)*
+### Por que a Padrão fica reprovando *(superado em outubro de 2026 — ver abaixo)*
 
 **Decisão do editor:** o padrão do par é o comportamento atual da Padrão e não muda
 por causa de outra skin; alinhar a Padrão ao Jogo da Amazônia original é tarefa
@@ -2029,24 +2019,23 @@ imagens que estiverem atrás do painel no jogo real. Não é número do JDA.
 - `news-game-plugin/public/css/newsgame-game.css` — os tokens do par e
   `--ng-feedback-chapado` (junto dos de vidro); `.ng-feedback`,
   `.ng-feedback-text`, `.ng-feedback-hint`. A `.ng-feedback-consequence`, que estava nesta
-  lista, saiu em 16/10 (`795a3d5`): a consequência da alternativa deixou de ser exibida na
+  lista, saiu em outubro (`795a3d5`): a consequência da alternativa deixou de ser exibida na
   tela de contexto (`97f770c`)
 - `news-game-plugin/public/css/skins/skin-drama.css` e `skin-mono.css` — o par
 - `news-game-plugin/public/css/skins/skin-pixel.css` — a regra de componente anterior
 - `news-game-plugin/public/css/skins/skin-default.css` — o par da Padrão, desde `376976b`
 
 **Ver também:** **FLAG 009** (contraste de tokens de alpha baixo no base — mesma
-família de defeito, outro token), a regra 13 da §5.4 do `GEMINI.md` e a tarefa de
-alinhar a Padrão ao JDA, junto ao H3 no roadmap.
+família de defeito, outro token) e a tarefa de
+alinhar a Padrão ao JDA.
 
-### Atualização de 2026-10-07 — a Padrão declara o par do JDA (`376976b`)
+### Atualização de outubro de 2026 — a Padrão declara o par do JDA (`376976b`)
 
 - **A premissa estava errada.** O vidro do base (`--ng-feedback-glass`, branco a .30)
   foi descrito como reprodução do `.consequencia-toast` do JDA. Ele copiou
   `jda-base.css:1109`, que no JDA **perde** na cascata. O que vence é
   `jda-base.css:1956` — fundo `rgba(247,255,247,.98)` — com a consequência em `#1B480C`
-  (`:1961`). Medido por estilo computado em 390, 680, 820 e 1340 px. A regra 13 da §5.4
-  do `GEMINI.md` foi corrigida junto.
+  (`:1961`). Medido por estilo computado em 390, 680, 820 e 1340 px.
 - **O painel do JDA também declara `#2A5C1A`** (`jda-base.css:1551`, cor do próprio
   `.consequencia-toast`), e **nenhum texto visível a usa**: a consequência, a dica, o botão
   e as etiquetas do placar têm cor própria.
@@ -2061,7 +2050,6 @@ alinhar a Padrão ao JDA, junto ao H3 no roadmap.
   - consequência e desfecho: 9,97:1
   - trava "Leia antes de avançar" (tinta cheia com opacidade .7): **4,36:1, abaixo de
     4,5**. No JDA, a dica é a tinta a .5 com opacidade .85 (2,24:1 pelo mesmo método).
-    Pendência do bloco (c) do alinhamento, no §10 do `CLAUDE.md`
   - botão travado "Continuar em Ns": 1,79:1 (JDA 2,41:1). A causa é a opacidade .45 do
     estado desabilitado, nos dois lados; a WCAG não exige contraste de controle
     desabilitado
@@ -2070,7 +2058,7 @@ alinhar a Padrão ao JDA, junto ao H3 no roadmap.
 
 ## FLAG 021 — Smart App Control bloqueia o `hnswlib` do ChromaDB, de forma intermitente
 
-**Status:** 🔵 Registrado em 2026-10-09. **Achado de AMBIENTE desta máquina, não defeito
+**Status:** 🔵 Registrado em outubro de 2026. **Achado de AMBIENTE desta máquina, não defeito
 do produto.** Decisão do editor: **não mexer no sistema** (nem no Smart App Control, nem
 em política, nem em arquivo); se a geração falhar com 500 "Erro interno", **reiniciar o
 backend**.
@@ -2093,23 +2081,23 @@ fora do ar enquanto o bloqueio durar.
 | Item | Resultado |
 |---|---|
 | Arquivo bloqueado | `backend-python\.venv\Lib\site-packages\hnswlib.cp312-win_amd64.pyd` (400.896 bytes) |
-| Assinatura | **`NotSigned`**; modificado em 15/05/2026 22:07, junto da instalação de `chroma_hnswlib-0.7.6` e `chromadb-0.5.11` no `.venv` |
-| Log `Microsoft-Windows-CodeIntegrity/Operational` | **dois** eventos **3077** (bloqueio, não auditoria) para o arquivo: **2026-10-02 16:58** e **2026-10-09 15:41** (o teste); política **`VerifiedAndReputableDesktop`** (PolicyID `27555.1000.240208`), a do Smart App Control; nível de assinatura pedido 2, validado 1 |
-| Alcance do log | começa em 13/08; o **primeiro 3077 de qualquer arquivo** é de **02/10 às 16:19** |
+| Assinatura | **`NotSigned`**; modificado em maio de 2026 22:07, junto da instalação de `chroma_hnswlib-0.7.6` e `chromadb-0.5.11` no `.venv` |
+| Log `Microsoft-Windows-CodeIntegrity/Operational` | **dois** eventos **3077** (bloqueio, não auditoria) para o arquivo: **outubro de 2026, 16:58** e **15:41** (o teste, no mesmo mês); política **`VerifiedAndReputableDesktop`** (PolicyID `27555.1000.240208`), a do Smart App Control; nível de assinatura pedido 2, validado 1 |
+| Alcance do log | começa em agosto; o **primeiro 3077 de qualquer arquivo** é de **outubro às 16:19** |
 | Smart App Control | `HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy\VerifiedAndReputablePolicyState = 1` (ligado, em modo de bloqueio), lido sem elevar |
 | Python fora do `.venv` | não tem `chromadb` nem `hnswlib` (`ModuleNotFoundError`); não serve de comparação |
 | No `.venv`, minutos depois | `import hnswlib` **funcionou**, sem 3077 novo. No mesmo dia, um segundo backend temporário rodou o RAG até o provedor sem bloqueio |
 
 ### O que NÃO está verificado
 
-- **Por que é intermitente.** A geração funcionou em 02/10 às 22:38, horas depois do
+- **Por que é intermitente.** A geração funcionou em outubro às 22:38, horas depois do
   bloqueio das 16:58. Duas hipóteses, **nenhuma testada**: (1) a decisão do Smart App
   Control depende de uma consulta de reputação na nuvem, que pode responder diferente a
   cada carga; (2) um processo que já tinha a DLL carregada não volta a ser checado — o
   uvicorn do editor pode ter carregado o `hnswlib` antes do bloqueio e seguido no ar.
-- **O que ligou o bloqueio em 02/10.** Não há 3077 de nenhum arquivo antes disso.
+- **O que ligou o bloqueio em outubro.** Não há 3077 de nenhum arquivo antes disso.
 
-### Opções levantadas em 09/10 (nenhuma aplicada)
+### Opções levantadas em outubro (nenhuma aplicada)
 
 | Opção | Risco |
 |---|---|
@@ -2128,7 +2116,7 @@ e `hnswlib` no traceback é este caso, e não o provedor.
 
 ## FLAG 022 — Filtro "ano mínimo": o trecho sem o metadado `ano` sai SEM AVISO
 
-**Status:** ✅ **Tratada na versão 1.2.0 (2026-10-27)**, com prova em teste.
+**Status:** ✅ **Tratada na versão 1.2.0 (outubro de 2026)**, com prova em teste.
 
 ### A armadilha
 
@@ -2183,9 +2171,9 @@ análise do acervo (`/analyze-domain`) não consulta o índice e não usa o filt
 
 ---
 
-## Arquivo — FLAGS do projeto de origem (E:\jogo-da-amazonia)
+## Arquivo — FLAGS do projeto de origem (Jogo da Amazônia)
 
-> As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original** em `E:\jogo-da-amazonia`.
+> As FLAGS abaixo documentam dívida técnica do **Jogo da Amazônia original**, no repositório do projeto de origem.
 > **Não se aplicam ao news-game.** Preservadas como referência histórica — especialmente as decisões
 > de CSS (position:fixed, mobile breakpoints, jQuery vs CSS transitions) que podem informar escolhas
 > futuras no plugin universal.
@@ -2195,7 +2183,7 @@ análise do acervo (`/analyze-domain`) não consulta o índice e não usa o filt
 
 ### FLAG 1 — Detecção Dinâmica de Ambiente no wp-config.php
 
-**Status:** ✅ Atualizado em 2026-04-17 — eliminada a "chave seletora manual".
+**Status:** ✅ Atualizado em abril de 2026 — eliminada a "chave seletora manual".
 
 **Problema original:**
 O Ngrok força HTTPS no túnel externo mas o WordPress servia recursos via HTTP.
@@ -2223,7 +2211,7 @@ if ( isset( $_SERVER['HTTP_HOST'] ) && false !== strpos( $_SERVER['HTTP_HOST'], 
 **Risco remanescente:**
 O bloco de HTTPS (Passo 1) pode causar **redirect loop** em servidor de produção com SSL nativo (Pantheon.io, WP Engine). Remover antes do deploy.
 
-**Onde está:** `C:/xampp/htdocs/jda/wp-config.php` (ambiente local JDA)
+**Onde está:** `wp-config.php` do ambiente local do projeto de origem
 
 ---
 
@@ -2253,7 +2241,7 @@ O jogo "flutua" sobre todo o conteúdo do WordPress. O menu de navegação do te
 **Ação necessária no futuro:**
 Para o plugin open source, substituir por uma abordagem de template exclusivo (sem tema) — o plugin já tem o mecanismo de `template_include` para isso.
 
-**Onde está:** `E:/jogo-da-amazonia/jogo-da-amazonia-plugin/assets/jda.css`
+**Onde está:** `assets/jda.css`, no plugin do projeto de origem
 
 ---
 
@@ -2276,18 +2264,18 @@ Em produção, `time()` garante que o navegador **nunca** use cache — cada pag
 **Ação necessária antes do deploy definitivo:**
 Substituir `time()` por número de versão semântico fixo (ex: `'1.0.3'`) ou hash do arquivo.
 
-**Onde está:** `E:/jogo-da-amazonia/jogo-da-amazonia-plugin/veredito.php`
+**Onde está:** `veredito.php`, no plugin do projeto de origem
 
 ---
 
 ### FLAG 4 — CSS Híbrido Mobile/Desktop (Scroll vs. Fixed)
 
-**Status:** ✅ Resolvido em 2026-05-11 — faixa de tablet 768–1024px estabilizada como `Stable`.
+**Status:** ✅ Resolvido em maio de 2026 — faixa de tablet 768–1024px estabilizada como `Stable`.
 
 **Problema original:**
 O `position: fixed` do FLAG 2 resolvia o desktop mas travava o scroll no mobile.
 
-**Resolução implementada (2026-05-11):**
+**Resolução implementada (maio de 2026):**
 
 1. Removidos os blocos de frame portrait (`min-width:600 and max-width:1024`).
 2. Unificado o breakpoint estrutural de `(max-width: 768px)` para `(max-width: 1024px)` em 9 regras críticas em `jda-mobile.css`.
@@ -2299,8 +2287,8 @@ O `position: fixed` do FLAG 2 resolvia o desktop mas travava o scroll no mobile.
 Híbridos como Surface com mouse + touch entram em `body.jda-touch` mas mantêm layout desktop. Ajustar com `pointer: fine` via `matchMedia` se necessário.
 
 **Onde está:**
-- `E:/jogo-da-amazonia/jogo-amazonia-plugin/assets/jda-mobile.css`
-- `E:/jogo-da-amazonia/jogo-amazonia-plugin/assets/js/jogo-amazonia.js`
+- `assets/jda-mobile.css`, no plugin do projeto de origem
+- `assets/js/jogo-amazonia.js`, no plugin do projeto de origem
 
 ---
 
@@ -2315,13 +2303,13 @@ O `jda.js` usa jQuery (`.fadeIn()`, `.fadeOut()`, `.hide()`, `.slideDown()`) par
 **Solução definitiva (pendente):**
 Substituir por CSS puro: `switchState()` com `.addClass('active')` + `@keyframes`; `loadDilema()` com `opacity: 0 → 1` via classe CSS sem alterar `display`.
 
-**Onde está:** `E:/jogo-da-amazonia/jogo-da-amazonia-plugin/assets/jda.js`
+**Onde está:** `assets/jda.js`, no plugin do projeto de origem
 
 ---
 
 ### FLAG 6 — Sistema de Cores Off-White (Editorial Minimalista)
 
-**O que mudou em 29/03/2026:**
+**O que mudou em março de 2026:**
 O design do `#jda-state-game` migrou de glassmorphism escuro para o padrão **Editorial Minimalista**.
 
 | Token | Valor | Uso |
@@ -2334,7 +2322,7 @@ O design do `#jda-state-game` migrou de glassmorphism escuro para o padrão **Ed
 **Risco de regressão:**
 A `theme-amazonia.css` tem seção de **blindagem** (`!important`) no final. Novas regras adicionadas acima sem `!important` são sobrescritas silenciosamente.
 
-**Onde está:** `E:/jogo-da-amazonia/jogo-da-amazonia-plugin/assets/css/skins/theme-amazonia.css`
+**Onde está:** `assets/css/skins/theme-amazonia.css`, no plugin do projeto de origem
 
 ---
 
@@ -2346,7 +2334,7 @@ Seletores duplicados se acumularam silenciosamente. A regra mais antiga sobrescr
 **Regra estabelecida:**
 > Antes de aplicar qualquer novo estilo a um seletor existente, inspecionar o arquivo CSS completo e remover ou consolidar todas as ocorrências anteriores. Nunca empilhar regras — resolver o conflito na fonte.
 
-**Onde já causou problema:** Consolidação do `style_v3.css` em 04/04/2026.
+**Onde já causou problema:** Consolidação do `style_v3.css` em abril de 2026.
 
 ---
 

@@ -34,7 +34,7 @@ vulnerabilidade:
 - **Chave do provedor de IA e Token do Backend em texto claro no banco do WordPress**
   (`wp_options`), visíveis no código-fonte da tela de configurações para
   administradores. Decisão registrada: aceitar e documentar (FLAG 011 de
-  `TECH_FLAGS.md`; mitigações em `README_PORTABILIDADE.md`, seção "Modelo de
+  `docs/TECH_FLAGS.md`; mitigações em `README_PORTABILIDADE.md`, seção "Modelo de
   segurança").
 - **O limite de uso por editor** (10 ou 60 ações por minuto) protege contra erro
   operacional, não contra abuso deliberado de um administrador (FLAG 004).

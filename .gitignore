@@ -96,3 +96,10 @@ vendor/
 wp-config.php
 npm-debug.log*
 yarn-error.log*
+
+# documentos internos de trabalho (não publicar)
+CLAUDE.md
+GEMINI.md
+HISTORICO_SESSOES.md
+ROADMAP_OPEN_SOURCE.md
+ROADMAP_PRE_GENERALIZACAO_*.md

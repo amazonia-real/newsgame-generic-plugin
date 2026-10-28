@@ -6,7 +6,7 @@ labels: sugestão
 ---
 
 <!--
-Antes de escrever, procure o assunto em ROADMAP_OPEN_SOURCE.md e TECH_FLAGS.md:
+Antes de escrever, procure o assunto em docs/ROADMAP.md e docs/TECH_FLAGS.md:
 muitas decisões já estão registradas lá, com o motivo.
 -->
 

@@ -3,7 +3,7 @@ uvicorn[standard]==0.30.6
 pydantic==2.9.2
 pydantic-settings==2.15.0
 langchain==0.3.27
-# Fixada na 2.1.12, e nao na 4.x, por decisao de 2026-09-05 (FLAG 012 parcial).
+# Fixada na 2.1.12, e nao na 4.x, por decisao de setembro de 2026 (FLAG 012 parcial).
 # A 2.1.12 importa google.ai.generativelanguage_v1beta e tira do ar o pacote
 # google-generativeai, que a Google declarou obsoleto; exige apenas
 # langchain-core>=0.3.75, portanto NAO sai da linha 0.3. A 4.x exigiria
@@ -11,7 +11,7 @@ langchain==0.3.27
 langchain-google-genai==2.1.12
 # ⚠️ TETO EM <1.0 DELIBERADO. A linha 1.x do langchain-deepseek arrasta
 # langchain-core 1.x, que conflita com langchain-google-genai 2.1.12 e
-# langchain-huggingface 0.1.0 — medido em 2026-09-04. A 0.1.4 mantem tudo na
+# langchain-huggingface 0.1.0 — medido em setembro de 2026. A 0.1.4 mantem tudo na
 # linha 0.3 e expoe os dois parametros que o projeto usa: o alias `model` e
 # `extra_body` (necessario para desligar o modo thinking do DeepSeek).
 langchain-deepseek==0.1.4
@@ -24,7 +24,7 @@ langchain-deepseek==0.1.4
 # do langchain-core — a linha 1.x reverteria o teto do langchain-deepseek.
 langchain-openai==0.3.35
 # ⚠️ TETO NA LINHA 0.3 PELO MESMO MOTIVO DO langchain-deepseek ACIMA, e aqui a
-# medicao e de 2026-09-15: a versao corrente (1.7.2) arrasta langchain-core de
+# medicao e de setembro de 2026: a versao corrente (1.7.2) arrasta langchain-core de
 # 0.3.86 para 1.6.3 — salto de MAJOR —, que reverteria o teto dos dois pacotes
 # acima. A 0.3.22 pede apenas langchain-core<1.0.0,>=0.3.78, entao o 0.3.86 que
 # ja esta instalado satisfaz.

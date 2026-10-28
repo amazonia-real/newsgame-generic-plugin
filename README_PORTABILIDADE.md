@@ -8,8 +8,8 @@
 | Componente | Versão mínima | Notas |
 |------------|---------------|-------|
 | WordPress | 6.0 | PHP 8.1+ |
-| Python | 3.11 | Para o backend FastAPI |
-| pip + venv | — | Incluídos no Python 3.11+ |
+| Python | 3.11 (versão testada) | Para o backend FastAPI |
+| pip + venv | — | Incluídos no Python 3.11 |
 | Chave de API de **um** provedor de IA | — | Gemini, DeepSeek, OpenAI ou Claude. O Gemini tem nível gratuito — [aistudio.google.com](https://aistudio.google.com/) |
 | ChromaDB | — | Instalado via pip; sem servidor separado necessário |
 
@@ -574,7 +574,7 @@ provedor, gerar com ela.
 ### Exemplo de cabeçalho CSP (Content-Security-Policy)
 
 > ⚠️ **Não testado em servidor real.** O que foi provado: uma partida completa em
-> Chrome headless, em 25/09/2026, com `script-src 'self'; style-src 'self'` injetada no
+> Chrome headless, em setembro de 2026, com `script-src 'self'; style-src 'self'` injetada no
 > documento — **nenhuma** violação veio do plugin. As demais diretivas abaixo saem da
 > leitura do código atual, e o jogo ganhou fontes, capa e imagens depois daquela prova.
 
@@ -591,7 +591,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 Ajustes que dependem do site, não do plugin:
 
 - **Tema e núcleo do WordPress:** a promessa é do **plugin**. O núcleo do WordPress e o
-  tema costumam emitir `<style>` e `<script>` inline — no teste de 25/09, todas as 28
+  tema costumam emitir `<style>` e `<script>` inline — no teste de setembro, todas as 28
   violações vieram deles (tema Twenty Twenty-Five). Com eles, o site pode precisar de
   `'unsafe-inline'` ou de *nonces* por conta própria.
 - **Mídia em outro domínio** (CDN ou armazenamento externo): acrescente o domínio em

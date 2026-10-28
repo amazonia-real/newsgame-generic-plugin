@@ -2,7 +2,7 @@
 
 Obrigado pelo interesse. Este guia diz como propor uma mudança e o que o projeto
 espera dela. O estado do trabalho e as prioridades estão em
-`ROADMAP_OPEN_SOURCE.md`; a dívida técnica conhecida, em `TECH_FLAGS.md`. Leia os
+`docs/ROADMAP.md`; a dívida técnica conhecida, em `docs/TECH_FLAGS.md`. Leia os
 dois antes de começar algo grande — muita coisa já tem decisão registrada.
 
 > **Falha de segurança não vai em issue pública.** Veja `SECURITY.md`.
@@ -33,7 +33,7 @@ dois antes de começar algo grande — muita coisa já tem decisão registrada.
 - **Superfície pública sem `'unsafe-inline'`:** nada de `<script>` com código nem de
   atributo `style=` no HTML do jogo. Valor calculado em tempo de execução é aplicado
   por propriedade (`el.style.width = …`), nunca por `setAttribute('style', …)` nem
-  `style.cssText`. Motivo e histórico na FLAG 007 de `TECH_FLAGS.md`.
+  `style.cssText`. Motivo e histórico na FLAG 007 de `docs/TECH_FLAGS.md`.
 - **Segredos nunca no navegador.** Toda chamada ao backend passa pelo PHP, com o
   cabeçalho `X-Api-Key`. Rota nova segue o mesmo padrão (FLAG 003).
 - **Não edite `FEW_SHOT_EXAMPLES.md`** sem aprovação explícita do mantenedor: são os
