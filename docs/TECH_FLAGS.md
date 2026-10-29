@@ -1,6 +1,7 @@
 # Tech Flags — Dívida Técnica Monitorada
 > Consulte este arquivo antes de qualquer alteração no backend ou no plugin.
 > Os códigos como A3, B8, C10 e H1 que aparecem ao longo do texto são identificadores do plano de trabalho interno do projeto, não de um documento público.
+> Hashes de commit anteriores a julho de 2026 referem-se ao histórico original, reescrito antes da publicação, e não existem neste repositório.
 > FLAGS 001+ documentam decisões do news-game. Arquivo ao final contém FLAGS herdadas do JDA.
 
 ---
