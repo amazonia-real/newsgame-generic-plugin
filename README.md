@@ -314,6 +314,8 @@ A direção do projeto está em [`docs/ROADMAP.md`](docs/ROADMAP.md); a dívida 
 em [`docs/TECH_FLAGS.md`](docs/TECH_FLAGS.md); as diretrizes de geração de conteúdo, em
 `AGENTS.md`.
 
+**Contato.** Dúvidas de instalação ou de uso: abra uma issue com o modelo "Pergunta". Contato do projeto: jogodamazonia@amazoniareal.com.br. Falha de segurança: só pelo e-mail do `SECURITY.md`, nunca em issue pública.
+
 ---
 
 *Originado no [Jogo da Amazônia](https://github.com/amazonia-real) — jornalismo interativo da maior floresta tropical do mundo.*
