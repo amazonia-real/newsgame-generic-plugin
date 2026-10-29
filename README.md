@@ -6,6 +6,8 @@
 > (3.11 is the tested version; Docker is the documented path). Install guide: [`docs/INSTALACAO_BACKEND.md`](docs/INSTALACAO_BACKEND.md)
 > (in Portuguese). Roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md). License: GPL-2.0-or-later
 > ([`LICENSE`](LICENSE)). The interface and the documentation are in Portuguese.
+>
+> **AI disclosure.** Designed, directed and reviewed by journalist Eduardo Nunomura; much of the code was written with generative AI tools (Claude and Gemini). See [`docs/DEVELOPING_WITH_AI.en.md`](docs/DEVELOPING_WITH_AI.en.md).
 
 Plugin WordPress open source para criar jogos de dilemas interativos
 a partir do acervo editorial de qualquer veículo jornalístico.
@@ -255,9 +257,11 @@ news-game/
 ├── AGENTS.md              ← diretrizes de geração de conteúdo
 ├── LICENSE                ← GPL-2.0-or-later
 └── docs/
-    ├── INSTALACAO_BACKEND.md ← instalação do backend em servidor
-    ├── ROADMAP.md            ← direção do projeto
-    └── TECH_FLAGS.md         ← decisões de arquitetura e dívida técnica
+    ├── DEVELOPING_WITH_AI.en.md    ← desenvolvimento com IA: falhas e regras (inglês)
+    ├── DEVELOPING_WITH_AI.pt-BR.md ← desenvolvimento com IA: falhas e regras (português)
+    ├── INSTALACAO_BACKEND.md       ← instalação do backend em servidor
+    ├── ROADMAP.md                  ← direção do projeto
+    └── TECH_FLAGS.md               ← decisões de arquitetura e dívida técnica
 ```
 
 ---
@@ -293,6 +297,16 @@ ou pelo body. Preencha só a do provedor que o backend deve atender sozinho.
 
 ---
 
+## Uso de IA
+
+O Jogo da Amazônia e o News Game Plugin foram concebidos, dirigidos e revisados pelo jornalista Eduardo Nunomura, atuando como coordenador do projeto da Amazônia Real. O código foi escrito, em boa parte, por ferramentas de IA generativa, em vibe coding: o Claude (Claude.ai e Claude Code, da Anthropic) e o Gemini (Google). Estimativa do autor: cerca de 60% do trabalho com o Claude e 40% com o Gemini.
+
+Todas as decisões de produto são do autor. O código escrito por IA é apresentado em diff e só entra no repositório depois da aprovação do autor, e o que ainda não foi testado em execução está marcado como tal na documentação do projeto. A autoria por ferramenta é registrada nesta declaração, e não commit a commit.
+
+As perguntas geradas pelo plugin passam obrigatoriamente pela Mesa Editorial, com revisão humana antes de ir ao ar.
+
+As falhas encontradas e as regras que adotamos para desenvolver com IA com segurança estão em [Desenvolvimento com IA no News Game Plugin](docs/DEVELOPING_WITH_AI.pt-BR.md) ([English version](docs/DEVELOPING_WITH_AI.en.md)).
+
 ## Contribuição
 
 Veja `CONTRIBUTING.md` para contribuir e `SECURITY.md` para relatar falhas de segurança.
@@ -303,11 +317,3 @@ em [`docs/TECH_FLAGS.md`](docs/TECH_FLAGS.md); as diretrizes de geração de con
 ---
 
 *Originado no [Jogo da Amazônia](https://github.com/amazonia-real) — jornalismo interativo da maior floresta tropical do mundo.*
-
-## Uso de IA
-
-O Jogo da Amazônia e o News Game Plugin foram inteiramente desenvolvidos pelo jornalista Eduardo Nunomura, em vibe coding com o apoio de ferramentas de IA generativa: o Claude (Claude.ai e Claude Code, da Anthropic) e o Gemini (Google). Cerca de 80% do trabalho foi feito com o Claude e 20% com o Gemini.
-
-Todas as decisões de produto são do autor. O código escrito por IA é apresentado em diff e revisado antes de cada commit, e o que ainda não foi testado em execução está marcado como tal na documentação do projeto. A autoria por ferramenta é registrada nesta declaração, e não commit a commit.
-
-As perguntas geradas pelo plugin passam obrigatoriamente pela Mesa Editorial, com revisão humana antes de ir ao ar.
