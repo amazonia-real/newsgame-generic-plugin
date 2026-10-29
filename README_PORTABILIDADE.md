@@ -375,7 +375,22 @@ Tamanhos recomendados:
   tela cheia**; o jogador volta para ele pela aba original. O **"Compartilhar"** abre o menu do
   aparelho também em tela cheia, e o menu pode tirar o jogo da tela cheia; sem menu
   disponível, ele copia o link.
-- Não testado com leitor de tela real.
+- **Celular na horizontal.** O jogo foi desenhado para a vertical. Deitado, o
+  celular dá pouco espaço útil: no iPhone testado é preciso rolar para ver todas
+  as alternativas. No iPad a horizontal funciona. Em outros celulares deitados o
+  comportamento não foi verificado. Recomendação: jogar com o celular em pé.
+  Melhoria prevista no [ROADMAP](docs/ROADMAP.md) ("Celular na horizontal").
+- **Tela cheia no iPhone.** O Safari do iPhone não oferece a API de tela cheia
+  para elementos; o botão fica oculto nesse aparelho. No iPad e nos
+  navegadores de computador ele aparece.
+- **Esc sai da tela cheia.** Comportamento do navegador, não do plugin.
+- **Compartilhar no Firefox para computador.** Sem `navigator.share`, o botão
+  copia o link ("Link copiado!") em vez de abrir a janela de compartilhamento.
+- **Acessibilidade.** Não testado com leitor de tela real nem com navegação só
+  por teclado.
+- **Cache de páginas.** A limpeza automática ao trocar a instância foi testada
+  com LiteSpeed Cache; shortcodes fora do conteúdo do post, CDNs como
+  Cloudflare e outros plugins de cache não têm garantia.
 - **"Ano mínimo dos textos"** (opcional, por instância; plugin 1.2.0): com o filtro
   ativo, os textos **sem data conhecida ficam de fora** da geração das perguntas, assim
   como os publicados antes do ano escolhido. O acervo precisa ter sido indexado com o

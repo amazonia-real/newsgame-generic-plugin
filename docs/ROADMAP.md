@@ -52,6 +52,10 @@ verificação, e não para infraestrutura.
 
 Em ordem aproximada de interesse, não de compromisso:
 
+- **Celular na horizontal:** layout em duas colunas ou aviso para girar o aparelho.
+  No iPhone deitado só aparece o começo das alternativas (é preciso rolar). Conferir
+  também o painel de contexto no Android deitado: uma tentativa de ajuste só com CSS
+  para janela baixa deixou o texto do contexto cortado e sem rolagem lá.
 - **Documentação de segurança para equipes de TI:** uma seção "Modelo de segurança" e um
   exemplo de cabeçalho de política de conteúdo, para quem precisa aprovar a instalação.
 - **Instalação do zero medida por quem é de fora do projeto:** todo atrito encontrado
