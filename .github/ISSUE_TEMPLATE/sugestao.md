@@ -2,7 +2,7 @@
 name: Sugestão
 about: Proposta de funcionalidade ou de mudança
 title: "[Sugestão] "
-labels: sugestão
+labels: enhancement
 ---
 
 <!--

@@ -2,7 +2,7 @@
 name: Defeito
 about: Algo no plugin ou no backend não funciona como deveria
 title: "[Defeito] "
-labels: defeito
+labels: bug
 ---
 
 <!--
