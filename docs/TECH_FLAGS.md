@@ -61,7 +61,7 @@ editor na interface WordPress.
 ## FLAG 002 — Complexidade Ciclomática do JavaScript
 
 **Status:** ✅ Implementado — A4, agosto de 2026. **Cobertura completada pelo A3 em
-agosto de 2026** (`30f8b17`).
+agosto de 2026** (`4590680`).
 
 **Cobertura: todo o JS do plugin — 1.982 linhas.** 1.279 em `admin/js/` (6
 arquivos) e 703 em `public/js/`. Até agosto eram ~33%: a trava alcançava dois
@@ -114,7 +114,7 @@ ciclomática. Durante a fase de UX, o JS vai crescer significativamente.
 
 > ⚠️ *A tabela acima é a auditoria de **agosto de 2026** e fica como registro: duas das
 > funções listadas **não existem mais**. `buildNarrativa` e `renderVeredicto` foram
-> removidas em agosto (`67aea9a`) — a primeira por ficar sem chamador com o veredito
+> removidas em agosto (`93014c5`) — a primeira por ficar sem chamador com o veredito
 > simplificado, a segunda renomeada para `renderFeedback` na anatomia do JDA. O
 > `buildRadarSVG` caiu de 12 para **exatamente 10** na fase 1 do H2 e segue no teto,
 > com margem zero.*
@@ -233,7 +233,7 @@ chunks no ChromaDB ao reingerir o mesmo artigo; e ~150 linhas de um fluxo de pol
 em background que nunca era alcançado no plugin.
 
 **Solução implementada:**
-- **A1** (`cfe686b`): throttle de 5 requisições/min por IP em
+- **A1** (`f8f7653`): throttle de 5 requisições/min por IP em
   `ajax_generate_verdict`; cache de 24h por `instance_id` + vetor arredondado.
   **⚠️ Este código não existe mais — ver correção abaixo.**
 - **A3** (`91d357e`): `chroma_dir` passa a vir de `get_settings().chroma_db_dir`, com
@@ -255,11 +255,11 @@ em background que nunca era alcançado no plugin.
 **O throttle do A1 foi deletado um mês depois de ser criado, e esta FLAG
 registrou como implementado algo que já não existia.**
 
-O commit seguinte ao `cfe686b` neste mesmo arquivo foi o `6347b4c` ("veredito
+O commit seguinte ao `f8f7653` neste mesmo arquivo foi o `a1fc227` ("veredito
 dinâmico local"), que moveu o cálculo do veredito para o JS e removeu 94
 linhas de `class-newsgame-shortcodes.php` — levando o endpoint AJAX inteiro,
 com throttle e cache dentro. A FLAG 004 foi redigida retroativamente em
-`c5d7700` (julho de 2026) sem notar a remoção.
+`f8000c8` (julho de 2026) sem notar a remoção.
 
 Estado medido em agosto de 2026, antes da correção: `grep` por
 `set_transient|get_transient|rate.?limit|throttle` no plugin inteiro não
@@ -415,7 +415,7 @@ auditoria de segurança de julho de 2026 encontrou **dados pessoais de terceiros
 histórico foi reescrito com `git filter-repo` (removendo `acervo_amazonia*`,
 `jogo-amazonia-plugin/` herdado e `.claude/`, e redigindo senhas de teste e de ambiente), o repositório do GitHub foi **deletado e recriado** — não
 foi `push --force`, para não deixar blobs órfãos alcançáveis pela API — e o
-histórico limpo foi enviado. Novo HEAD de referência: `eab2329`. Pack de ~88 MB
+histórico limpo foi enviado. Novo HEAD de referência: `94c8cdc`. Pack de ~88 MB
 para ~1 MB.
 
 **Consequência prática:** qualquer clone anterior a julho de 2026 está obsoleto e
@@ -432,7 +432,7 @@ o relatório de reauditoria de julho de 2026).
 ## FLAG 007 — Compatibilidade com CSP estrita (pré-requisito de distribuição)
 
 **Status:** 🟡 Parcial — superfície **pública** fechada em agosto de 2026 (passos 1 e 2),
-superfície **autenticada** em agosto de 2026 (passo 3, `30f8b17`). Segue parcial por
+superfície **autenticada** em agosto de 2026 (passo 3, `4590680`). Segue parcial por
 causa do **passo 4** (exemplo de CSP no README). A dependência do **A5** caiu em
 **setembro de 2026**: a superfície pública passou a funcionar sem `'unsafe-inline'` também
 em `style-src`, e o passo 4 está desbloqueado.
@@ -450,10 +450,10 @@ Diagnóstico original de julho de 2026.
 > `style-src`, logo abaixo.
 
 **Validado em runtime em agosto de 2026** — não marcado ✅ por revisão de código:
-- **Passo 1** (`f2dcffd`): jogo carregado do início ao fim, dilemas corretos,
+- **Passo 1** (`ac761a2`): jogo carregado do início ao fim, dilemas corretos,
   `Ctrl+U` confirmou o bloco `application/json` e a ausência de
   `window._ngGame_` na página
-- **Passo 2** (`bb51370`): `newsgame-admin-instances.js` servido com `200`, caixa
+- **Passo 2** (`4c8c854`): `newsgame-admin-instances.js` servido com `200`, caixa
   de confirmação com o nome da instância entre `«»` e a segunda linha separada,
   `Cancelar` mantendo na listagem sem excluir
 
@@ -528,10 +528,10 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
 
 ### Ordem de execução sugerida
 
-1. ✅ **O par acima** (`f2dcffd`, agosto de 2026) — fecha a superfície pública. É o
+1. ✅ **O par acima** (`ac761a2`, agosto de 2026) — fecha a superfície pública. É o
    item que habilita a promessa "compatível com CSP estrita" no README.
 2. ✅ `onclick="return confirm(...)"` de `page-instances.php:84` →
-   `addEventListener` (`bb51370`, agosto de 2026).
+   `addEventListener` (`4c8c854`, agosto de 2026).
 
    **Custou mais que as ~2 linhas previstas aqui, e vale registrar por quê:** o
    plugin não tinha **nenhum** `admin_enqueue_scripts` — os únicos enqueues
@@ -547,7 +547,7 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    **obrigatório** (o destino deixou de ser string JS e passou a ser atributo
    HTML), e o `\n\n` precisa ser newline real do PHP — `&#10;` não serve,
    porque o `esc_attr` escaparia o `&`.
-3. ✅ **Concluído em agosto de 2026** (`30f8b17`, item A3 do roadmap) — os 5
+3. ✅ **Concluído em agosto de 2026** (`4590680`, item A3 do roadmap) — os 5
    `<script>` inline do admin viraram arquivos `.js` enfileirados com
    `wp_enqueue_script`, dados via `wp_localize_script`.
    **`page-instance-form.php` 1529 → 546 linhas; `page-settings.php` 183 → 110.**
@@ -605,7 +605,7 @@ fechar o `</script>` de dentro do JSON — mantê-lo é obrigatório.
    > mecanismo que script inline exige `script-src` — não é uma classe
    > diferente de problema, e **as 5 acionam a diretiva**.
    >
-   > *Eram 6 até agosto de 2026. O `67aea9a` (agosto) baixou para 5 por consequência
+   > *Eram 6 até agosto de 2026. O `93014c5` (agosto) baixou para 5 por consequência
    > da extração do `buildProgress()`, que fundiu num só os dois atributos de
    > largura da barra de progresso — as duas telas montavam o mesmo HTML. O grupo
    > dinâmico passou de 2 ocorrências para 1. **Nenhum dos 4 grupos foi fechado**,
@@ -905,7 +905,7 @@ nasceu dentro da view.
   especificidade, **o inline vence** — inclusive contra uma regra escrita depois no
   arquivo novo. Se um seletor for declarado nas duas casas, quem manda é a view.
 - **Ordem de chegada difere.** O CSS do seletor chega no `<head>`, junto com o resto do
-  admin; o do bloco antigo chega com o corpo. É a mesma forma do FOUC que o `fa4b7ed`
+  admin; o do bloco antigo chega com o corpo. É a mesma forma do FOUC que o `e1444c6`
   consertou na superfície do jogador, e aqui **não** foi tratada como defeito: a tela é
   autenticada, não é o produto, e o estado sem CSS dela nunca foi confundido com o final.
 
@@ -1049,18 +1049,18 @@ superfície **autenticada**. Não somar as duas.
 
 ## FLAG 012 — SDK do Gemini descontinuado (`google-generativeai` → `google-genai`)
 
-**Status:** 🟡 **PARCIALMENTE RESOLVIDA desde setembro de 2026** (commit `5641fcc`) — status
+**Status:** 🟡 **PARCIALMENTE RESOLVIDA desde setembro de 2026** (commit `efdfd37`) — status
 corrigido em setembro de 2026. A mensagem daquele commit já dizia *"Fecha a FLAG 012
 parcialmente"*, mas esta flag nunca havia sido atualizada. *Status original,
 preservado:* 🔴 Aberto — **não é urgente por quebra; é dívida com prazo de validade.**
 Registrado em setembro de 2026, no diagnóstico da abstração de provedor.
 
-> ✅ **O que JÁ foi resolvido (setembro, `5641fcc`).** `langchain-google-genai` passou de
+> ✅ **O que JÁ foi resolvido (setembro, `efdfd37`).** `langchain-google-genai` passou de
 > **2.0.1 para 2.1.12**, que importa `google.ai.generativelanguage_v1beta` e **dispensa o
 > `google-generativeai`**, o pacote descontinuado. Conferido no venv em setembro:
 > `google-generativeai` **ausente**, `google-ai-generativelanguage 0.12.0` presente, e a
 > 2.1.12 pede só `langchain-core>=0.3.75`. Por isso **não saiu da linha 0.3** e o teto
-> `<1.0` do `64cc21e` ficou intacto. O `FutureWarning` de fim de suporte transcrito
+> `<1.0` do `cd36f87` ficou intacto. O `FutureWarning` de fim de suporte transcrito
 > abaixo **não aparece mais**. O texto de setembro abaixo descreve o estado **anterior** e
 > fica como histórico: as versões (`2.0.1`, `0.8.6`) e as linhas citadas em "Onde está"
 > não valem mais.
@@ -1274,7 +1274,7 @@ tipo de executável gerado pelo pip, mas **não foi visto bloqueado** — o READ
 ## FLAG 014 — Impacto zerado em 24 de 24 dilemas: restrição declarada onde o LLM não lê
 
 **Status:** 🟡 **Parcial.** A **causa** foi corrigida em setembro de 2026 (commit
-`259b779`) e validada nos dois provedores. O **dado histórico** segue zerado: os
+`ebc12ce`) e validada nos dois provedores. O **dado histórico** segue zerado: os
 24 dilemas que já estão no banco não foram regerados.
 
 **Problema:**
@@ -1299,7 +1299,7 @@ FLAG 001 (JSON de texto, sem structured output) valer, toda regra que o LLM
 precisa obedecer tem de estar **no texto do prompt**. Vale para qualquer campo
 novo, não só para o `impacto`.
 
-**Correção aplicada (`259b779`):** instrução em texto logo depois do schema,
+**Correção aplicada (`ebc12ce`):** instrução em texto logo depois do schema,
 declarando a faixa e proibindo escala 0–100; e os três exemplos passaram a ter
 valores diferenciados (`-3/5`, `7/-4`, `2/1`), com forma de trade-off, para que a
 cópia literal não volte a zerar.
@@ -1579,7 +1579,7 @@ um modelo retirado do ar. É a mesma mensagem enganosa que o passo 5b eliminou p
 
 ⚠️ **ATUALIZAÇÃO DA MESMA DATA, À TARDE: o GATILHO do caso 2 foi corrigido; o DEFEITO
 DESTA FLAG, NÃO.** O `LLM_MODEL` passou a apontar para `gemini-3.6-flash` (commit
-`31902a6`), então aquele 404 específico não ocorre mais. Mas isso é **remoção da causa a
+`bcaf942`), então aquele 404 específico não ocorre mais. Mas isso é **remoção da causa a
 montante**, não conserto da classificação: um 404 de modelo inexistente — por typo no
 `.env`, por outro modelo ser retirado do ar, ou na próxima instalação que copie um
 `LLM_MODEL` inválido — **continua saindo como 422 "não foi possível gerar um dilema
@@ -1675,7 +1675,7 @@ de modelo inválido (a saída 3 citava "404/400") segue sem degrau próprio — 
 distingue modelo inválido de payload malformado. E qualquer erro sem status e sem
 marcador continua caindo no 422, que segue sendo o destino padrão.
 
-### Atualização de outubro de 2026 — cota separada de crédito (`59bbf84`)
+### Atualização de outubro de 2026 — cota separada de crédito (`6d1f069`)
 
 **O falso positivo do `"billing"` aconteceu de verdade.** Em outubro, às 22:13, no
 `uvicorn.log`: a cota diária do plano gratuito do Gemini — 429, *"You exceeded your
@@ -1703,9 +1703,9 @@ Era o marcador "largo demais" que a saída 1 desta flag já citava como preceden
 
 ✅ *Teste unitário:* `tests/test_classificador_cota.py`, **5 testes, OK** (rodados de
 novo em outubro), com as exceções **reais** de `google.api_core` e `openai`. Contra o
-`generator.py` anterior ao `59bbf84`, 3 dos 5 falham. **Rótulo de cada texto, como
+`generator.py` anterior ao `6d1f069`, 3 dos 5 falham. **Rótulo de cada texto, como
 está no teste:** só a mensagem de cota do Gemini é **real** (copiada do log de outubro); a
-de crédito do Gemini é **fragmento** (o único registro é o commit `c6575cc`); as duas da
+de crédito do Gemini é **fragmento** (o único registro é o commit `4ce2065`); as duas da
 OpenAI são **sintéticas**.
 
 ⚠️ **NÃO REPRODUZIDO em runtime depois da correção.** Nenhuma chamada real com cota
@@ -1732,7 +1732,7 @@ decide qual caminho de exceção existe para o Gemini).
 **Status:** 🟡 **CORREÇÃO APLICADA, dívida residual registrada.** Não é "risco sem
 correção proposta": a linha existe, está em produção e foi calibrada. O que fica é a
 **natureza retrocompatível** do parâmetro e a revisão futura. Aberta em setembro de 2026
-(commit `31902a6`).
+(commit `bcaf942`).
 
 **O problema, medido.** O `gemini-3.6-flash` vem com raciocínio **LIGADO por default do
 servidor**, e o `_cliente_gemini()` era o único dos quatro construtores sem controle
@@ -1792,7 +1792,7 @@ executar:
 1. ⚠️ **O piso é `minimal`, que REDUZ e NÃO ZERA** — a troca **não** é equivalente e
    precisa ser **remedida** com `usage_metadata`, não assumida.
 2. ⚠️ **O upgrade é de dois majors** (2.1.12 → 4.4.0) e mexe na mesma árvore que o
-   `64cc21e` pagou para segurar: o `langchain-core` está preso na linha 0.3 por conflito
+   `cd36f87` pagou para segurar: o `langchain-core` está preso na linha 0.3 por conflito
    declarado. **Não é ajuste de parâmetro, é decisão de dependência.**
 
 ### Lição de método que esta flag carrega
@@ -1890,7 +1890,7 @@ sintoma para o jogador.
 
 **Status:** 🟡 **Mitigado no código, NÃO REPRODUZIDO depois da mitigação.** Registrado
 em outubro de 2026, sobre medições do mesmo mês. O helper `texto_da_resposta()` entrou no
-`59bbf84` e **nunca foi exercitado em runtime contra uma lista real**.
+`6d1f069` e **nunca foi exercitado em runtime contra uma lista real**.
 
 ### O que foi medido (outubro, `uvicorn.log`)
 
@@ -1904,7 +1904,7 @@ em outubro de 2026, sobre medições do mesmo mês. O helper `texto_da_resposta(
 com **mais de uma parte de texto** (lista de `str`) ou com uma parte `thought` (dict
 `{"type": "thinking"}`). **Qual dos dois aconteceu em outubro NÃO está medido.**
 
-### A mitigação (`59bbf84`)
+### A mitigação (`6d1f069`)
 
 `generator.texto_da_resposta()`, aplicado nos três pontos que leem `.content`:
 `generate_one_dilema`, `regenerator.generate_one` e `main._invoke_llm` (o ponto único
@@ -1959,7 +1959,7 @@ FLAG 001), **FLAG 017** (a hipótese do raciocínio ligado).
 ## FLAG 020 — Painel de contexto (`.ng-feedback`) reprovava o AA no pior caso
 
 **Status:** 🟡 **Resolvido nas skins que declaram o próprio painel — a Padrão inclusive,
-desde `376976b` (outubro de 2026).** Segue aberta, na Padrão, a trava "Leia antes de avançar"
+desde `f019c83` (outubro de 2026).** Segue aberta, na Padrão, a trava "Leia antes de avançar"
 abaixo de 4,5:1 — ver a atualização de outubro de 2026, no fim desta FLAG. Registrado em
 outubro de 2026, a partir do defeito achado pelo editor em partida real na skin `drama`
 ("cartão de contexto", 2,7:1 e 4,0:1).
@@ -1986,17 +1986,17 @@ dele (percentis 1 e 99 de luminância) — o pior caso de cada elemento. Mínimo
 | `pixel` | 7,15 | 7,15 — sem mudança | passa: regra de componente própria, painel escuro a 94% |
 | `drama` | 2,23 (texto 2,62) | **6,91** (trava); consequência e texto **16,53** | passa — caixa chapada |
 | `mono` | 2,07 (texto 2,42) | **6,94** (trava); consequência e texto **16,16** | passa — caixa chapada |
-| `neutro`, `colorido`, `futurista` | 2,07 a 2,17 | — | **deixam de contar**: removidas em `0700353` |
+| `neutro`, `colorido`, `futurista` | 2,07 a 2,17 | — | **deixam de contar**: removidas em `7fe1599` |
 
-A linha da `default` descreve o estado depois de `6561d68`; a Padrão mudou em
-`376976b` — ver a atualização de outubro de 2026, abaixo.
+A linha da `default` descreve o estado depois de `c642c4b`; a Padrão mudou em
+`f019c83` — ver a atualização de outubro de 2026, abaixo.
 
 O defeito atingia **6 das 7** skins de então — todas menos a `pixel`, que já tinha
 painel próprio (a contagem "5" que circulou em outubro era das seis **outras** além da
 drama, sem a pixel). Os 2,7 e 4,0 do editor na drama batem com o pior caso escuro e
 claro medido (2,59 e 3,99).
 
-### A resolução (`6561d68`)
+### A resolução (`c642c4b`)
 
 - **Base:** par `--ng-feedback-bg` / `--ng-feedback-ink`, com padrão **igual ao
   comportamento de hoje** (vidro claro + `--ng-bg`), e a caixa opaca pronta
@@ -2019,17 +2019,17 @@ imagens que estiverem atrás do painel no jogo real. Não é número do JDA.
 - `news-game-plugin/public/css/newsgame-game.css` — os tokens do par e
   `--ng-feedback-chapado` (junto dos de vidro); `.ng-feedback`,
   `.ng-feedback-text`, `.ng-feedback-hint`. A `.ng-feedback-consequence`, que estava nesta
-  lista, saiu em outubro (`795a3d5`): a consequência da alternativa deixou de ser exibida na
-  tela de contexto (`97f770c`)
+  lista, saiu em outubro (`fb0b1fc`): a consequência da alternativa deixou de ser exibida na
+  tela de contexto (`f236878`)
 - `news-game-plugin/public/css/skins/skin-drama.css` e `skin-mono.css` — o par
 - `news-game-plugin/public/css/skins/skin-pixel.css` — a regra de componente anterior
-- `news-game-plugin/public/css/skins/skin-default.css` — o par da Padrão, desde `376976b`
+- `news-game-plugin/public/css/skins/skin-default.css` — o par da Padrão, desde `f019c83`
 
 **Ver também:** **FLAG 009** (contraste de tokens de alpha baixo no base — mesma
 família de defeito, outro token) e a tarefa de
 alinhar a Padrão ao JDA.
 
-### Atualização de outubro de 2026 — a Padrão declara o par do JDA (`376976b`)
+### Atualização de outubro de 2026 — a Padrão declara o par do JDA (`f019c83`)
 
 - **A premissa estava errada.** O vidro do base (`--ng-feedback-glass`, branco a .30)
   foi descrito como reprodução do `.consequencia-toast` do JDA. Ele copiou
@@ -2066,7 +2066,7 @@ backend**.
 ### O sintoma
 
 `POST /generate-one` respondeu **500 "Erro interno"** num backend temporário em
-`127.0.0.1:8001` (teste do commit `7848a1f`). O traceback para em `rag.get_collection`
+`127.0.0.1:8001` (teste do commit `df286cf`). O traceback para em `rag.get_collection`
 (`generator.py`, ao abrir a coleção) e termina em:
 
 ```
