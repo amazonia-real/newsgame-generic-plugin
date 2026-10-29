@@ -491,7 +491,41 @@ Use esta lista ao adaptar o plugin para um novo domínio editorial:
 
 ---
 
-## 7. Modelo de segurança
+## 7. Medição de uso (GA4)
+
+O plugin não grava respostas, não mostra estatísticas e não tem relatório próprio: ele apenas **emite eventos** para o Google Analytics 4 que o site já tem (por `gtag` ou por GTM/`dataLayer`), e é no GA4 do veículo que os números aparecem. Sem GA4 na página, não envia nada e o jogo funciona igual. Não há opção no painel para ligar ou desligar: a medição acompanha o que o site já tem. O veículo é o dono dos dados e da propriedade do GA4.
+
+**Eventos**
+
+| Evento | Quando | Parâmetros próprios |
+|---|---|---|
+| `ng_inicio` | começo de cada partida (inclui "Jogar novamente") | `n` (perguntas da partida), `conjunto` (aprovadas disponíveis) |
+| `ng_pergunta_vista` | cada pergunta exibida | `etapa`, `total`, `dilema_id`, `dilema_titulo` |
+| `ng_resposta` | cada escolha | os da pergunta, mais `alternativa`, `posicao` e, quando há pesos, `peso_1` a `peso_3` |
+| `ng_fim` | fim da partida | `tela` (`veredito` ou `generica`) e, no veredito, `perfil` |
+
+Todos levam também `instancia` (ID da instância), `skin` e `partida_n` (contador por carregamento da página; sobe a cada partida).
+
+Os relatórios e o funil são montados no GA4 do próprio veículo; o plugin não os entrega.
+
+**Configurar no GA4 (editor ou analista)**
+
+1. Registre os parâmetros como dimensões personalizadas, com escopo de **evento** (em Administrador, procure "Definições personalizadas" / "Custom definitions"; os nomes dos menus mudam). Sem esse registro, o GA4 recebe os eventos mas não mostra os parâmetros nos relatórios. Sugestão de dimensões: `instancia`, `skin`, `etapa`, `perfil`, `tela`, `dilema_titulo`. O nome do parâmetro deve ser idêntico ao da tabela. A dimensão só vale para eventos novos e pode levar até um dia para aparecer.
+2. Parâmetros numéricos (`etapa`, `total`, `n`, `conjunto`, `partida_n`, `posicao`, `peso_1` a `peso_3`) podem ir como dimensão (para filtrar e segmentar) ou como métrica (para somar e tirar média).
+3. Funil: em Explorar, crie uma "Exploração de funil" com os passos `ng_inicio`, depois um passo por pergunta (`ng_pergunta_vista` com `etapa` = 1, 2, 3…) e, por último, `ng_fim`. Segmente por `instancia` e `skin`.
+4. Para conferir ao vivo, use o DebugView do GA4 enquanto joga.
+
+**Consentimento e LGPD**
+
+O plugin **não verifica consentimento**: emite sempre que a página tem `gtag` ou `dataLayer`. Cabe ao veículo decidir o que o GA4 pode coletar. Com Consent Mode ou outro gerenciador de consentimento, configure-o para o GA4 só disparar depois do aceite. Com GTM puro, o evento entra no `dataLayer` de qualquer forma; quem bloqueia é a tag dentro do GTM. O plugin não envia nome, e-mail nem identificador do jogador, mas os eventos ficam ligados ao identificador de cliente do GA4 do site, e a política de privacidade do veículo deve mencionar o jogo. Isto não é aconselhamento jurídico: confirme com o jurídico do veículo.
+
+**Limites e verificação**
+
+O GA4 limita o valor de parâmetros de texto (confirme o limite atual na documentação do Google); o plugin já corta `dilema_titulo` e `perfil` em 100 caracteres. A emissão dos eventos foi testada com `gtag` simulado e `dataLayer` em navegador automatizado, e ainda não foi conferida no DebugView de uma propriedade real: confira na sua.
+
+---
+
+## 8. Modelo de segurança
 
 > Para quem aprova a instalação (TI, segurança, direção). Descreve o que o código faz
 > hoje; o que não foi provado está marcado como tal.
@@ -512,7 +546,8 @@ eventos são `ng_inicio` (`n`, `conjunto`), `ng_pergunta_vista` (`etapa`, `total
 `dilema_id`, `dilema_titulo`), `ng_resposta` (os da pergunta mais `alternativa`,
 `posicao` e, quando há pesos, `peso_1` a `peso_3`) e `ng_fim` (`tela`, que é `veredito`
 ou `generica`, e `perfil` no veredito). Todos levam também `instancia`, `skin` e
-`partida_n`. Nenhum dado do jogador.
+`partida_n`. Nenhum dado do jogador. Detalhes e configuração em
+[Medição de uso (GA4)](#7-medição-de-uso-ga4).
 
 ### Autenticação entre o WordPress e o backend
 

@@ -44,6 +44,7 @@ verificação, e não para infraestrutura.
   para a página do jogador; o tema do site pode exigir regras próprias, e a área
   administrativa não está coberta.
 - Chave do provedor e token do backend nunca expostos ao navegador do leitor.
+- **Medição de uso (GA4):** o jogo emite eventos para o GA4 do próprio site, sem script nem painel próprios; guia em `README_PORTABILIDADE.md`, seção 7.
 
 ---
 
@@ -68,8 +69,6 @@ Em ordem aproximada de interesse, não de compromisso:
   do Gemini e as dependências do LangChain para as linhas mais novas.
 - **Testes automatizados versionados** no repositório (hoje parte da verificação é feita
   por roteiros manuais e sondas descartáveis).
-- **Medição de uso (GA4):** documentação para a TI e para o editor dos eventos que o
-  plugin já emite no `gtag`/`dataLayer` do próprio site.
 - **Internacionalização:** hoje todos os textos da interface estão em português;
   decidir entre internacionalizar ou remover a declaração de domínio de tradução.
 - **Acessibilidade:** teste com leitor de tela real (ainda não feito).
