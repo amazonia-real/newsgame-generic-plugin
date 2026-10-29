@@ -214,6 +214,72 @@ class Newsgame_Shortcodes {
     }
 
     /**
+     * Limpa o cache de página dos posts que exibem a instância.
+     *
+     * Skin, textos, perguntas aprovadas, pesos e eixos saem no HTML do
+     * shortcode. Com plugin de cache, o visitante anônimo seguia recebendo a
+     * página antiga até alguém esvaziar o cache à mão; logado, o cache é pulado
+     * e o editor via a mudança, o que escondia o defeito. A instância não é um
+     * post, e salvá-la não aciona a limpeza que os plugins de cache já fazem
+     * ao salvar posts — daí esta função, chamada pelos handlers DEPOIS de a
+     * escrita dar certo.
+     *
+     * Só roda nos handlers do admin, nunca no front-end. A busca lê os posts
+     * PUBLICADOS cujo conteúdo tem `[news-game` (um LIKE na wp_posts) e confere
+     * o ID pelos atributos do shortcode. Não alcança shortcode fora do
+     * `post_content` (template, construtor de página) nem CDN: para esses, o
+     * gancho `newsgame_instancia_salva` e o "Purge All" manual — ver
+     * README_PORTABILIDADE.md.
+     *
+     * @param int $instance_id Instância alterada.
+     * @return int[] IDs dos posts cujo cache foi limpo.
+     */
+    public static function limpar_cache_paginas( $instance_id ) {
+        global $wpdb;
+
+        $instance_id = (int) $instance_id;
+        if ( ! $instance_id ) {
+            return array();
+        }
+
+        $candidatos = $wpdb->get_results( $wpdb->prepare(
+            "SELECT ID, post_content FROM {$wpdb->posts}
+              WHERE post_status = 'publish' AND post_content LIKE %s",
+            '%' . $wpdb->esc_like( '[news-game' ) . '%'
+        ) );
+
+        $post_ids = array();
+        foreach ( (array) $candidatos as $p ) {
+            if ( in_array( $instance_id, self::instance_ids_in( $p->post_content ), true ) ) {
+                $post_ids[] = (int) $p->ID;
+            }
+        }
+
+        // Cada plugin de cache só é chamado se estiver ativo.
+        foreach ( $post_ids as $pid ) {
+            clean_post_cache( $pid );
+            if ( has_action( 'litespeed_purge_post' ) ) {
+                do_action( 'litespeed_purge_post', $pid );
+            }
+            if ( function_exists( 'rocket_clean_post' ) ) {
+                rocket_clean_post( $pid );
+            }
+            if ( function_exists( 'w3tc_flush_post' ) ) {
+                w3tc_flush_post( $pid );
+            }
+            if ( function_exists( 'wp_cache_post_change' ) ) {
+                wp_cache_post_change( $pid );
+            }
+        }
+
+        // Gancho para outro cache ou CDN. Dispara mesmo sem post encontrado:
+        // quem usa o shortcode fora do conteúdo do post pode limpar por conta própria.
+        do_action( 'newsgame_instancia_salva', $instance_id, $post_ids );
+
+        return $post_ids;
+    }
+
+    /**
      * Receita da partida no lado do jogador (item 58, rodada C), pura: recebe a
      * instância e as linhas APROVADAS e devolve as que vão ao jogo e a receita
      * que o JS segue no sorteio.

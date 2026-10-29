@@ -234,7 +234,8 @@ $page_title = $is_edit
   <?php endif; ?>
 
   <?php if ( isset( $_GET['saved'] ) && $is_edit ) : ?>
-    <div class="notice notice-success is-dismissible"><p>Salvo ✓</p></div>
+    <?php // O aviso de cache sai só no salvamento da instância, não a cada ação da Mesa. ?>
+    <div class="notice notice-success is-dismissible"><p>Alterações salvas. Se o site usa cache de servidor ou CDN (por exemplo, o Cache Manager da hospedagem), limpe esse cache para o visitante ver a mudança.</p></div>
   <?php endif; ?>
 
   <?php if ( isset( $_GET['error'] ) && 'title_required' === $_GET['error'] ) : ?>

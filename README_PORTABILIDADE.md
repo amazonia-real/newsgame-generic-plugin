@@ -156,6 +156,18 @@ cache guarda no servidor.
 O cache costuma ter camadas (plugin de cache e cache do próprio servidor): depois de
 trocar a skin ou atualizar o plugin, limpe todas.
 
+**Limpeza automática ao editar a instância.** Salvar a instância ou a matriz de eixos,
+aprovar, devolver ou pesar perguntas, limpar ou excluir a instância limpa o cache de
+página dos posts **publicados** que têm `[news-game id="N"]` no conteúdo, no LiteSpeed
+Cache, WP Rocket, W3 Total Cache e WP Super Cache, quando ativos. **Verificado na
+Hostinger com o plugin LiteSpeed Cache ativo**, com o cache de servidor do Cache Manager
+do hPanel ligado e desligado: trocar a skin e salvar atualizou a página para o visitante
+anônimo, sem limpeza manual. Sem garantia: outras hospedagens, Cloudflare e outras CDNs,
+o WP Fastest Cache e shortcode fora do conteúdo do post (template, construtor de
+página). Nesses casos, use o gancho `newsgame_instancia_salva` (`$instance_id`,
+`$post_ids`) ou faça o "Purge All" manual. Recomendação: deixe **uma só camada** de cache
+de página ligada (o plugin de cache ou o cache do servidor), e não as duas.
+
 ---
 
 ### Desinstalar o plugin

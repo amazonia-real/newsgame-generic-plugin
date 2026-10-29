@@ -17,7 +17,7 @@ $status_colors = array(
   <hr class="wp-header-end">
 
   <?php if ( isset( $_GET['saved'] ) ) : ?>
-    <div class="notice notice-success is-dismissible"><p>Instância salva com sucesso.</p></div>
+    <div class="notice notice-success is-dismissible"><p>Alterações salvas. Se o site usa cache de servidor ou CDN (por exemplo, o Cache Manager da hospedagem), limpe esse cache para o visitante ver a mudança.</p></div>
   <?php endif; ?>
   <?php if ( isset( $_GET['deleted'] ) ) : ?>
     <div class="notice notice-success is-dismissible"><p>Instância excluída.</p></div>

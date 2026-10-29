@@ -484,6 +484,10 @@ class Newsgame_Admin_Instances {
             exit;
         }
 
+        // Skin, capa e textos da instância saem no HTML do shortcode: a página
+        // em cache seguiria mostrando o estado anterior ao visitante anônimo.
+        Newsgame_Shortcodes::limpar_cache_paginas( $id );
+
         /*
          * Destino do save: só 'stay' ou 'list', padrão 'stay'. 'stay' volta ao
          * formulário com `saved=1` — o editor segue trabalhando, e na criação a
@@ -567,6 +571,10 @@ class Newsgame_Admin_Instances {
         if ( $apagada ) {
             delete_option( 'newsgame_axis_backup_' . $id );
         }
+
+        // A página que ainda tem o shortcode passa a mostrar o aviso de instância
+        // inexistente, e não o jogo guardado no cache.
+        Newsgame_Shortcodes::limpar_cache_paginas( $id );
 
         wp_safe_redirect( add_query_arg( array(
             'page'    => 'newsgame-instances',
@@ -841,6 +849,9 @@ class Newsgame_Admin_Instances {
         if ( false === $result ) {
             wp_send_json_error( array( 'msg' => 'Falha ao salvar no banco: ' . $wpdb->last_error ) );
         }
+
+        // Eixos e perfis vão ao jogo no JSON do shortcode.
+        Newsgame_Shortcodes::limpar_cache_paginas( $instance_id );
 
         wp_send_json_success( array( 'msg' => 'Matriz de eixos salva.' ) );
     }
@@ -1141,6 +1152,11 @@ class Newsgame_Admin_Instances {
          * count resolve, e é ele que alimenta o mesmo aviso da tela de edição.
          */
         $restam = self::count_unweighted_approved( $instance_id );
+
+        // Os pesos vão ao jogo no JSON do shortcode. Sem nada gravado, nada a limpar.
+        if ( $res['updated'] ) {
+            Newsgame_Shortcodes::limpar_cache_paginas( $instance_id );
+        }
 
         if ( $force ) {
             $msg = "Pesos reatribuídos para {$res['updated']} dilema(s).";

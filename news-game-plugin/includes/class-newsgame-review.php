@@ -174,6 +174,8 @@ class Newsgame_Review {
             if ( false === $zerado ) {
                 $erro = $wpdb->last_error ?: 'o banco não informou a causa.';
                 error_log( "[Newsgame] reset de axis_weights falhou no dilema {$id} — MySQL: {$erro}" );
+                // A aprovação está gravada e o jogo já a mostra.
+                Newsgame_Shortcodes::limpar_cache_paginas( $instance_id );
                 wp_send_json_error( array(
                     'msg' => 'A aprovação FOI gravada, mas o peso de eixo antigo não foi'
                         . ' zerado e agora descreve o texto anterior. Use "⚖ Atribuir'
@@ -181,6 +183,9 @@ class Newsgame_Review {
                 ) );
             }
         }
+
+        // Aprovar, ou salvar a edição de uma aprovada, muda o conjunto do jogo.
+        Newsgame_Shortcodes::limpar_cache_paginas( $instance_id );
 
         wp_send_json_success( array( 'msg' => 'Aprovada.' ) );
     }
@@ -242,6 +247,9 @@ class Newsgame_Review {
             array( '%s', '%d' ), array( '%d' )
         );
         self::abort_on_db_error( $gravado, 'a devolução para revisão' );
+
+        // Devolver uma aprovada a tira do jogo.
+        Newsgame_Shortcodes::limpar_cache_paginas( $instance_id );
 
         $mudou = $destino !== $original;
         wp_send_json_success( array(
@@ -524,6 +532,11 @@ class Newsgame_Review {
             );
         }
 
+        // Uma limpeza só, no fim do lote (aprovação e pesos), e só se algo foi aprovado.
+        if ( $updated ) {
+            Newsgame_Shortcodes::limpar_cache_paginas( $instance_id );
+        }
+
         wp_send_json_success( array(
             'msg'     => $sem_peso > 0
                 ? 'Aprovadas, mas com pendência de pesos.'
@@ -583,6 +596,9 @@ class Newsgame_Review {
         if ( false === $wpdb->query( 'COMMIT' ) ) {
             self::abortar_limpeza( 'a confirmação da transação' );
         }
+
+        // Sem perguntas aprovadas, o jogo deixa de existir na página.
+        Newsgame_Shortcodes::limpar_cache_paginas( $instance_id );
 
         wp_send_json_success( array(
             'msg'     => 'Todas as perguntas foram removidas.',
